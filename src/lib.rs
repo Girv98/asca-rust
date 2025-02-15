@@ -137,29 +137,36 @@ impl Default for RuleGroup {
 }
 
 
-// We are only normalising a few characters as most would be invalid anyway.
+// We are currently only normalising a few characters as most would be invalid anyway.
 pub(crate) fn normalise(s: &str) -> String {
-    s.replace('ã', "ã")
-     .replace('ẽ', "ẽ")
-     .replace('ĩ', "ĩ")
-     .replace('õ', "õ")
-     .replace('ũ', "ũ")
-     .replace('ỹ', "ỹ")
-     .replace('ℇ', "ɛ")
-     .replace('ꭤ', "ɑ")
-     .replace('ǝ', "ə")
-     .replace('ɚ', "ə˞")
-     .replace('ɝ', "ɜ˞")
-     // cause why not?
-     .replace('ℎ', "h")
-     .replace('ℏ', "ħ")
-     .replace('ﬁ', "fi")
-     .replace('ﬂ', "fl")
-     .replace('ĳ', "ij")
-     .replace('ǌ', "nj")
-     .replace('ǉ', "lj")
-     // .replace('ǳ', "d͡z")
-     // .replace('ǆ', "d͡ʒ")
+    let mut output = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            'ã' => output.push_str("ã"),
+            'ẽ' => output.push_str("ẽ"),
+            'ĩ' => output.push_str("ĩ"),
+            'õ' => output.push_str("õ"),
+            'ũ' => output.push_str("ũ"),
+            'ỹ' => output.push_str("ỹ"),
+            'ℇ' => output.push_str("ɛ"),
+            'ꭤ' => output.push_str("ɑ"),
+            'ǝ' => output.push_str("ə"),
+            'ɚ' => output.push_str("ə˞"),
+            'ɝ' => output.push_str("ɜ˞"),
+            'ℎ' => output.push_str("h"),
+            'ℏ' => output.push_str("ħ"),
+            // 'ﬁ' => output.push_str("fi"),
+            // 'ﬂ' => output.push_str("fl"),
+            // 'ĳ' => output.push_str("ij"),
+            // 'ǌ' => output.push_str("nj"),
+            // 'ǉ' => output.push_str("lj"),
+            _ => {
+                output.push(ch);
+            }
+        }
+    }
+
+    output
 }
 
 fn apply_rule_groups(rules: &[Vec<Rule>], words: &[Word]) -> Result<Vec<Word>, Error> {
@@ -211,15 +218,15 @@ fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>
     Ok(rule_groups)
 }
 
-fn parse_aliases(_into: &[String], _from: &[String]) -> Result<(Vec<Transformation>, Vec<Transformation>), Error> {
-    let mut into_parsed = vec![];
-    for (line, alias) in _into.iter().enumerate() {
-        into_parsed.append(&mut AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+fn parse_aliases(into: &[String], from: &[String]) -> Result<(Vec<Transformation>, Vec<Transformation>), Error> {
+    let mut into_parsed = Vec::with_capacity(into.len());
+    for (line, alias) in into.iter().enumerate() {
+        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
     }
     
-    let mut from_parsed = vec![];
-    for (line, alias) in _from.iter().enumerate() {
-        from_parsed.append(&mut AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+    let mut from_parsed = Vec::with_capacity(from.len());
+    for (line, alias) in from.iter().enumerate() {
+        from_parsed.extend(AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
     }
 
     Ok((into_parsed, from_parsed))
