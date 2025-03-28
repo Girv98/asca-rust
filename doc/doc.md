@@ -361,7 +361,18 @@ Spanish Hyperthesis (Old Spanish parabla => Spanish palabra)
 r...l > &
 ```
 
-Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule.
+Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule. 
+
+<!-- TODO: We can achieve both long-range and short-range metathesis by using `([],0)` (see [optionals](#optional-segments)) in place of the ellipsis. This denotes matching 'zero or more' segments.
+
+```
+r ([],0) l > &
+
+parabla => palabra
+arla > alra
+
+
+``` -->
 
 ### Condensed Rules
 Multiple rules can be condensed into one line. This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments.
@@ -671,11 +682,13 @@ For example, ```(C,5)_```  matches up to 5 consonants preceding the target. This
 
 `(C,3:5)` matches `CCC_`, `CCCC_`, and `CCCCC_`.
 
-`(C,0)_` matches any number of consonants preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator (*?)
+`(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator (*?)
 
 `(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_` or `(C,0:1)_`
 
-`([])_` matches zero or one of *any* segment preceding the target.
+`([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard (.?)
+
+`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard (.*?)
 
 ## Alpha Notation
 
@@ -717,7 +730,7 @@ When an alpha first assigned to a node is used on a binary feature, it is coerce
 Random Example: 
 
 P:[α DOR] > [α round]
-(Any dorsal plosive becomes +round, any non-dorsal plosive becomes -round )
+(Any dorsal plosive becomes +round, any non-dorsal plosive becomes -round)
 ```
 
 ### Inversion
@@ -741,7 +754,7 @@ This can be used with nodes for conditional clustering:
 In the rule above, plosives and nasals cluster only if they are of a different place of articulation.
 
 ## Variables
-Variables allow us to invoke a previously matched element. Variables are declared by using the `=` operator, followed by a number. This number can then be used later in the rule to invoke the variable.
+Variables allow us to invoke the value of a previously matched element. Variables are declared by using the `=` operator, followed by a number. This number can then be used later in the rule to invoke the variable.
 Currently; matrices, groups, and syllables can be assigned to a variable.
 
 Using variables, we can implement metathesis without need of the `&` operator.
@@ -775,7 +788,7 @@ Example: Latin Stress Rule using Structures
 ⟨...VC⟩ > [+stress] / _%#       (A penult syllable ending with a consonant becomes stressed)
 % > [+stress] / _ %:[-str]%#    (If the penult is unstressed, the antepenult becomes stressed)
 
-(Like the other Latin stress example, rules 2 and 3 can be condensed)
+(Like the previous Latin stress example, rules 2 and 3 can be condensed)
 (But slightly differently)
 
 ⟨...V[+long]⟩, ⟨...VC⟩ > [+stress] / _%#
@@ -785,7 +798,7 @@ Structures can also be used to insert whole syllables
 ```
 Example: Expletive infixation
 
-* > ⟨blu:⟩:[+sec.stress] ⟨mɪn⟩ / %_%:[+stress] (absolutely => abso-bloomin'-lutely)
+* > ⟨blʉw⟩:[+sec.stress] ⟨mɪn⟩ / %_%:[+stress] (absolutely => abso-bloomin'-lutely)
 ```
 
 ```
@@ -799,24 +812,54 @@ Example: Conditional Reduplication
 ## Propagation 
 As ASCA changes all matching environments in a word sequentially, left-to-right harmonies naturally propagate.
 
-
 ```
-V > [α front, β back] > V:[α front, β back]C_	
+Example: Left-to-Right Vowel Backness Harmony
+
+V > [α front, β back] > V:[α front, β back]C_ (Vowels assimilate in backness to that of the preceding vowel) 
+
 /sinotehu/ becomes /sinøtehy/, not /sinøtɤhy/
 ```
 
-To achieve right-to-left propagation, … must be used and the harmonic “trigger” must be fixed (i.e. a vowel at the word boundary). 
+To achieve right-to-left propagation, we can use a fixed harmonic trigger (this also works for left-to-right propagation) in this case, the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
 ```
 V > [α front, β back] / _CV:[α front, β back]
-/sinotehu/ becomes /sɯnøtɤhu/, note no propagation
+/sinotehu/ becomes /sɯnøtɤhu/, no propagation
 
 V > [α front, β back] / _...V:[α front, β back]#
 /sinotehu/ becomes /sɯnotɤhu/, as expected
 ```
 
-For left-to-right propagation, it may be stylistically justified to do the same, but it will not affect the result.
+This works for the above example, where there is at least one non-matching segment between the trigger and the last matching segment. However, if the /h/ were not present, the /e/ would not assimilate. This is because `...` matches *at least* one segment. Using the special zero-or-more [optional](#optional-segments) `([],0)` in its place, we can match in the case of zero intermediate segments as well.
 
+```
+V > [α front, β back] / _...V:[α front, β back]#
+/sinoteu/ becomes /sɯnoteu/
+
+V > [α front, β back] / _ ([],0) V:[α front, β back]#
+/sinoteu/ becomes /sɯnotɤu/
+```
+
+### Blocking
+
+We can modify the above rule with an exception clause to state that plosives block this harmony. So that, in this example, the /t/ will block the first vowel /i/ from assimilating:
+
+```
+V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) P ([],0) V:[α front, β back]#
+
+/sinotehu/ becomes /sinotɤhu/
+```
+
+Blocking can also be achieved in non-explicit ways:
+
+```
+Example: Regressive Nasal Vowel-Consonant Harmony that is blocked by obstruents and is transparent through sonorants
+
+V > [+nasal] / _ ([+son],0) [+nasal]
+
+/amakan/ becomes /ãmakãn/
+/palanawasan/ becomes /pãlãnawasãn/
+```
 
 ## Considerations
 
