@@ -1,3 +1,12 @@
+0.5.1
+==================
+
+Fixes:
+* Alphas and Variables used after an ellipsis or an optional work as intended
+
+Performance:
+* Better unicode normalisation (thanks to [@j624364](https://github.com/j624364))
+
 0.5.0
 ==================
 Features:
