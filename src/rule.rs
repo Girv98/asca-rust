@@ -1433,6 +1433,13 @@ mod rule_tests {
 
         let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) s ([],0) V:[α front, β back]#");
         assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]), "si.no.te.sɤ.hu");
+
+        // // Nasal harmony with blocking 
+        // let test_rule = setup_rule("V > [+nasal] / _ ([],0) [+nasal]=1 | _ ([],0) O ([],0) 1");
+        // assert_eq!(test_rule.apply(setup_word("makan")).unwrap().render(&[]), "makãn");
+        // assert_eq!(test_rule.apply(setup_word("pananawasa")).unwrap().render(&[]), "pãnãnawasa");
+        // assert_eq!(test_rule.apply(setup_word("pananawasan")).unwrap().render(&[]), "pãnãnawasãn");
+
     }
 
     #[test]
