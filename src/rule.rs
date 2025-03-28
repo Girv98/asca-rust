@@ -21,7 +21,7 @@ pub(crate) enum RuleType {
     Insertion,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct PlaceMod {
     pub(crate) lab: Option<u8>,
     pub(crate) cor: Option<u8>,
@@ -35,7 +35,7 @@ impl PlaceMod {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Alpha {
     Node(NodeKind, Option<u8>),
     Place(PlaceMod),
@@ -1418,9 +1418,21 @@ mod rule_tests {
 
         // V > [α front, β back] / _...V:[α front, β back]#
         // /sinotehu/ becomes /sɯnotɤhu/, as expected
-
-        let test_rule = setup_rule("V > [α front, β back] / _...V:[α front, β back]#");
+        
+        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]#");
         assert_eq!(test_rule.apply(setup_word("si.no.te.hu")).unwrap().render(&[]), "sɯ.no.tɤ.hu");
+        assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]), "sɯ.no.tɤ.sɤ.hu");
+
+        // blocking
+        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) P ([],0) V:[α front, β back]#");
+        assert_eq!(test_rule.apply(setup_word("si.no.te.hu")).unwrap().render(&[]), "si.no.tɤ.hu");
+        assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]), "si.no.tɤ.sɤ.hu");
+
+        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) h ([],0) V:[α front, β back]#");
+        assert_eq!(test_rule.apply(setup_word("si.no.te.hu")).unwrap().render(&[]), "si.no.te.hu");
+
+        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) s ([],0) V:[α front, β back]#");
+        assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]), "si.no.te.sɤ.hu");
     }
 
     #[test]

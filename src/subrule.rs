@@ -39,7 +39,7 @@ impl MatchElement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum VarKind {
     Segment(Segment),
     Syllable(Syllable)
@@ -338,7 +338,9 @@ impl SubRule {
         while pos.syll_index == syll_index {
             let back_pos = *pos;
             let back_index = *index;
-
+            let back_alphas = self.alphas.borrow().clone();
+            let back_varlbs = self.variables.borrow().clone();
+            
             let mut m = true;
             while *index < items.len() {
                 if pos.syll_index != syll_index {
@@ -373,6 +375,8 @@ impl SubRule {
             }
             *index = back_index;
             *pos = back_pos;
+            *self.alphas.borrow_mut() = back_alphas;
+            *self.variables.borrow_mut() = back_varlbs;
             pos.increment(word);
         }
 
@@ -390,6 +394,8 @@ impl SubRule {
         while word.in_bounds(*pos) {
             let back_pos = *pos;
             let back_state = *state_index;
+            let back_alphas = self.alphas.borrow().clone();
+            let back_varlbs = self.variables.borrow().clone();
 
             let mut m = true;
             while *state_index < states.len() {
@@ -404,6 +410,8 @@ impl SubRule {
             }
             *state_index = back_state;
             *pos = back_pos;
+            *self.alphas.borrow_mut() = back_alphas;
+            *self.variables.borrow_mut() = back_varlbs;
             pos.increment(word);
         }
         
@@ -425,24 +433,25 @@ impl SubRule {
         // should work like regex (...){min, max}? 
         let match_max = if match_max == 0 { None } else { Some(match_max) };
         let back_pos = *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
         
         let mut index = 0;
         while index < match_min {
             if !self.match_opt_states(opt_states, word, pos, forwards)? {
                 *pos = back_pos;
+                *self.alphas.borrow_mut() = back_alphas;
+                *self.variables.borrow_mut() = back_varlbs;
                 return Ok(false)
-
             }
-            // if word.out_of_bounds(*pos) {
-            //     *pos = back_pos;
-            //     return Ok(false)
-            // }
             index += 1;
         }
 
         *state_index +=1;
         let back_state = *state_index;
         let back_pos = *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
 
         let mut m = true;
         while *state_index < states.len() {
@@ -458,6 +467,8 @@ impl SubRule {
 
         *pos = back_pos;
         *state_index = back_state;
+        *self.alphas.borrow_mut() = back_alphas.clone();
+        *self.variables.borrow_mut() = back_varlbs.clone();
         
         let max = match_max.unwrap_or(usize::MAX);
         while index < max {
@@ -474,7 +485,9 @@ impl SubRule {
                 if m {
                     return Ok(true)
                 } else {
-                    index +=1;
+                    index += 1;
+                    *self.alphas.borrow_mut() = back_alphas.clone();
+                    *self.variables.borrow_mut() = back_varlbs.clone();
                     continue;
                 }
             } else {
@@ -486,6 +499,9 @@ impl SubRule {
 
     fn context_match_set(&self, set: &[Item], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         let back_pos= *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
+        
         for s in set {
             let res = match &s.kind {
                 ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, s.position),
@@ -503,6 +519,9 @@ impl SubRule {
                 return Ok(true)
             }
             *pos = back_pos;
+            // TODO: Deal with these clones
+            *self.alphas.borrow_mut() = back_alphas.clone();
+            *self.variables.borrow_mut() = back_varlbs.clone();
         }
         Ok(false)
     }
@@ -2122,6 +2141,8 @@ impl SubRule {
         while word.in_bounds(*pos) {
             let back_pos = *pos;
             let back_state = *state_index;
+            let back_alphas = self.alphas.borrow().clone();
+            let back_varlbs = self.variables.borrow().clone();
 
             let mut m = true;
             while *state_index < states.len() {
@@ -2136,6 +2157,8 @@ impl SubRule {
             }
             *state_index = back_state;
             *pos = back_pos;
+            *self.alphas.borrow_mut() = back_alphas;
+            *self.variables.borrow_mut() = back_varlbs;
             pos.increment(word);
         }
         
@@ -2328,6 +2351,9 @@ impl SubRule {
 
     fn input_match_set(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, set: &[Item], word: &Word, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         let back_pos = *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
+
         for (i,s) in set.iter().enumerate() {
             let res = match &s.kind {
                 ParseElement::Variable(vt, mods) => self.input_match_var(captures, state_index, vt, mods, word, pos, s.position),
@@ -2352,6 +2378,9 @@ impl SubRule {
                 return Ok(true)
             }
             *pos = back_pos;
+            // TODO: Deal with these clones
+            *self.alphas.borrow_mut() = back_alphas.clone();
+            *self.variables.borrow_mut() = back_varlbs.clone();
         }
         Ok(false)
     }
