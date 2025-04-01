@@ -748,7 +748,7 @@ impl Word {
                     if let AliasParseElement::Segments(segments) = &alias.input.kind {
                         let back_pos = j;
                         let mut is_match = true;
-                        // for (segment, modifiers) in segments {
+                        let mut plus_match_len = false;
                         for segtype in segments {
                             if j >= syll.segments.len() {
                                 is_match = false; break;
@@ -770,7 +770,7 @@ impl Word {
                                 SegType::Matrix(modifiers) => {
                                     let (m, maybe_len, maybe_tone) = self.alias_match_modifiers(i, j, modifiers);
                                     if !m { is_match = false; break; }
-                                    if let Some(len) = maybe_len { j+=len; } else { j+=1; }
+                                    if let Some(len) = maybe_len { j+=len; plus_match_len = true; } else { j+=1; }
                                     if maybe_tone { strip_tone = true; }
                                 },
                             }
@@ -779,8 +779,12 @@ impl Word {
                             match &alias.output.kind {
                                 AliasParseElement::Replacement(repl, plus) => {
                                     if *plus {
-                                        for ind in back_pos..j {
-                                            buffer.push_str(&syll.segments[ind].get_nearest_grapheme());
+                                        if !plus_match_len {
+                                            for ind in back_pos..j {
+                                                buffer.push_str(&syll.segments[ind].get_nearest_grapheme());
+                                            }
+                                        } else {
+                                            buffer.push_str(&syll.segments[j-1].get_nearest_grapheme());
                                         }
                                     } 
                                     buffer.push_str(repl);
@@ -1108,6 +1112,15 @@ mod word_tests {
     fn test_romanisation_group_with_unicode_plus() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"V:[+str], $ > +@{acute}, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
         match Word::new(normalise("'ka.ta"), &[]) {
+            Ok(w) => assert_eq!(w.render(&t), "káta"),
+            Err(e) => {
+                println!("{}", e.format_word_error(&[]));
+                assert!(false);
+            }
+        }
+
+        let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"V:[+str,+long], $ > +@{acute}, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
+        match Word::new(normalise("'ka:.ta"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "káta"),
             Err(e) => {
                 println!("{}", e.format_word_error(&[]));
