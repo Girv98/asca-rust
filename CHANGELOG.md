@@ -1,3 +1,11 @@
+0.5.2
+==================
+Features:
+* Lib: Environments can now be grouped so they can be checked all at once, similarly to a set ([see documentation](doc/doc.md#environment-sets))
+
+Fixes:
+* Aliases: Segments will no longer by double printed when using the `+` operator on a `+long` matrix
+
 0.5.1
 ==================
 
