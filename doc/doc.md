@@ -24,6 +24,7 @@
     * [Tone](#tone-1)
 * [Groupings](#groupings)
 * [Sets](#sets)
+* [Environment Sets](#environment-sets)
 * [Gemination](#gemination)
 * [Optional Segments](#optional-segments)
 * [Alpha Notation](#alpha-notation)
@@ -647,6 +648,35 @@ A set in the output, if matched to a set in the input, must contain the same num
 {p, t} > {b, d, g}      (ERROR)
 ```
 A set in the input or output cannot contain word boundaries.
+
+## Environment Sets
+
+It can be necessary to check for multiple environmental matches in a single pass.
+This is especially true of exception clauses or in some cases, propagation. 
+For example, in the English 'Great Vowel Shift', /uː/ does not shift if it is followed by a labial consonant, or preceded by /j/.
+Representing this normally would be rather tricky as, in this case, consecutive environments would override each other:
+
+```
+u:[+long] => əw | _C:[+lab], j_
+
+duːt => dəwt, suːp => səwp, juːθ => jəwθ (does not work!)
+```
+
+This is fixed by placing the two environments inside an environment set, which is delimited with `:{` and `}:` (Note: this is not the same as a regular set, which is delimited by `{` and `}`, though regular sets are valid inside an environment set).
+
+```
+u:[+long] => əw | :{ _C:[+lab], j_ }:
+
+(/u:/ becomes /əw/ everywhere except after /j/ or before a labial consonant)
+
+duːt => dəwt (doubt)
+suːp => suːp (soup)
+juːθ => juːθ (youth)
+```
+
+These sets can be used as part of condensed rules, and are valid in substitution, deletion, and metathesis rules.
+They are currently not allowed in insertion rules, however this will change in further updates.
+
 
 ## Gemination
 Syllable final consonant gemination is as simple as making a vowel long.
