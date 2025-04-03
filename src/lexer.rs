@@ -193,6 +193,8 @@ pub(crate) enum TokenKind {
     LeftAngle,        // ⟨
     LeftBracket,      // (
     RightBracket,     // )
+    LeftColCurly,     // :{
+    RightColCurly,    // }:
     // LessThan,         // <
     GreaterThan,      // >
     Equals,           // =
@@ -232,37 +234,39 @@ impl Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         
         match self {
-            TokenKind::LeftSquare   => write!(f, "LSquare"),
-            TokenKind::RightSquare  => write!(f, "RSquare"),
-            TokenKind::LeftCurly    => write!(f, "LCurly"),
-            TokenKind::RightCurly   => write!(f, "RCurly"),
-            TokenKind::LeftAngle    => write!(f, "LAngle"),
-            TokenKind::RightAngle   => write!(f, "RAngle"),
-            TokenKind::LeftBracket  => write!(f, "LBrack"),
-            TokenKind::RightBracket => write!(f, "RBrack"),
-            // TokenKind::LessThan     => write!(f, "LT"),
-            TokenKind::GreaterThan  => write!(f, "GT"),
-            TokenKind::Equals       => write!(f, "Eq"),
-            TokenKind::Underline    => write!(f, "UL"),
-            TokenKind::Arrow        => write!(f, "Arrow"),
-            TokenKind::Comma        => write!(f, "Comma"),
-            TokenKind::Colon        => write!(f, "Colon"),
-            TokenKind::WordBoundary => write!(f, "WBound"),
-            TokenKind::SyllBoundary => write!(f, "SBound"),
-            TokenKind::Syllable     => write!(f, "Syll"),
-            TokenKind::Ampersand    => write!(f, "Amper"),
-            TokenKind::Group        => write!(f, "Prim"),
-            TokenKind::Number       => write!(f, "Num"),
-            TokenKind::Slash        => write!(f, "Slash"),
-            TokenKind::DubSlash     => write!(f, "DoubleSlash"),
-            TokenKind::Pipe         => write!(f, "Pipe"),
-            TokenKind::Cardinal     => write!(f, "Cardinal"),
-            TokenKind::Diacritic(_) => write!(f, "Diacritic"),
-            TokenKind::Star         => write!(f, "Star"),
-            TokenKind::EmptySet     => write!(f, "Empty"),
-            TokenKind::Ellipsis     => write!(f, "Ellipsis"),
-            TokenKind::Feature(x)   => write!(f, "{x}"),
-            TokenKind::Eol          => write!(f, "End of Line"),
+            TokenKind::LeftSquare    => write!(f, "LSquare"),
+            TokenKind::RightSquare   => write!(f, "RSquare"),
+            TokenKind::LeftCurly     => write!(f, "LCurly"),
+            TokenKind::RightCurly    => write!(f, "RCurly"),
+            TokenKind::LeftAngle     => write!(f, "LAngle"),
+            TokenKind::RightAngle    => write!(f, "RAngle"),
+            TokenKind::LeftBracket   => write!(f, "LBrack"),
+            TokenKind::RightBracket  => write!(f, "RBrack"),
+            TokenKind::LeftColCurly  => write!(f, "LCCurly"),
+            TokenKind::RightColCurly => write!(f, "RCCurly"),
+            // TokenKind::LessThan      => write!(f, "LT"),
+            TokenKind::GreaterThan   => write!(f, "GT"),
+            TokenKind::Equals        => write!(f, "Eq"),
+            TokenKind::Underline     => write!(f, "UL"),
+            TokenKind::Arrow         => write!(f, "Arrow"),
+            TokenKind::Comma         => write!(f, "Comma"),
+            TokenKind::Colon         => write!(f, "Colon"),
+            TokenKind::WordBoundary  => write!(f, "WBound"),
+            TokenKind::SyllBoundary  => write!(f, "SBound"),
+            TokenKind::Syllable      => write!(f, "Syll"),
+            TokenKind::Ampersand     => write!(f, "Amper"),
+            TokenKind::Group         => write!(f, "Prim"),
+            TokenKind::Number        => write!(f, "Num"),
+            TokenKind::Slash         => write!(f, "Slash"),
+            TokenKind::DubSlash      => write!(f, "DoubleSlash"),
+            TokenKind::Pipe          => write!(f, "Pipe"),
+            TokenKind::Cardinal      => write!(f, "Cardinal"),
+            TokenKind::Diacritic(_)  => write!(f, "Diacritic"),
+            TokenKind::Star          => write!(f, "Star"),
+            TokenKind::EmptySet      => write!(f, "Empty"),
+            TokenKind::Ellipsis      => write!(f, "Ellipsis"),
+            TokenKind::Feature(x)    => write!(f, "{x}"),
+            TokenKind::Eol           => write!(f, "End of Line"),
         }
     }
 }
@@ -322,11 +326,12 @@ pub(crate) struct Lexer<'a> {
     inside_option: bool,
     inside_syll: bool,
     inside_set: bool,
+    inside_env_set: bool
 }
 
 impl<'a> Lexer<'a> {
     pub(crate) fn new(source: &'a [char], group: usize, line: usize) -> Self {
-        Self { source, group, line, pos: 0, inside_matrix: false , inside_option: false, inside_syll: false, inside_set: false}
+        Self { source, group, line, pos: 0, inside_matrix: false , inside_option: false, inside_syll: false, inside_set: false, inside_env_set: false}
     }
 
     fn has_more_chars(&self) -> bool { !self.source.is_empty() }
@@ -381,8 +386,11 @@ impl<'a> Lexer<'a> {
         match self.curr_char() {
             ')' => { tokenkind = TokenKind::RightBracket; value = ")"; self.inside_option = false },
             ']' => { tokenkind = TokenKind::RightSquare;  value = "]"; self.inside_matrix = false },
-            '}' => { tokenkind = TokenKind::RightCurly;   value = "}"; self.inside_set    = false },
             '⟩' => { tokenkind = TokenKind::RightAngle;   value = "⟩"; self.inside_syll   = false },
+            '}' => match self.next_char() {
+                ':' => { tokenkind = TokenKind::RightColCurly; value = "}:"; self.inside_env_set = false; self.advance(); },
+                 _  => { tokenkind = TokenKind::RightCurly;    value = "}";  self.inside_set = false; }
+            },
             '⟨' => { 
                 if self.inside_syll {
                     return Err(RuleSyntaxError::NestedBrackets(self.group, self.line, start));
@@ -482,7 +490,6 @@ impl<'a> Lexer<'a> {
         
         let value = match self.curr_char() {
             ',' => { tokenkind = TokenKind::Comma;        self.chop(1) },
-            ':' => { tokenkind = TokenKind::Colon;        self.chop(1) },
             '#' => { tokenkind = TokenKind::WordBoundary; self.chop(1) },
             '$' => { tokenkind = TokenKind::SyllBoundary; self.chop(1) },
             '%' => { tokenkind = TokenKind::Syllable;     self.chop(1) },
@@ -490,6 +497,18 @@ impl<'a> Lexer<'a> {
             '∅' => { tokenkind = TokenKind::EmptySet;     self.chop(1) },
             '&' => { tokenkind = TokenKind::Ampersand;    self.chop(1) },
             '_' => { tokenkind = TokenKind::Underline;    self.chop(1) },
+            ':' => match self.next_char() { 
+                '{' => { 
+                    if self.inside_env_set {
+                        return Err(RuleSyntaxError::NestedBrackets(self.group, self.line, start));
+                    }
+
+                    tokenkind = TokenKind::LeftColCurly;
+                    self.inside_env_set = true;
+                    self.chop(2) 
+                },
+                 _  => { tokenkind = TokenKind::Colon;        self.chop(1) }
+            },
             '<' => { 
                 if self.inside_syll {
                     return Err(RuleSyntaxError::NestedBrackets(self.group, self.line, start));
@@ -986,6 +1005,37 @@ mod lexer_tests {
             Token::new(TokenKind::DubSlash,   "//", 0, 0, 19, 21),
             Token::new(TokenKind::Underline,   "_", 0, 0, 22, 23),
             Token::new(TokenKind::Eol,          "", 0, 0, 23, 24),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn test_brackets() {
+        let test_input= String::from("{C,V} > [] / :{ j_{} }:");
+        let expected_result = vec![
+            Token::new(TokenKind::LeftCurly,      "{", 0, 0,  0,  1),
+            Token::new(TokenKind::Group,          "C", 0, 0,  1,  2),
+            Token::new(TokenKind::Comma,          ",", 0, 0,  2,  3),
+            Token::new(TokenKind::Group,          "V", 0, 0,  3,  4),
+            Token::new(TokenKind::RightCurly,     "}", 0, 0,  4,  5),
+            Token::new(TokenKind::GreaterThan,    ">", 0, 0,  6,  7),
+            Token::new(TokenKind::LeftSquare,     "[", 0, 0,  8,  9),
+            Token::new(TokenKind::RightSquare,    "]", 0, 0,  9, 10),
+            Token::new(TokenKind::Slash,          "/", 0, 0, 11, 12),
+            Token::new(TokenKind::LeftColCurly,  ":{", 0, 0, 13, 15),
+            Token::new(TokenKind::Cardinal,       "j", 0, 0, 16, 17),
+            Token::new(TokenKind::Underline,      "_", 0, 0, 17, 18),
+            Token::new(TokenKind::LeftCurly,      "{", 0, 0, 18, 19),
+            Token::new(TokenKind::RightCurly,     "}", 0, 0, 19, 20),
+            Token::new(TokenKind::RightColCurly, "}:", 0, 0, 21, 23),
+            Token::new(TokenKind::Eol,             "", 0, 0, 23, 24),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        

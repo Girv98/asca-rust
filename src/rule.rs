@@ -1842,4 +1842,29 @@ mod rule_tests {
         let test_rule = setup_rule("* > ⟨blu⟩:[+sec.stress] ⟨mɪn⟩ / %_%:[+stress]");
         assert_eq!(test_rule.apply(setup_word("ˌab.soˈlut.ly")).unwrap().render(&[]), "ˌab.soˌblu.mɪnˈlut.ly");
     }
+
+    #[test]
+    fn test_grouped_env() {
+        let test_rule = setup_rule("V:[+long, +hi, +rnd]=1 => ə 1:[-long,-tens,-syll] | :{ _C:[+lab], j_ }:");
+        assert_eq!(test_rule.apply(setup_word("su:p")).unwrap().render(&[]), "suːp");
+        assert_eq!(test_rule.apply(setup_word("ju:")).unwrap().render(&[]), "juː");
+        assert_eq!(test_rule.apply(setup_word("ju:p")).unwrap().render(&[]), "juːp");
+        assert_eq!(test_rule.apply(setup_word("bu:t")).unwrap().render(&[]), "bəwt");
+
+        let test_rule = setup_rule("a => e / :{ _C:[+lab], j_ }:");
+        assert_eq!(test_rule.apply(setup_word("sap")).unwrap().render(&[]), "sep");
+        assert_eq!(test_rule.apply(setup_word("jap")).unwrap().render(&[]), "jep");
+        assert_eq!(test_rule.apply(setup_word("jal")).unwrap().render(&[]), "jel");
+        assert_eq!(test_rule.apply(setup_word("sal")).unwrap().render(&[]), "sal");
+
+        let test_rule = setup_rule("a => e | :{ _ }:");
+        assert_eq!(test_rule.apply(setup_word("sap")).unwrap().render(&[]), "sap");
+        assert_eq!(test_rule.apply(setup_word("jap")).unwrap().render(&[]), "jap");
+        assert_eq!(test_rule.apply(setup_word("jal")).unwrap().render(&[]), "jal");
+        assert_eq!(test_rule.apply(setup_word("sal")).unwrap().render(&[]), "sal");
+
+        let test_rule = setup_rule("a => e / :{ _{p,t,k}, _{b,d,g} }:");
+        assert_eq!(test_rule.apply(setup_word("satad")).unwrap().render(&[]), "seted");
+        assert_eq!(test_rule.apply(setup_word("salad")).unwrap().render(&[]), "saled");
+    }
 }

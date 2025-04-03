@@ -1,7 +1,7 @@
 ``` peg
 RULE    ←   INP ARR OUT ('/' ENV)? (PIPE ENV)? EOL          // NOTE: INP_TRM cannot be EMP when corresponding OUT_TRM is (MET / EMP) 
 
-INP     ←   INP_TRM  ( ',' INP_TRM )*                       //
+INP     ←   INP_TRM ( ',' INP_TRM )*                        //
 INP_TRM ←   EMP / INP_EL+                                   //
 INP_EL  ←   ELLIPSS / SBOUND / TERM                         //
 
@@ -9,10 +9,12 @@ OUT     ←   OUT_TRM  ( ',' OUT_TRM )*                       //
 OUT_TRM ←   MET / EMP / OUT_EL+                             //
 OUT_EL  ←   SYL / STRUCT / SET / SEG / VAR / SBOUND         // NOTE: 'SET' here only makes sense if it corresponds to a SET in INP
 
-ENV     ←   ENV_SPC / ENV_TRM  (',' ENV_TRM)*               // e.g. _,# ==> #_ , _#
+ENV     ←   ENV_SPC / ENV_SET (',' ENV_SET)* 
+ENV_SET ←   ':{' ENV_TRS '}:' / ENV_TRS                     // i.e. :{ ... }:
+ENV_TRS ←   ENV_TRM (',' ENV_TRM)*
 ENV_TRM ←   ('WBOUND')? ENV_ELS? '_' ENV_ELS? ('WBOUND')?   //
 ENV_ELS ←   ( SBOUND / ELLIPSS / OPT / TERM )+              //
-ENV_SPC ←   '_' ',' ENV_EL                                  //
+ENV_SPC ←   '_' ',' ENV_ELS                                 // e.g. _,# ==> #_ , _#
 
 TERM    ←   SYL / STRUCT / SET / SEG / VAR                  //
 SYL     ←   '%' (':' PARAMS)? VAR_ASN?                      //
@@ -38,7 +40,7 @@ MET     ←   '&'                                             //
 BOUND	←   WBOUND / SBOUND                                 //
 WBOUND  ←   '#'                                             //
 SBOUND  ←   '$'                                             //
-ELLIPSS ←   '...' / '..' / …                                //
+ELLIPSS ←   '...' / '..' / '…'                              //
 ARR     ←   ('='/'-')? '>'                                  //
 PIPE    ←   '|' / '//'                                      //
 

@@ -69,6 +69,7 @@ pub enum RuleRuntimeError {
     WordBoundSetLocError(Position),
     SubstitutionEllipsis(Position),
     SyllVarInsideStruct (Position),
+    InsertionGroupedEnv (Position),
     AlphaNodeAssignInv  (Position),
     OverlongPosLongNeg  (Position),
     AlphaIsNotSameNode  (Position),
@@ -111,6 +112,7 @@ impl ASCAError for RuleRuntimeError {
             Self::WordBoundSetLocError(_) => "Word Boundaries cannot be in the input or output".to_string(),
             Self::SubstitutionEllipsis(_) => "An ellipsis cannot be substituted".to_string(),
             Self::SyllVarInsideStruct (_) => "Variables assigned to syllables cannot be used inside a structure".to_string(),
+            Self::InsertionGroupedEnv (_) => "Grouped Environments cannot (yet) be used in insertion rules".to_string(),
             Self::AlphaNodeAssignInv  (_) => "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive.".to_string(),
             Self::OverlongPosLongNeg  (_) => "A segment cannot be both [+overlong] and [-long]".to_string(),
             Self::AlphaIsNotSameNode  (_) => "Node alphas must only be used on the same node.".to_string(),
@@ -149,6 +151,7 @@ impl ASCAError for RuleRuntimeError {
             Self::WordBoundSetLocError(pos) |
             Self::SubstitutionEllipsis(pos) |
             Self::SyllVarInsideStruct (pos) |
+            Self::InsertionGroupedEnv (pos) |
             Self::AlphaNodeAssignInv  (pos) |
             Self::OverlongPosLongNeg  (pos) |
             Self::AlphaIsNotSameNode  (pos) |

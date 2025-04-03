@@ -58,24 +58,24 @@ pub(crate) struct SubRule {
 
 impl SubRule {
 
-    fn get_context(&self) -> Option<(&Vec<Item>, &Vec<Item>)> {
+    fn get_contexts(&self) -> Vec<(&Vec<Item>, &Vec<Item>)> {
         match &self.context {
             Some(x) => match &x.kind {
-                ParseElement::Environment(b, a) => Some((b, a)),
+                ParseElement::Environment(env) => env.iter().map(|e| (&e.before, &e.after)).collect(),
                 _ => unreachable!()
             },
-            None => None,
+            None => vec![],
         }
     }
 
-    fn get_exceptions(&self) -> Option<(&Vec<Item>, &Vec<Item>)> {
+    fn get_exceptions(&self) -> Vec<(&Vec<Item>, &Vec<Item>)> {
         // static EMPTY_ENV: Vec<Item> = Vec::new();
         match &self.except {
             Some(x) => match &x.kind {
-                ParseElement::Environment(b, a) => Some((b, a)),
+                ParseElement::Environment(env) => env.iter().map(|e| (&e.before, &e.after)).collect(),
                 _ => unreachable!()
             },
-            None => None,
+            None => vec![],
         }
     }
 
@@ -123,7 +123,7 @@ impl SubRule {
                     },
                     MatchElement::Syllable(s, _)  => SegPos::new(s, word.syllables[s].segments.len()-1),
                 };
-                if !self.match_before_context_and_exception(&word, start)? || !self.match_after_context_and_exception(&word, end, true)? {
+                if !self.match_contexts_and_exceptions(&word, start, end, true)? {
                     if let Some(ci) = next_index { 
                         cur_index = ci;
                         continue;
@@ -191,40 +191,53 @@ impl SubRule {
         Ok(is_match)
     }
 
-    fn match_before_context_and_exception(&self, word: &Word, pos: SegPos) -> Result<bool, RuleRuntimeError> {
-        let empty = Vec::new();
-
-        let (cont_states, _) = self.get_context().unwrap_or((&empty, &empty));
-        let (expt_states, _) = self.get_exceptions().unwrap_or((&empty, &empty));
-
-        if cont_states.is_empty() && expt_states.is_empty() {
+    fn match_contexts_and_exceptions(&self, word: &Word, start_pos: SegPos, end_pos: SegPos, inc: bool) -> Result<bool, RuleRuntimeError> {
+        let contexts = self.get_contexts();
+        let exceptions = self.get_exceptions();
+        if contexts.is_empty() && exceptions.is_empty() {
             return Ok(true)
         }
 
         let word_rev = word.reverse();
-        let mut cont_states = cont_states.clone();
-        let mut expt_states = expt_states.clone();
-        cont_states.reverse();
-        expt_states.reverse();
+        let mut is_cont_match = contexts.is_empty();
+        let mut is_expt_match = false;
 
-        let is_cont_match = self.match_before_env(&cont_states, &word_rev, &pos.reversed(word), false, true)?;
-        let is_expt_match = self.match_before_env(&expt_states, &word_rev, &pos.reversed(word), false, false)?;
-
-        Ok(!is_expt_match && is_cont_match)
-    }
-
-    fn match_after_context_and_exception(&self, word: &Word, pos: SegPos, inc: bool) -> Result<bool, RuleRuntimeError> {
-        let empty = Vec::new();
-        let (_, cont_states) = self.get_context().unwrap_or((&empty, &empty));
-        let (_, expt_states) = self.get_exceptions().unwrap_or((&empty, &empty));
-
-        if cont_states.is_empty() && expt_states.is_empty() {
-            return Ok(true)
+        for (bef_cont_states, aft_cont_states) in contexts {
+            let mut bef_cont_states = bef_cont_states.clone();
+            bef_cont_states.reverse();
+            if match (bef_cont_states.is_empty(), aft_cont_states.is_empty()) {
+                // _
+                (true, true) => true,
+                // _()
+                (true, false) => self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?,
+                // ()_
+                (false, true) => self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)?,
+                // ()_()
+                (false, false) => self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)? 
+                                && self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?,
+            } {
+                is_cont_match = true;
+                break;
+            }
         }
-        
-        let is_cont_match = self.match_after_env(cont_states, word, &pos, false, inc, true)?;
-        let is_expt_match = self.match_after_env(expt_states, word, &pos, false, inc, false)?;
-
+        for (bef_expt_states, aft_expt_states) in exceptions {
+            let mut bef_expt_states = bef_expt_states.clone();
+            bef_expt_states.reverse();
+            if match (bef_expt_states.is_empty(), aft_expt_states.is_empty()) {
+                // _
+                (true, true) => true,
+                // _()
+                (true, false) => self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?,
+                // ()_
+                (false, true) => self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?,
+                // ()_()
+                (false, false) => self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?
+                                && self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?,
+            } {
+                is_expt_match = true;
+                break;
+            }
+        }
         Ok(!is_expt_match && is_cont_match)
     }
 
@@ -258,7 +271,7 @@ impl SubRule {
             ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards),
             
             ParseElement::EmptySet | ParseElement::Metathesis |
-            ParseElement::Environment(_, _) => unreachable!(),
+            ParseElement::Environment(_) => unreachable!(),
         }
     }
 
@@ -760,9 +773,17 @@ impl SubRule {
                 // find insertion position using context
                 // "Parse" and insert output
                 let empty = Vec::new();
+                let context = self.get_contexts();
+                let exceptions = self.get_exceptions();
 
-                let (before_cont, after_cont) = self.get_context().unwrap_or((&empty, &empty));
-                let (before_expt, after_expt) = self.get_exceptions().unwrap_or((&empty, &empty));
+                let ((before_cont, after_cont), (before_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
+                    (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &empty)),
+                    (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
+                    (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &empty), exceptions[0]),
+                    (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
+                    (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
+                    (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
+                };
 
                 if before_cont.is_empty() && after_cont.is_empty() && before_expt.is_empty() && after_expt.is_empty() {
                     return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
@@ -807,7 +828,13 @@ impl SubRule {
 
     fn insertion_match_exceptions(&self, word: &Word, ins_pos: SegPos) -> Result<bool, RuleRuntimeError> {
         let empty = Vec::new();
-        let (before_expt, after_expt) = self.get_exceptions().unwrap_or((&empty, &empty));
+        let exceptions = self.get_exceptions();
+
+        let (before_expt, after_expt) = match exceptions.len().cmp(&1) {
+            std::cmp::Ordering::Less => (&empty, &empty),
+            std::cmp::Ordering::Equal => exceptions[0],
+            std::cmp::Ordering::Greater => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
+        };
         let mut before_expt = before_expt.clone();
         before_expt.reverse();
 
@@ -843,10 +870,18 @@ impl SubRule {
     }
 
     fn insertion_match(&self, word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
-
         let empty = Vec::new();
-        let (before_cont, after_cont) = self.get_context().unwrap_or((&empty, &empty));
-        let (before_expt, after_expt) = self.get_exceptions().unwrap_or((&empty, &empty));
+        let context = self.get_contexts();
+        let exceptions = self.get_exceptions();
+
+        let ((before_cont, after_cont), (before_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
+            (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &empty)),
+            (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
+            (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &empty), exceptions[0]),
+            (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
+            (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
+            (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
+        };
 
         if before_cont.is_empty() && after_cont.is_empty() && before_expt.is_empty() && after_expt.is_empty() {
             return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
@@ -2053,7 +2088,7 @@ impl SubRule {
             ParseElement::Structure(segs, stress, tone, var) => self.input_match_structure(captures, state_index, segs, stress, tone, var, word, seg_pos),
             ParseElement::Ellipsis => self.input_match_ellipsis(captures, word, seg_pos, states, state_index),
 
-            ParseElement::Optional(..) | ParseElement::Environment(_, _) |
+            ParseElement::Optional(..) | ParseElement::Environment(_) |
             ParseElement::EmptySet | ParseElement::WordBound | ParseElement::Metathesis  => unreachable!(),
         }
     }

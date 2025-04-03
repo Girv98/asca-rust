@@ -107,6 +107,12 @@ impl Modifiers {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Env {
+    pub(crate) before: Vec<Item>,
+    pub(crate) after: Vec<Item>,
+    pub(crate) position: Position
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ParseElement {
@@ -121,7 +127,7 @@ pub(crate) enum ParseElement {
     Syllable    ([Option<ModKind>; 2], Option<Tone>, Option<usize>),
     Structure   (Vec<Item>, [Option<ModKind>; 2], Option<Tone>, Option<usize>),
     Optional    (Vec<Item>, usize, usize),
-    Environment (Vec<Item>, Vec<Item>),
+    Environment (Vec<Env>),
     Variable    (Token, Option<Modifiers>),
 }
 
@@ -183,23 +189,25 @@ impl fmt::Display for ParseElement {
                 }
                 write!(f, " {}:{})", min, max)
             },
-            ParseElement::Environment(bef, aft) => {
-                let xb = bef.iter()
-                .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
-
-                let xa = aft.iter()
-                .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
-                
-                if xb.is_empty() && xa.is_empty() {
-                    write!(f, "[{xb}] __ [{xa}]")
-                } else if xb.is_empty() {
-                    write!(f, "[{xb}] __ {xa}")
-                } else if xa.is_empty() {
-                    write!(f, "{xb} __ [{xa}]")
-                } else {
-                    write!(f, "{xb} __ {xa}")
+            ParseElement::Environment(envs) => {
+                for env in envs {
+                    let xb = env.before.iter()
+                    .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
+    
+                    let xa = env.after.iter()
+                    .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
+                    
+                    if xb.is_empty() && xa.is_empty() {
+                        write!(f, "[{xb}] __ [{xa}]")?
+                    } else if xb.is_empty() {
+                        write!(f, "[{xb}] __ {xa}")?
+                    } else if xa.is_empty() {
+                        write!(f, "{xb} __ [{xa}]")?
+                    } else {
+                        write!(f, "{xb} __ {xa}")?
+                    }
                 }
-
+                Ok(())
             }
         }
     }
@@ -349,7 +357,7 @@ impl Parser {
         Ok(els)
     }
 
-    fn get_env_term(&mut self) -> Result<Item, RuleSyntaxError> {
+    fn get_env_term(&mut self) -> Result<Env, RuleSyntaxError> {
         // returns ENV_TRM ← ('WBOUND')? ENV_ELS? '_' ENV_ELS? ('WBOUND')? 
         let start = self.curr_tkn.position.start;
 
@@ -366,7 +374,7 @@ impl Parser {
 
         let end = self.token_list[self.pos-1].position.end;
 
-        Ok(Item::new(ParseElement::Environment(before, after), Position::new(self.group, self.line, start, end)))
+        Ok(Env{ before, after, position: Position::new(self.group, self.line, start, end)})
     }
 
     fn get_spec_env(&mut self) -> Result<Option<Vec<Item>>, RuleSyntaxError> {
@@ -395,21 +403,49 @@ impl Parser {
 
         let end = self.token_list[self.pos-1].position.end;
 
+        let position = Position::new(self.group, self.line, start, end);
+
         let v = vec![
-            Item::new(ParseElement::Environment(x.clone(), Vec::new()), Position::new(self.group, self.line, start, end)),
-            Item::new(ParseElement::Environment(Vec::new(), x.into_iter().rev().collect()), Position::new(self.group, self.line, start, end))
+            Item::new(ParseElement::Environment(vec![Env { before: x.clone() , after: Vec::new(), position}]), position),
+            Item::new(ParseElement::Environment(vec![Env { before: Vec::new(), after: x.into_iter().rev().collect(), position}]), position)
         ];
 
         Ok(Some(v))
     }
 
+    fn get_envs(&mut self) -> Result<Item, RuleSyntaxError> {
+        // ENV_SET ← ':{' ENV_TRS '}:' /  ENV_TRS 
+        let start = self.curr_tkn.position.start;
+
+        if !self.expect(TokenKind::LeftColCurly) {
+            let env: Env = self.get_env_term()?;
+            return Ok(Item::new(ParseElement::Environment(vec![env.clone()]), env.position))
+        }
+
+        let mut envs = Vec::with_capacity(2);
+        envs.push(self.get_env_term()?);
+
+        loop {
+            if self.expect(TokenKind::RightColCurly) { break; }
+            if !self.expect(TokenKind::Comma) {
+                return Err(RuleSyntaxError::ExpectedComma(self.curr_tkn.clone()))
+            }
+            let x = self.get_env_term()?;
+            envs.push(x);
+        }
+
+        let end = self.token_list[self.pos-1].position.end;
+
+        Ok(Item::new(ParseElement::Environment(envs), Position::new(self.group, self.line, start, end)))
+    }
+
     fn get_env(&mut self) -> Result<Vec<Item>, RuleSyntaxError> { 
-        // returns ENV ← ENV_SPC / ENV_TRM  (',' ENV_TRM)* 
+        // returns ENV ← ENV_SPC / ENV_SET (',' ENV_SET)* 
         if let Some(s) = self.get_spec_env()? { return Ok(s) }
 
         let mut envs = Vec::new();
         loop {
-            let x = self.get_env_term()?;
+            let x = self.get_envs()?;
             envs.push(x);
             if !self.expect(TokenKind::Comma) {
                 break
@@ -1130,8 +1166,8 @@ mod parser_tests {
         ];
             
         let exp_context: Vec<Item> = vec![
-            Item::new(ParseElement::Environment(vec![], vec![]), Position::new(0, 0, 40, 41)),
-            Item::new(ParseElement::Environment(vec![Item::new(ParseElement::WordBound, Position::new(0, 0, 44, 45))], vec![]), Position::new(0, 0, 44, 46)),
+            Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 40, 41)}]), Position::new(0, 0, 40, 41)),
+            Item::new(ParseElement::Environment(vec![Env { before: vec![Item::new(ParseElement::WordBound, Position::new(0, 0, 44, 45))], after: vec![], position: Position::new(0, 0, 44, 46)}]), Position::new(0, 0, 44, 46)),
         ];
 
         assert_eq!(result.input[0][0], exp_input[0], "1");
@@ -1229,8 +1265,8 @@ mod parser_tests {
         let result = maybe_res.unwrap().unwrap();
 
         let itm = Item::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 14, 15));
-        let exp_cont = Item::new(ParseElement::Environment(vec![], vec![]), Position::new(0, 0, 8, 9));
-        let exp_expt = Item::new(ParseElement::Environment(vec![], vec![itm]), Position::new(0, 0, 13, 15));
+        let exp_cont = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 8, 9)}]), Position::new(0, 0, 8, 9));
+        let exp_expt = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 13, 15)}]), Position::new(0, 0, 13, 15));
 
         assert_eq!(result.context[0], exp_cont);
         assert_eq!(result.except[0] , exp_expt);
@@ -1241,8 +1277,8 @@ mod parser_tests {
         let result = maybe_res.unwrap().unwrap();
 
         let itm = Item::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 13, 14));
-        let exp_cont = Item::new(ParseElement::Environment(vec![], vec![]), Position::new(0, 0, 8, 9));
-        let exp_expt = Item::new(ParseElement::Environment(vec![], vec![itm]), Position::new(0, 0, 12, 14));
+        let exp_cont = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 8, 9)}]), Position::new(0, 0, 8, 9));
+        let exp_expt = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 12, 14)}]), Position::new(0, 0, 12, 14));
 
         assert_eq!(result.context[0], exp_cont);
         assert_eq!(result.except[0] , exp_expt);
@@ -1253,7 +1289,7 @@ mod parser_tests {
         let result = maybe_res.unwrap().unwrap();
 
         let itm = Item::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 9, 10));
-        let exp_expt = Item::new(ParseElement::Environment(vec![], vec![itm]), Position::new(0, 0, 8, 10));
+        let exp_expt = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 8, 10)}]), Position::new(0, 0, 8, 10));
 
         assert_eq!(result.except[0] , exp_expt);
     }
