@@ -497,7 +497,7 @@ impl<'a> Lexer<'a> {
             '*' => { tokenkind = TokenKind::Star;         self.chop(1) },
             '∅' => { tokenkind = TokenKind::EmptySet;     self.chop(1) },
             '&' => { tokenkind = TokenKind::Ampersand;    self.chop(1) },
-            '_' => { tokenkind = TokenKind::Underline;    self.chop(1) },
+            '_' => { tokenkind = TokenKind::Underline;    self.chop_while(|c| *c == '_' ) },
             ':' => match self.next_char() { 
                 '{' => { 
                     if self.inside_env_set {
@@ -1002,7 +1002,7 @@ mod lexer_tests {
     #[test]
     fn test_variables() {
         
-        let test_input= String::from("C=1 V=2 > 2 1 / _C // _");
+        let test_input= String::from("C=1 V=2 > 2 1 / _C // ___");
         let expected_result = vec![
             Token::new(TokenKind::Group,       "C", 0, 0,  0,  1),
             Token::new(TokenKind::Equals,      "=", 0, 0,  1,  2),
@@ -1017,8 +1017,8 @@ mod lexer_tests {
             Token::new(TokenKind::Underline,   "_", 0, 0, 16, 17),
             Token::new(TokenKind::Group,       "C", 0, 0, 17, 18),
             Token::new(TokenKind::DubSlash,   "//", 0, 0, 19, 21),
-            Token::new(TokenKind::Underline,   "_", 0, 0, 22, 23),
-            Token::new(TokenKind::Eol,          "", 0, 0, 23, 24),
+            Token::new(TokenKind::Underline, "___", 0, 0, 22, 25),
+            Token::new(TokenKind::Eol,          "", 0, 0, 25, 26),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        

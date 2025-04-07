@@ -308,11 +308,12 @@ input (=)> output / context (| or //) exception
 e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
 ```
 
-An environment can only contain one underline `_`. An empty environment can be omitted:
+An environment can only contain one underline `_` or a series of joined underlines. An empty environment can be omitted:
 ```
 a > e           (/saj/ > /sej/)
 a > e / _       (this is equivalent to the above)
-a > e / __      (this is invalid)
+a > e / ___     (this is valid)
+a > e / _ _     (this is invalid)
 ```
 
 ### Special Characters
