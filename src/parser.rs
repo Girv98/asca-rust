@@ -1105,7 +1105,7 @@ impl Parser {
         // (PIPE ENV)
         let except = self.get_except_block()?;
         // !EOL
-        if !self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
+        if !self.expect(TokenKind::Eol) && !self.expect(TokenKind::Comment) {
             return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
         }
         
@@ -1308,7 +1308,9 @@ mod parser_tests {
         let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
-        
+
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).parse();
+        assert!(maybe_result.is_ok());
     }
 
 
