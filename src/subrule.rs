@@ -205,17 +205,8 @@ impl SubRule {
         for (bef_cont_states, aft_cont_states) in contexts {
             let mut bef_cont_states = bef_cont_states.clone();
             bef_cont_states.reverse();
-            if match (bef_cont_states.is_empty(), aft_cont_states.is_empty()) {
-                // _
-                (true, true) => true,
-                // _()
-                (true, false) => self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?,
-                // ()_
-                (false, true) => self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)?,
-                // ()_()
-                (false, false) => self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)? 
-                                && self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?,
-            } {
+            if (bef_cont_states.is_empty() || self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)?) 
+            && (aft_cont_states.is_empty() || self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?) {
                 is_cont_match = true;
                 break;
             }
@@ -223,17 +214,8 @@ impl SubRule {
         for (bef_expt_states, aft_expt_states) in exceptions {
             let mut bef_expt_states = bef_expt_states.clone();
             bef_expt_states.reverse();
-            if match (bef_expt_states.is_empty(), aft_expt_states.is_empty()) {
-                // _
-                (true, true) => true,
-                // _()
-                (true, false) => self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?,
-                // ()_
-                (false, true) => self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?,
-                // ()_()
-                (false, false) => self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?
-                                && self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?,
-            } {
+            if (bef_expt_states.is_empty() || self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?) 
+            && (aft_expt_states.is_empty() || self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?) {
                 is_expt_match = true;
                 break;
             }
