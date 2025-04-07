@@ -152,7 +152,7 @@ impl ASCAError for RuleSyntaxError {
             Self::ExpectedAlphabetic(c, g, l, pos) => format!("Expected ASCII character, but received '{c}' at {g}:{l}:{pos}'."),
             Self::ExpectedCharColon (c, g, l, pos) => format!("Expected ':', but received '{c}' at {g}:{l}:{pos}"),
             Self::ExpectedCharArrow (c, g, l, pos) => format!("Expected '->', but received -'{c}' at {g}:{l}:{pos}"),
-            Self::MalformedComment  (c, g, l, pos) => format!("Malformed Comment Delimiter: Expected ';', but received -'{c}' at {g}:{l}:{pos}"),
+            Self::MalformedComment  (c, g, l, pos) => format!("Malformed Comment: Expected ';;', but received ';{c}' at {g}:{l}:{pos}"),
             Self::UnknownCharacter  (c, g, l, pos) => format!("Unknown character {c} at '{g}:{l}:{pos}'."),
             Self::ExpectedCharDot   (c, g, l, pos) => format!("Expected '..', but received .'{c}' at {g}:{l}:{pos}"),
             Self::ExpectedNumber    (c, g, l, pos) => format!("Expected a number, but received '{c}' at {g}:{l}:{pos}"),
