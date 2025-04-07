@@ -316,6 +316,14 @@ a > e / ___     (this is valid)
 a > e / _ _     (this is invalid)
 ```
 
+### Single Line Comments
+ASCA supports single line comments delimited by two semi-colons `;;`.
+
+``` wasm
+;; This is a comment!
+a > e ;; This is also a comment!
+```
+
 ### Special Characters
 
 `%` represents a syllable.
@@ -327,11 +335,11 @@ a > e / _ _     (this is invalid)
 Word boundaries may only be used in environments, and must only be used once on either periphery.
 
 ```
- a > e / #_#    (valid)
- a > e / _s#    (valid, /a.has/ > /a.hes/)
+ a > e / #_#    ;; valid
+ a > e / _s#    ;; valid, /a.has/ > /a.hes/
 
- a > e / _##    (invalid)
- a > e / _#s    (invalid)
+ a > e / _##    ;; invalid
+ a > e / _#s    ;; invalid
 ```
 
 ### Insertion and Deletion Rules
@@ -340,10 +348,10 @@ Unlike [SCA²](https://www.zompist.com/sca2.html), the input and output cannot b
 The input or output must contain *only* this operator to be valid.
 
 ```
-e > * / #_      (Apheresis: /e/ elides at the beginning of a word)
-e > * / _#      (Apocope: /e/ elides at the end of a word)
-* > e / #_      (Prothesis: /e/ is inserted at the beginning of a word)
-* > e / _#      (Paragoge: /e/ is inserted at the end of a word)
+e > * / #_      ;; Apheresis: /e/ elides at the beginning of a word
+e > * / _#      ;; Apocope: /e/ elides at the end of a word
+* > e / #_      ;; Prothesis: /e/ is inserted at the beginning of a word
+* > e / _#      ;; Paragoge: /e/ is inserted at the end of a word
 ```
 You may use the empty set character `∅` instead.
 
@@ -417,6 +425,8 @@ $C > & / _# (the consonant is moved into the preceding syllable, with the now em
 or
 $ > * / _C# (the two syllables are merged by deleting the boundary between them)
 ```
+
+
 
 ## Distinctive Features
 ASCA allows for 26 segmental features.  
