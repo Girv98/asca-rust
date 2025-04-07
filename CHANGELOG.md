@@ -1,3 +1,9 @@
+0.5.3
+==================
+Features:
+* Lib: Rules can now have comments, delimited by `;;`
+* Lib: Multiple contiguous underlines are now allowed in environments
+
 0.5.2
 ==================
 Features:
