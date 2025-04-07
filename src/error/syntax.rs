@@ -93,6 +93,7 @@ pub enum RuleSyntaxError {
     ExpectedAlphabetic(char, GroupNum, LineNum, Pos),
     ExpectedCharColon (char, GroupNum, LineNum, Pos),
     ExpectedCharArrow (char, GroupNum, LineNum, Pos),
+    MalformedComment  (char, GroupNum, LineNum, Pos),
     UnknownCharacter  (char, GroupNum, LineNum, Pos),
     ExpectedCharDot   (char, GroupNum, LineNum, Pos),
     ExpectedNumber    (char, GroupNum, LineNum, Pos),
@@ -151,6 +152,7 @@ impl ASCAError for RuleSyntaxError {
             Self::ExpectedAlphabetic(c, g, l, pos) => format!("Expected ASCII character, but received '{c}' at {g}:{l}:{pos}'."),
             Self::ExpectedCharColon (c, g, l, pos) => format!("Expected ':', but received '{c}' at {g}:{l}:{pos}"),
             Self::ExpectedCharArrow (c, g, l, pos) => format!("Expected '->', but received -'{c}' at {g}:{l}:{pos}"),
+            Self::MalformedComment  (c, g, l, pos) => format!("Malformed Comment Delimiter: Expected ';', but received -'{c}' at {g}:{l}:{pos}"),
             Self::UnknownCharacter  (c, g, l, pos) => format!("Unknown character {c} at '{g}:{l}:{pos}'."),
             Self::ExpectedCharDot   (c, g, l, pos) => format!("Expected '..', but received .'{c}' at {g}:{l}:{pos}"),
             Self::ExpectedNumber    (c, g, l, pos) => format!("Expected a number, but received '{c}' at {g}:{l}:{pos}"),
@@ -239,6 +241,7 @@ impl ASCAError for RuleSyntaxError {
             Self::ExpectedAlphabetic(_, group, line, pos) |
             Self::ExpectedCharArrow (_, group, line, pos) |
             Self::ExpectedCharColon (_, group, line, pos) |
+            Self::MalformedComment  (_, group, line, pos) |
             Self::UnknownCharacter  (_, group, line, pos) |
             Self::ExpectedCharDot   (_, group, line, pos) |
             Self::ExpectedNumber    (_, group, line, pos) |

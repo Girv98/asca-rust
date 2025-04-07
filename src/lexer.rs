@@ -182,7 +182,6 @@ impl Display for FeatType {
     }
 }
 
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum TokenKind {
     LeftSquare,       // [
@@ -216,6 +215,7 @@ pub(crate) enum TokenKind {
     Star,             // *
     EmptySet,         // ∅
     Ellipsis,         // ... or .. or … or ⋯
+    Comment,          // Delimited by ';;'
     Feature(FeatType),
     Eol,              // End of Line 
 }
@@ -265,6 +265,7 @@ impl Display for TokenKind {
             TokenKind::Star          => write!(f, "Star"),
             TokenKind::EmptySet      => write!(f, "Empty"),
             TokenKind::Ellipsis      => write!(f, "Ellipsis"),
+            TokenKind::Comment       => write!(f, "Comment"),
             TokenKind::Feature(x)    => write!(f, "{x}"),
             TokenKind::Eol           => write!(f, "End of Line"),
         }
@@ -780,12 +781,25 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn get_comment(&mut self) -> Result<Option<Token>, RuleSyntaxError> {
+        if self.curr_char() != ';' { return Ok(None) }
+        let start = self.pos;
+        self.advance();
+
+        if self.curr_char() != ';' { return Err(RuleSyntaxError::MalformedComment(self.curr_char(), self.group, self.line, self.pos))}
+        self.advance();
+        let buffer = self.chop_while(|_| true);
+
+        Ok(Some(Token::new(TokenKind::Comment, &buffer, self.group, self.line, start, self.pos)))
+    }
+
     fn get_next_token(&mut self) -> Result<Token, RuleSyntaxError> {
         
         self.trim_whitespace();
         
         if !self.has_more_chars() { return Ok(Token::new(TokenKind::Eol, "", self.group, self.line, self.pos, self.pos+1)) }
 
+        if let Some(com_token) = self.get_comment()?      { return Ok(com_token) }
         if let Some(bkt_token) = self.get_bracket()?      { return Ok(bkt_token) }
         if let Some(pmt_token) = self.get_primative()     { return Ok(pmt_token) }
         if let Some(num_token) = self.get_numeric()       { return Ok(num_token) }

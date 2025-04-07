@@ -253,11 +253,11 @@ impl Parser {
 
     fn advance(&mut self) {
         self.pos += 1;
-        self.curr_tkn = if self.has_more_tokens() {
+        self.curr_tkn = if self.has_more_tokens() && self.curr_tkn.kind != TokenKind::Comment {
             self.token_list[self.pos].clone()
         } else {
             Token { kind: TokenKind::Eol, value: Rc::default(), position: Position::new(self.group, self.line, self.pos, self.pos+1) }
-        }
+        };
     }
 
     fn has_more_tokens(&self) -> bool { self.pos < self.token_list.len() }
@@ -1081,7 +1081,7 @@ impl Parser {
         }
         Ok(outputs)
     }
-  
+
     fn rule(&mut self) -> Result<Rule, RuleSyntaxError> {
         // returns RULE ← INP ARR OUT ('/' ENV)? (PIPE ENV)? EOL
         
@@ -1094,7 +1094,7 @@ impl Parser {
         // OUT
         let output = self.get_output()?;
 
-        if self.expect(TokenKind::Eol) {
+        if self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
             return Ok(Rule::new(input, output, Vec::new(), Vec::new()))
         }
         if !self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) {
@@ -1105,7 +1105,7 @@ impl Parser {
         // (PIPE ENV)
         let except = self.get_except_block()?;
         // !EOL
-        if !self.expect(TokenKind::Eol) {
+        if !self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
             return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
         }
         
@@ -1114,7 +1114,7 @@ impl Parser {
     }
     
     pub(crate) fn parse(&mut self) -> Result<Option<Rule>, RuleSyntaxError> {
-        if self.curr_tkn.kind == TokenKind::Eol {
+        if self.curr_tkn.kind == TokenKind::Eol || self.curr_tkn.kind == TokenKind::Comment {
             Ok(None)
         } else {
             Ok(Some(self.rule()?))
@@ -1135,7 +1135,16 @@ mod parser_tests {
     use super::*;
     use crate::CARDINALS_MAP;
 
-    fn setup(test_str: &str) -> Vec<Token> { Lexer::new(&String::from(test_str).chars().collect::<Vec<_>>(),0,0).get_line().unwrap() }
+    fn setup(test_str: &str) -> Vec<Token> { 
+        match Lexer::new(&String::from(test_str).chars().collect::<Vec<_>>(),0,0).get_line() {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e.get_error_message());
+                assert!(false);
+                unreachable!()
+            },
+        } 
+    }
 
     #[test]
     fn test_multi_rule() {
@@ -1255,6 +1264,53 @@ mod parser_tests {
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);
     }
+
+    #[test]
+    fn test_comments() {
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] ;; hello"), 0, 0).parse();
+        assert!(maybe_result.is_ok());
+        let result = maybe_result.unwrap().unwrap();
+
+        let exp_input = Item::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
+        
+        let mut out: Modifiers = Modifiers::new();
+        out.suprs.tone = Some(321);
+        let exp_output = Item::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
+
+        assert_eq!(result.input[0][0], exp_input);
+        assert_eq!(result.output[0][0], exp_output);
+    
+        let maybe_result = Parser::new(setup(";; %:[tone: 123] > [tone: 321]"), 0, 0).parse();
+        assert!(maybe_result.is_ok());
+        assert!(maybe_result.unwrap().is_none());
+
+
+        let maybe_result = Parser::new(setup("%;;:[tone: 123] > [tone: 321]"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::ExpectedArrow(_) = maybe_result.unwrap_err() {true} else {false} );
+
+        let maybe_result = Parser::new(setup("%:;;[tone: 123] > [tone: 321]"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::ExpectedMatrix(_) = maybe_result.unwrap_err() {true} else {false} );
+
+        let maybe_result = Parser::new(setup("%:[tone: 123] ;; > [tone: 321]"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::ExpectedArrow(_) = maybe_result.unwrap_err() {true} else {false} );
+        
+        let maybe_result = Parser::new(setup("%:[tone: 123] > ;; [tone: 321]"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::EmptyOutput(..) = maybe_result.unwrap_err() {true} else {false} );
+
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [;;tone: 321]"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
+
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
+        
+    }
+
 
     #[test]
     fn test_exceptions(){
