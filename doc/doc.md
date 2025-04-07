@@ -8,6 +8,7 @@
     * [(De)Romanisation](#custom-aliasing--deromanisation)
 * [Defining Sound Changes](#defining-sound-changes)
     * [The Basics](#the-basics)
+    * [Single Line Comments](#single-line-comments)
     * [Special Characters](#special-characters)
     * [Insertion and Deletion](#insertion-and-deletion-rules)
     * [Metathesis](#metathesis-rules)
