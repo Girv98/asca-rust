@@ -71,6 +71,7 @@ impl<'a> Parser<'a> {
     }
 
     fn skip_comments(&mut self) {
+        // self.advance is recursive so we only have to check once
         if self.peek(TokenKind::Comment) {
             self.advance();
         }
