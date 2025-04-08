@@ -1,3 +1,8 @@
+Next (Unreleased)
+==================
+Features:
+* Multiple words can now be placed on the same line separated by a space
+
 0.5.3
 ==================
 Features:

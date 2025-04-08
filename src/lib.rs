@@ -169,37 +169,40 @@ pub(crate) fn normalise(s: &str) -> String {
     output
 }
 
-fn apply_rule_groups(rules: &[Vec<Rule>], words: &[Word]) -> Result<Vec<Word>, Error> {
-    let mut transformed_words: Vec<Word> = Vec::with_capacity(words.len());
+fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Vec<Word>]) -> Result<Vec<Vec<Word>>, Error> {
+    let mut transformed_phrases: Vec<Vec<Word>> = Vec::with_capacity(phrases.len());
 
-    for word in words {
-        let mut res_word = word.clone();
-
-        for rule_group in rules {
-            for rule in rule_group {
-                res_word = rule.apply(res_word)?;
+    for phrase in phrases {
+        let mut transformed_words = Vec::with_capacity(phrase.len());
+        for word in phrase {
+            let mut res_word = word.clone();
+            for rule_group in rules {
+                for rule in rule_group {
+                    res_word = rule.apply(res_word)?;
+                }
             }
+            transformed_words.push(res_word);
         }
-        transformed_words.push(res_word);
+        transformed_phrases.push(transformed_words);
     }
 
-    Ok(transformed_words)
+    Ok(transformed_phrases)
 }
 
-fn words_to_string(words: Vec<Word>, alias_from: Vec<Transformation>) -> Result<Vec<String>, WordRuntimeError> {
-    let mut wrds_str: Vec<String> = Vec::with_capacity(words.len());
-    for w in words {
-        wrds_str.push(w.render(&alias_from));
-    }
-    Ok(wrds_str)
+fn words_to_string(phrases: Vec<Vec<Word>>, alias_from: Vec<Transformation>) -> Vec<String> {
+    phrases.iter().map(|sentence| {
+        sentence.iter().fold(String::new(), |acc, word| { 
+                acc + &word.render(&alias_from) + " " 
+            }).trim_end().to_owned()
+    }).collect()
 }
 
-fn parse_words(unparsed_words: &[String], alias_into: &[Transformation]) -> Result<Vec<Word>, Error> {
-    let mut words: Vec<Word> = Vec::with_capacity(unparsed_words.len());
-    for w in unparsed_words {
-        words.push(Word::new(normalise(w), alias_into)?);
-    }
-    Ok(words)
+fn parse_words(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Vec<Word>>, Error> {
+    unparsed_phrases.iter().map(|phrase| {
+        phrase.split(' ')
+        .map(|w| { Word::new(normalise(w), alias_into)})
+        .collect()
+    }).collect()
 }
 
 fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
@@ -239,7 +242,7 @@ pub fn run(unparsed_rules: &[RuleGroup], unparsed_words: &[String], alias_into: 
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rule_groups(&rules, &words)?;
 
-    Ok(words_to_string(res, alias_from)?)
+    Ok(words_to_string(res, alias_from))
 }
 
 
