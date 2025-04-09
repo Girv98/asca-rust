@@ -1,7 +1,8 @@
-Next (Unreleased)
+0.6.0
 ==================
 Features:
-* Multiple words can now be placed on the same line separated by a space
+* Lib: A given word or phrase can now be traced throughout its evolution
+* Lib: Multiple words can now be placed on the same line separated by a space
 
 0.5.3
 ==================
