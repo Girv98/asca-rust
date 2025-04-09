@@ -86,20 +86,10 @@ lazy_static! {
 
         dt.iter().map(|x| x.to_diacritic()).collect()
     };
-    static ref CARDINALS_VEC: Vec<String> = {
-        let mut m = Vec::new();
-        CARDINALS_MAP.iter().for_each(|(k,_)| {
-            m.push(k.clone());
-        });
-
-        m
-    };
+    static ref CARDINALS_VEC: Vec<String> = CARDINALS_MAP.iter().map(|(k,_)| k.clone()).collect();
     static ref CARDINALS_TRIE: Trie = {
         let mut m = Trie::new();
-        CARDINALS_MAP.iter().for_each(|(k,_)| {
-            m.insert(k.as_str());
-        });
-
+        CARDINALS_MAP.iter().for_each(|(k,_)| m.insert(k.as_str()));
         m
     };    
 }
@@ -237,11 +227,11 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: Phrase) -> Result<Vec<Change>,
 
 
 fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> Vec<String> {
-    phrases.iter().map(|phrase| {
-        phrase.iter().fold(String::new(), |acc, word| { 
+    phrases.iter().map(|phrase| 
+        phrase.iter().fold(String::new(), |acc, word| 
                 acc + &word.render(&alias_from) + " " 
-            }).trim_end().to_owned()
-    }).collect()
+            ).trim_end().to_owned()
+    ).collect()
 }
 
 fn trace_to_string(changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
@@ -266,7 +256,7 @@ fn trace_to_string(changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
 fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, Error> {
     unparsed_phrases.iter().map(|phrase| -> Result<Phrase, Error> {
         phrase.split(' ')
-        .map(|w| { Word::new(normalise(w), alias_into)})
+        .map(|w| Word::new(normalise(w), alias_into))
         .collect()
     }).collect()
 }
@@ -303,7 +293,7 @@ fn parse_aliases(into: &[String], from: &[String]) -> Result<(Vec<Transformation
 
 fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[Transformation], trace_index: usize) -> Result<Option<Phrase>, Error> {
     match unparsed_phrases.get(trace_index) {
-        Some(phrase) => Ok(Some(phrase.split(' ').map(|w| { Word::new(normalise(w), alias_into)}).collect::<Result<Phrase, Error>>()?)),
+        Some(phrase) => Ok(Some(phrase.split(' ').map(|w| Word::new(normalise(w), alias_into)).collect::<Result<Phrase, Error>>()?)),
         None => Ok(None),
     }
 }
@@ -321,7 +311,7 @@ pub fn run(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into
 pub fn run_trace(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, Error> {
     let (alias_into, _) = parse_aliases(alias_into, alias_from)?;
     
-    let phrase = unparsed_phrase.split(' ').map(|w| { Word::new(normalise(w), &alias_into)}).collect::<Result<Phrase, Error>>()?;
+    let phrase = unparsed_phrase.split(' ').map(|w| Word::new(normalise(w), &alias_into)).collect::<Result<Phrase, Error>>()?;
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rules_trace(&rules, phrase)?;
 
