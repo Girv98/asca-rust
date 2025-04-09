@@ -253,7 +253,7 @@ fn trace_to_string(changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
             st.push_str(&bw.render(&[]));
             st.push(' ');
         }
-        st.push_str("=>");
+        st.push_str("=> ");
         for aw in change.aft.iter() {
             st.push_str(&aw.render(&[]));
             st.push(' ');
