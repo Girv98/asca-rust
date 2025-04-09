@@ -96,6 +96,12 @@ pub(crate) struct Word {
     americanist: bool
 }
 
+impl PartialEq for Word {
+    fn eq(&self, other: &Self) -> bool {
+        self.syllables == other.syllables
+    }
+}
+
 impl fmt::Debug for Word {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, syll) in self.syllables.iter().enumerate() {
