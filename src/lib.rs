@@ -136,6 +136,27 @@ impl Default for RuleGroup {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
+struct Phrase (Vec<Word>);
+
+impl std::ops::Deref for Phrase {
+    type Target = Vec<Word>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for Phrase {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl FromIterator<Word> for Phrase {
+    fn from_iter<T: IntoIterator<Item = Word>>(iter: T) -> Self {
+        Phrase(iter.into_iter().collect())
+    }
+}
 
 // We are currently only normalising a few characters as most would be invalid anyway.
 pub(crate) fn normalise(s: &str) -> String {
@@ -169,36 +190,81 @@ pub(crate) fn normalise(s: &str) -> String {
     output
 }
 
-fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Vec<Word>]) -> Result<Vec<Vec<Word>>, Error> {
-    let mut transformed_phrases: Vec<Vec<Word>> = Vec::with_capacity(phrases.len());
+fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, Error> {
+    let mut transformed_phrases: Vec<Phrase> = Vec::with_capacity(phrases.len());
 
     for phrase in phrases {
-        let mut transformed_words = Vec::with_capacity(phrase.len());
-        for word in phrase {
+        let mut transformed_phrase = Phrase(Vec::with_capacity(phrase.len()));
+        for word in phrase.iter() {
             let mut res_word = word.clone();
             for rule_group in rules {
                 for rule in rule_group {
                     res_word = rule.apply(res_word)?;
                 }
             }
-            transformed_words.push(res_word);
+            transformed_phrase.push(res_word);
         }
-        transformed_phrases.push(transformed_words);
+        transformed_phrases.push(transformed_phrase);
     }
 
     Ok(transformed_phrases)
 }
 
-fn words_to_string(phrases: Vec<Vec<Word>>, alias_from: Vec<Transformation>) -> Vec<String> {
-    phrases.iter().map(|sentence| {
-        sentence.iter().fold(String::new(), |acc, word| { 
+struct Change {
+    ind: usize,  // rule group index
+    bef: Phrase, // the word before
+    aft: Phrase, // the word after
+}
+
+fn apply_rules_trace(rules: &[Vec<Rule>], phrase: Phrase) -> Result<Vec<Change>, Error> {
+    let mut changes: Vec<Change> = Vec::new();
+
+    let mut res_phrase = phrase.clone();
+    for (i, rule_group) in rules.iter().enumerate() {
+        let res_step = res_phrase.clone();
+        for (j, _) in phrase.iter().enumerate() {
+            for rule in rule_group {
+                res_phrase[j] = rule.apply(res_phrase[j].clone())?;
+            }
+        }
+        if res_phrase != res_step {
+            changes.push(Change { ind: i, bef: res_step, aft: res_phrase.clone() });
+        }
+    }
+
+    Ok(changes)
+}
+
+
+fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> Vec<String> {
+    phrases.iter().map(|phrase| {
+        phrase.iter().fold(String::new(), |acc, word| { 
                 acc + &word.render(&alias_from) + " " 
             }).trim_end().to_owned()
     }).collect()
 }
 
-fn parse_words(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Vec<Word>>, Error> {
-    unparsed_phrases.iter().map(|phrase| {
+fn trace_to_string(changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
+    let mut res = Vec::new();
+    for change in changes {
+        res.push(format!("Applied \"{}\":", rules[change.ind].name));
+        let mut st = String::new();
+        for bw in change.bef.iter() {
+            st.push_str(&bw.render(&[]));
+            st.push(' ');
+        }
+        st.push_str("=>");
+        for aw in change.aft.iter() {
+            st.push_str(&aw.render(&[]));
+            st.push(' ');
+        }
+        res.push(st);
+    }
+    res
+}
+
+fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, Error> {
+    unparsed_phrases.iter().map(|phrase| -> Result<Phrase, Error> {
         phrase.split(' ')
         .map(|w| { Word::new(normalise(w), alias_into)})
         .collect()
@@ -235,25 +301,54 @@ fn parse_aliases(into: &[String], from: &[String]) -> Result<(Vec<Transformation
     Ok((into_parsed, from_parsed))
 }
 
-pub fn run(unparsed_rules: &[RuleGroup], unparsed_words: &[String], alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, Error> {
+fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[Transformation], trace_index: usize) -> Result<Option<Phrase>, Error> {
+    match unparsed_phrases.get(trace_index) {
+        Some(phrase) => Ok(Some(phrase.split(' ').map(|w| { Word::new(normalise(w), alias_into)}).collect::<Result<Phrase, Error>>()?)),
+        None => Ok(None),
+    }
+}
+
+pub fn run(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, Error> {
     let (alias_into, alias_from) = parse_aliases(alias_into, alias_from)?;
     
-    let words = parse_words(unparsed_words, &alias_into)?;
+    let phrases = parse_phrases(unparsed_phrases, &alias_into)?;
     let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rule_groups(&rules, &words)?;
+    let res = apply_rule_groups(&rules, &phrases)?;
 
-    Ok(words_to_string(res, alias_from))
+    Ok(phrases_to_string(res, alias_from))
 }
 
+pub fn run_trace(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, Error> {
+    let (alias_into, _) = parse_aliases(alias_into, alias_from)?;
+    
+    let phrase = unparsed_phrase.split(' ').map(|w| { Word::new(normalise(w), &alias_into)}).collect::<Result<Phrase, Error>>()?;
+    let rules = parse_rule_groups(unparsed_rules)?;
+    let res = apply_rules_trace(&rules, phrase)?;
+
+    Ok(trace_to_string(res, unparsed_rules))
+}
+
+fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], alias_from: &[String], trace_index: usize) -> Result<Vec<String>, Error> {
+    let (alias_into, _) = parse_aliases(alias_into, alias_from)?;
+    
+    let phrase = get_trace_phrase(unparsed_phrase, &alias_into, trace_index)?.unwrap_or_default();
+    let rules = parse_rule_groups(unparsed_rules)?;
+    let res = apply_rules_trace(&rules, phrase)?;
+
+    Ok(trace_to_string(res, unparsed_rules))
+}
 
 #[wasm_bindgen]
-pub fn run_wasm(val: JsValue, unparsed_words: Vec<String>, unparsed_into: Vec<String>, unparsed_from: Vec<String>) -> Vec<String> {
+pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<String>, unparsed_from: Vec<String>, trace: Option<usize>) -> Vec<String> {
     let unparsed_rules: Vec<RuleGroup> = serde_wasm_bindgen::from_value(val).expect("Rules are in valid JSObject format");
-
-    parse_result_web(run(&unparsed_rules, &unparsed_words, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_words, &unparsed_into, &unparsed_from)
+    
+    match trace {
+        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from, t), &unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from),
+        None => parse_result_web(run(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from),
+    }
 }
 
-fn parse_result_web(unparsed_result: Result<Vec<String>, Error>, rules: &[RuleGroup], words: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Vec<String> {
+fn parse_result_web(unparsed_result: Result<Vec<String>, Error>, rules: &[RuleGroup], phrases: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Vec<String> {
     let mut res = Vec::new();
     match unparsed_result {
         Ok(output) => {
@@ -262,8 +357,8 @@ fn parse_result_web(unparsed_result: Result<Vec<String>, Error>, rules: &[RuleGr
             }
         },
         Err(err) => match err {
-            Error::WordSyn(e) => res.push(e.format_word_error(words)),
-            Error::WordRun(e) => res.push(e.format_word_error(words)),
+            Error::WordSyn(e) => res.push(e.format_word_error(phrases)),
+            Error::WordRun(e) => res.push(e.format_word_error(phrases)),
             Error::AliasSyn(e) => res.push(e.format_alias_error(unparsed_into, unparsed_from)),
             Error::AliasRun(e) => res.push(e.format_alias_error(unparsed_into, unparsed_from)),
             Error::RuleSyn(e) => res.push(e.format_rule_error(rules)),
