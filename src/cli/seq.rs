@@ -150,7 +150,7 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Optio
         vec![] 
     };
 
-    if let Some(ref wp) = words_path {
+    if let Some(wp) = words_path {
         let (mut w, _) = parse_wsca(&util::validate_or_get_path(Some(wp), &[WORD_FILE_EXT, "txt"], "word")?)?;
         words.append(&mut w);
     } else if !conf.words.is_empty() {

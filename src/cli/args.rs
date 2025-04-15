@@ -177,6 +177,6 @@ pub struct InGroup {
     pub rules: Option<PathBuf>,
 }
 
-pub(crate) fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
-    generate(gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
+pub(crate) fn print_completions<G: Generator>(r#gen: G, cmd: &mut Command) {
+    generate(r#gen, cmd, cmd.get_name().to_string(), &mut std::io::stdout());
 }

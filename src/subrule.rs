@@ -1232,7 +1232,7 @@ impl SubRule {
             match &item.kind {
                 ParseElement::Ellipsis   => return Err(if is_inserting {RuleRuntimeError::InsertionEllipsis(item.position)} else {RuleRuntimeError::SubstitutionEllipsis(item.position)}),
                 ParseElement::Matrix(..) => return Err(if is_inserting {RuleRuntimeError::InsertionMatrix(item.position)}   else {RuleRuntimeError::SubstitutionMatrix(item.position)}),
-                ParseElement::Ipa(mut segment, modifiers) => {
+                &ParseElement::Ipa(mut segment, ref modifiers) => {
                     let mut len = 1;
                     if let Some(mods) = modifiers {
                         segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
@@ -1258,7 +1258,7 @@ impl SubRule {
                     if let Some(var) = self.variables.borrow_mut().get(&num.value.parse().unwrap()) {
                         match var {
                             VarKind::Syllable(_) => return Err(RuleRuntimeError::SyllVarInsideStruct(item.position)),
-                            VarKind::Segment(mut segment) => {
+                            &VarKind::Segment(mut segment) => {
                                 let mut len = 1;
                                 if let Some(mods) = modifiers {
                                     segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
@@ -2267,7 +2267,6 @@ impl SubRule {
                 },
                 ModKind::Alpha(am) => match am {
                     AlphaMod::Alpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             let pos = alph.as_binary();
                             match syll.stress {
@@ -2275,15 +2274,12 @@ impl SubRule {
                                 StressKind::Secondary  => if !pos { return Ok(false) },
                                 StressKind::Unstressed => if  pos { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        } 
-                        if !alpha_assigned {
+                        } else {
                             let stress = syll.stress != StressKind::Unstressed;
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
                         }
                     },
                     AlphaMod::InvAlpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             let pos = alph.as_binary();
                             match syll.stress {
@@ -2291,11 +2287,7 @@ impl SubRule {
                                 StressKind::Secondary  => if  pos { return Ok(false) },
                                 StressKind::Unstressed => if !pos { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        } // else {
-                        //     return Err(RuleRuntimeError::AlphaUnknownInvStress(err_pos))
-                        // } 
-                        if !alpha_assigned {
+                        } else {
                             let stress = syll.stress == StressKind::Unstressed;
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
                         }
@@ -2313,7 +2305,6 @@ impl SubRule {
                 },
                 ModKind::Alpha(am) => match am {
                     AlphaMod::Alpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             let pos = alph.as_binary();
                             match syll.stress {
@@ -2321,15 +2312,12 @@ impl SubRule {
                                 StressKind::Primary |
                                 StressKind::Unstressed => if  pos { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        } 
-                        if !alpha_assigned {
+                        } else {
                             let stress = syll.stress == StressKind::Secondary;
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
                         }
                     },
                     AlphaMod::InvAlpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             let pos = alph.as_binary();
                             match syll.stress {
@@ -2337,11 +2325,7 @@ impl SubRule {
                                 StressKind::Primary |
                                 StressKind::Unstressed => if !pos { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        } // else {
-                        //     return Err(RuleRuntimeError::AlphaUnknownInvStress(err_pos))
-                        // }
-                        if !alpha_assigned {
+                        } else {
                             let stress = syll.stress != StressKind::Secondary;
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
                         }
@@ -2574,28 +2558,22 @@ impl SubRule {
                 },
                 ModKind::Alpha(am) => match am {
                     AlphaMod::Alpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             match alph.as_binary() {
                                 true  => if seg_length < 2 { return Ok(false) },
                                 false => if seg_length > 1 { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        }
-                        if !alpha_assigned {
+                        } else {
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 1));
                         }
                     },
                     AlphaMod::InvAlpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             match !alph.as_binary() {
                                 true  => if seg_length < 2 { return Ok(false) },
                                 false => if seg_length > 1 { return Ok(false) }
                             }
-                            alpha_assigned = true;
-                        }
-                        if !alpha_assigned {
+                        } else {
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 1));
                         }
                     },
@@ -2611,31 +2589,23 @@ impl SubRule {
                 },
                 ModKind::Alpha(am) => match am {
                     AlphaMod::Alpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             match alph.as_binary() {
                                 true  => if seg_length < 3 { return Ok(false) },
                                 false => if seg_length > 2 { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        } // else {
-                        //     return Err(RuleRuntimeError::AlphaIsNotSupra(err_pos))
-                        // }
-                        if !alpha_assigned  {
+                        } else {
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 2));
                         }
 
                     },
                     AlphaMod::InvAlpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                         if let Some(alph) = self.alphas.borrow().get(&ch) {
                             match !alph.as_binary() {
                                 true  => if seg_length < 3 { return Ok(false) },
                                 false => if seg_length > 2 { return Ok(false) },
                             }
-                            alpha_assigned = true;
-                        }
-                        if !alpha_assigned {
+                        } else {
                             self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 2));
                         }
                     },
@@ -2746,9 +2716,8 @@ impl SubRule {
             ModKind::Alpha(am) => match am {
                 AlphaMod::Alpha(ch) => {
                     if let Some(alph) = self.alphas.borrow().get(ch) {
-                        return Ok(seg.feat_match(node, mask, alph.as_binary()))
-                    } // NOTE: cannot `be else if` because alphas.borrow is not dropped. See: https://github.com/rust-lang/rust/issues/113792
-                    if let Some(f) = seg.get_feat(node, mask) {
+                        Ok(seg.feat_match(node, mask, alph.as_binary()))
+                    } else if let Some(f) = seg.get_feat(node, mask) {
                         self.alphas.borrow_mut().insert(*ch, Alpha::Feature(f != 0)); 
                         Ok(true)
                     } else {
@@ -2758,9 +2727,8 @@ impl SubRule {
                 },
                 AlphaMod::InvAlpha(inv_ch) => {
                     if let Some(alph) = self.alphas.borrow().get(inv_ch) {
-                        return Ok(seg.feat_match(node, mask, !alph.as_binary()))
-                    } // NOTE: cannot `be else if` because alphas.borrow is not dropped. See: https://github.com/rust-lang/rust/issues/113792
-                    if let Some(f) = seg.get_feat(node, mask) {
+                        Ok(seg.feat_match(node, mask, !alph.as_binary()))
+                    } else if let Some(f) = seg.get_feat(node, mask) {
                         self.alphas.borrow_mut().insert(*inv_ch, Alpha::Feature(f == 0));
                         Ok(true)
                     } else {
