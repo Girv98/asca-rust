@@ -1,3 +1,12 @@
+0.6.1
+==================
+Meta:
+* Update to Rust 2024 Edition
+
+Fixes:
+* Lib: Infinite loop when inserting after a boundary in certain cases
+* Minor: trace formatting error
+
 0.6.0
 ==================
 Features:
