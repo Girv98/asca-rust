@@ -801,6 +801,26 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_insertion_between_syll_break_and_else() {
+        let test_rule = setup_rule(" * > e / #_CC");
+        let test_word = setup_word("ki.ci");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]), "ki.ci");
+
+        let test_rule = setup_rule(" * > e / #_C");
+        let test_word = setup_word("ki.ci");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]), "eki.ci");
+
+        let test_rule = setup_rule(" * > e / $_CC");
+        let test_word = setup_word("ki.ci");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]), "ki.ci");
+
+        let test_rule = setup_rule(" * > e / $_C");
+        let test_word = setup_word("ki.ci");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]), "eki.eci");
+    }
+
+
+    #[test]
     fn test_context_set() {
         let test_rule = setup_rule("i > ɛ / _{r,h,ʍ}");
         let test_word = setup_word("si.sir");

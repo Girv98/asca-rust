@@ -882,6 +882,7 @@ impl SubRule {
     fn insertion_between(&self, bef_states: &[Item], aft_states: &[Item], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
         let mut start_pos = start_pos;
         
+        // FIXME: This is scuffed
         'outer: while word.in_bounds(start_pos) {
             match self.insertion_after(bef_states, word, start_pos)? {
                 Some(mut ins_pos) => {
@@ -890,6 +891,11 @@ impl SubRule {
                     start_pos = ins_pos;
                     while state_index < aft_states.len() {
                         if !self.context_match(aft_states, &mut state_index, word, &mut pos, true, false)? {
+                            match bef_states.last().unwrap().kind {
+                                ParseElement::WordBound => return Ok(None),
+                                ParseElement::SyllBound => start_pos.increment(word),
+                                _ => {}
+                            }
                             continue 'outer;
                         }
                         state_index +=1;
