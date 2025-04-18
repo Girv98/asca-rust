@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 use crate::{
     error::RuleSyntaxError, 
+    seg  ::NodeKind, 
     CARDINALS_TRIE, 
     DIACRITS
 };
@@ -124,43 +125,79 @@ impl FType {
     pub(crate) const fn count() -> usize { 26 }
 
     pub(crate) fn from_usize(value: usize) -> Self {
-        use FType::*;
         match value {
             // ROOT node
-             0 => {debug_assert_eq!(value, Consonantal as usize); Consonantal},
-             1 => {debug_assert_eq!(value, Sonorant as usize); Sonorant},
-             2 => {debug_assert_eq!(value, Syllabic as usize); Syllabic},
+             0 => Self::Consonantal,
+             1 => Self::Sonorant,
+             2 => Self::Syllabic,
             // MANNER node
-             3 => {debug_assert_eq!(value, Continuant as usize); Continuant},
-             4 => {debug_assert_eq!(value, Approximant as usize); Approximant},
-             5 => {debug_assert_eq!(value, Lateral as usize); Lateral},
-             6 => {debug_assert_eq!(value, Nasal as usize); Nasal},
-             7 => {debug_assert_eq!(value, DelayedRelease as usize); DelayedRelease},
-             8 => {debug_assert_eq!(value, Strident as usize); Strident},
-             9 => {debug_assert_eq!(value, Rhotic as usize); Rhotic},
-            10 => {debug_assert_eq!(value, Click as usize); Click},
+             3 => Self::Continuant,
+             4 => Self::Approximant,
+             5 => Self::Lateral,
+             6 => Self::Nasal,
+             7 => Self::DelayedRelease,
+             8 => Self::Strident,
+             9 => Self::Rhotic,
+            10 => Self::Click,
             // LAR node
-            11 => {debug_assert_eq!(value, Voice as usize); Voice},
-            12 => {debug_assert_eq!(value, SpreadGlottis as usize); SpreadGlottis},
-            13 => {debug_assert_eq!(value, ConstrGlottis as usize); ConstrGlottis},
+            11 => Self::Voice,
+            12 => Self::SpreadGlottis,
+            13 => Self::ConstrGlottis,
             // PLACE Node
             // LABIAL subnode
-            14 => {debug_assert_eq!(value, Labiodental as usize); Labiodental},
-            15 => {debug_assert_eq!(value, Round as usize); Round},
+            14 => Self::Labiodental,
+            15 => Self::Round,
             // CORONAL subnode
-            16 => {debug_assert_eq!(value, Anterior as usize); Anterior},
-            17 => {debug_assert_eq!(value, Distributed as usize); Distributed},
+            16 => Self::Anterior,
+            17 => Self::Distributed,
             // DORSAL subnode
-            18 => {debug_assert_eq!(value, Front as usize); Front},
-            19 => {debug_assert_eq!(value, Back as usize); Back},
-            20 => {debug_assert_eq!(value, High as usize); High},
-            21 => {debug_assert_eq!(value, Low as usize); Low},
-            22 => {debug_assert_eq!(value, Tense as usize); Tense},
-            23 => {debug_assert_eq!(value, Reduced as usize); Reduced},
+            18 => Self::Front,
+            19 => Self::Back,
+            20 => Self::High,
+            21 => Self::Low,
+            22 => Self::Tense,
+            23 => Self::Reduced,
             // PHAR subnode
-            24 => {debug_assert_eq!(value, AdvancedTongueRoot as usize); AdvancedTongueRoot},
-            25 => {debug_assert_eq!(value, RetractedTongueRoot as usize); RetractedTongueRoot},
+            24 => Self::AdvancedTongueRoot,
+            25 => Self::RetractedTongueRoot,
             _  => unreachable!("\nOut of Range Error converting `usize` to `FeatType`\nThis is a bug!\n")
+        }
+    }
+
+    pub(crate) const fn to_node_mask(&self) -> (NodeKind, u8) {
+        match self {
+            Self::Consonantal         => (NodeKind::Root, 0b100),
+            Self::Sonorant            => (NodeKind::Root, 0b010),
+            Self::Syllabic            => (NodeKind::Root, 0b001),
+            
+            Self::Continuant          => (NodeKind::Manner, 0b10000000),
+            Self::Approximant         => (NodeKind::Manner, 0b01000000),
+            Self::Lateral             => (NodeKind::Manner, 0b00100000),
+            Self::Nasal               => (NodeKind::Manner, 0b00010000),
+            Self::DelayedRelease      => (NodeKind::Manner, 0b00001000),
+            Self::Strident            => (NodeKind::Manner, 0b00000100),
+            Self::Rhotic              => (NodeKind::Manner, 0b00000010),
+            Self::Click               => (NodeKind::Manner, 0b00000001),
+            
+            Self::Voice               => (NodeKind::Laryngeal, 0b100),
+            Self::SpreadGlottis       => (NodeKind::Laryngeal, 0b010),
+            Self::ConstrGlottis       => (NodeKind::Laryngeal, 0b001),
+            
+            Self::Labiodental         => (NodeKind::Labial, 0b10),
+            Self::Round               => (NodeKind::Labial, 0b01),
+
+            Self::Anterior            => (NodeKind::Coronal, 0b10),
+            Self::Distributed         => (NodeKind::Coronal, 0b01),
+
+            Self::Front               => (NodeKind::Dorsal, 0b100000),
+            Self::Back                => (NodeKind::Dorsal, 0b010000),
+            Self::High                => (NodeKind::Dorsal, 0b001000),
+            Self::Low                 => (NodeKind::Dorsal, 0b000100),
+            Self::Tense               => (NodeKind::Dorsal, 0b000010),
+            Self::Reduced             => (NodeKind::Dorsal, 0b000001),
+
+            Self::AdvancedTongueRoot  => (NodeKind::Pharyngeal, 0b10),
+            Self::RetractedTongueRoot => (NodeKind::Pharyngeal, 0b01),
         }
     }
 }

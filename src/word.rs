@@ -7,7 +7,6 @@ use std::{
 use crate :: {
     alias :: { parser::{AliasParseElement, SegType}, AliasPosition, Transformation },
     error :: { AliasRuntimeError, Error, RuleRuntimeError, WordSyntaxError }, 
-    feature_to_node_mask,
     lexer :: { FType, NodeType, Position },
     parser:: { BinMod, ModKind, Modifiers, SupraSegs },
     rule  :: Alpha,
@@ -621,7 +620,7 @@ impl Word {
 
     fn alias_match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> bool {
         if let Some(kind) = md { 
-            let (node, mask) = feature_to_node_mask(FType::from_usize(feat_index));
+            let (node, mask) = FType::from_usize(feat_index).to_node_mask();
             return self.alias_match_seg_kind(kind, seg, node, mask)
         }
         true

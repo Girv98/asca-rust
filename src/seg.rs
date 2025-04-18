@@ -9,49 +9,6 @@ use crate :: {
     CARDINALS_MAP, CARDINALS_VEC, DIACRITS 
 };
 
-pub(crate) const fn feature_to_node_mask(feat: FType) -> (NodeKind, u8) {
-    use FType::*;
-    match feat {
-        Consonantal         => (NodeKind::Root, 0b100),
-        Sonorant            => (NodeKind::Root, 0b010),
-        Syllabic            => (NodeKind::Root, 0b001),
-        
-        Continuant          => (NodeKind::Manner, 0b10000000),
-        Approximant         => (NodeKind::Manner, 0b01000000),
-        Lateral             => (NodeKind::Manner, 0b00100000),
-        Nasal               => (NodeKind::Manner, 0b00010000),
-        DelayedRelease      => (NodeKind::Manner, 0b00001000),
-        Strident            => (NodeKind::Manner, 0b00000100),
-        Rhotic              => (NodeKind::Manner, 0b00000010),
-        Click               => (NodeKind::Manner, 0b00000001),
-        
-        Voice               => (NodeKind::Laryngeal, 0b100),
-        SpreadGlottis       => (NodeKind::Laryngeal, 0b010),
-        ConstrGlottis       => (NodeKind::Laryngeal, 0b001),
-        
-        Labiodental         => (NodeKind::Labial, 0b10),
-        Round               => (NodeKind::Labial, 0b01),
-
-        Anterior            => (NodeKind::Coronal, 0b10),
-        Distributed         => (NodeKind::Coronal, 0b01),
-
-        Front               => (NodeKind::Dorsal, 0b100000),
-        Back                => (NodeKind::Dorsal, 0b010000),
-        High                => (NodeKind::Dorsal, 0b001000),
-        Low                 => (NodeKind::Dorsal, 0b000100),
-        Tense               => (NodeKind::Dorsal, 0b000010),
-        Reduced             => (NodeKind::Dorsal, 0b000001),
-
-        AdvancedTongueRoot  => (NodeKind::Pharyngeal, 0b10),
-        RetractedTongueRoot => (NodeKind::Pharyngeal, 0b01),
-    }
-}
-
-// fn modifier_index_to_node_mask(i: usize) -> (NodeKind, u8) {
-//     assert!(i < FType::count());
-//     feature_to_node_mask(FType::from_usize(i))
-// }
-
 #[derive(Debug, Clone)]
 pub(crate) struct Diacritic {
     #[allow(unused)]
@@ -117,8 +74,6 @@ impl fmt::Debug for DiaMods {
         f.debug_struct("DiaMods").field("nodes", &nodes).field("feats", &feats).finish()
     }
 }
-
-
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) enum NodeKind {
@@ -400,42 +355,33 @@ impl Segment {
     }
 
     pub(crate) fn match_node_mod(&self, md: &Option<ModKind>, node_index: usize) -> bool {
-        if let Some(kind) = md {
-            let node = NodeKind::from_usize(node_index);
-            return self.match_node_mod_kind(kind, node)
-        }
-        true
-    }
-
-    pub(crate) fn match_node_mod_kind(&self, kind: &ModKind, node: NodeKind) -> bool {
-        match kind {
-            ModKind::Binary(bt) => match bt {
-                BinMod::Negative => self.is_node_none(node),
-                BinMod::Positive => self.is_node_some(node),
-            },
-            // NOTE: Alpha's don't make sense here
-            // this is a consequence of using SegMKind for everything
-            ModKind::Alpha(_) => unreachable!(),
-        }
+        let Some(kind) = md else { return true };
+        self.match_node_mod_kind(kind, NodeKind::from_usize(node_index))
     }
 
     pub(crate) fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize) -> bool {
-        if let Some(kind) = md {
-            let (node, mask) = feature_to_node_mask(FType::from_usize(feat_index));
-            return self.match_feat_mod_kind(kind, node, mask)
+        let Some(kind) = md else { return true };
+        let (node, mask) = FType::from_usize(feat_index).to_node_mask();
+        self.match_feat_mod_kind(kind, node, mask)
+    }
+
+    pub(crate) fn match_node_mod_kind(&self, kind: &ModKind, node: NodeKind) -> bool {
+        // NOTE: Alphas don't make sense here
+        // this is a consequence of using ModKind
+        let ModKind::Binary(bt) = kind else { unreachable!() };
+        match bt {
+            BinMod::Negative => self.is_node_none(node),
+            BinMod::Positive => self.is_node_some(node),
         }
-        true
     }
 
     pub(crate) fn match_feat_mod_kind(&self, kind: &ModKind, node: NodeKind, mask: u8) -> bool {
-        match kind {
-            ModKind::Binary(bt) => match bt {
-                BinMod::Negative => self.feat_match(node, mask, false),
-                BinMod::Positive => self.feat_match(node, mask, true),
-            },
-            // NOTE: Alpha's don't make sense here
-            // this is a consequence of using ModKind for everything
-            ModKind::Alpha(_) => unreachable!(),
+        // NOTE: Alphas don't make sense here
+        // this is a consequence of using ModKind
+        let ModKind::Binary(bt) = kind else { unreachable!() };
+        match bt {
+            BinMod::Negative => self.feat_match(node, mask, false),
+            BinMod::Positive => self.feat_match(node, mask, true),
         }
     }
 

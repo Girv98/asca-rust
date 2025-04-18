@@ -13,7 +13,7 @@ use crate ::{
     lexer ::{FType, Position, Token}, 
     parser::{AlphaMod, BinMod, Item, ModKind, Modifiers, ParseElement, SupraSegs}, 
     rule  ::{Alpha, PlaceMod, RuleType}, 
-    seg   ::{feature_to_node_mask, NodeKind, Segment}, 
+    seg   ::{NodeKind, Segment}, 
     syll  ::{StressKind, Syllable, Tone}, 
     word  ::{SegPos, Word},
 };
@@ -635,7 +635,7 @@ impl SubRule {
                             res_word.syllables[ri.syll_index].segments[ri.seg_index] = tmp;
                         },
                         (MatchElement::Syllable(i, _), MatchElement::Syllable(j, _)) => {
-                            res_word.swap_syll(i, j);
+                            res_word.swap_sylls(i, j);
                         },
                         (MatchElement::SyllBound(..), MatchElement::SyllBound(..)) => {/* Do nothing */},
                         (MatchElement::Segment(si, _), MatchElement::SyllBound(bi, _)) => {
@@ -2631,7 +2631,7 @@ impl SubRule {
 
     fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> Result<bool, RuleRuntimeError> {
         if let Some(kind) = md { 
-            let (node, mask) = feature_to_node_mask(FType::from_usize(feat_index));
+            let (node, mask) = FType::from_usize(feat_index).to_node_mask();
             return self.match_seg_kind(kind, seg, node, mask)
         }
         Ok(true)
