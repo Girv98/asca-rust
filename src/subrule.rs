@@ -2640,10 +2640,7 @@ impl SubRule {
     fn match_node(&self, seg: Segment, node: NodeKind, val: &ModKind, err_pos: Position) -> Result<bool, RuleRuntimeError> {
         match val {
             ModKind::Binary(bt) => if node == NodeKind::Place {
-                let x = seg.get_node(NodeKind::Labial).is_some() 
-                || seg.get_node(NodeKind::Coronal).is_some()
-                || seg.get_node(NodeKind::Dorsal).is_some()
-                || seg.get_node(NodeKind::Pharyngeal).is_some();
+                let x = seg.is_place_some();
                 match bt {
                     BinMod::Positive => Ok(x),
                     BinMod::Negative => Ok(!x),

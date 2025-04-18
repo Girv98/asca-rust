@@ -16,9 +16,9 @@ use crate :: {
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SegPos {
-    pub(crate) syll_index: usize,
-    pub(crate) seg_index: usize
+pub struct SegPos {
+    pub syll_index: usize,
+    pub seg_index: usize
 }
 
 impl fmt::Debug for SegPos {
@@ -28,7 +28,7 @@ impl fmt::Debug for SegPos {
 }
 
 impl SegPos {
-    pub(crate) fn new(syll_index: usize, seg_index: usize) -> Self {
+    pub fn new(syll_index: usize, seg_index: usize) -> Self {
         Self { syll_index, seg_index }
     }
 
@@ -90,8 +90,8 @@ impl SegPos {
 }
 
 #[derive(Clone)]
-pub(crate) struct Word {
-    pub(crate) syllables: Vec<Syllable>,
+pub struct Word {
+    pub syllables: Vec<Syllable>,
     americanist: bool
 }
 
@@ -170,13 +170,7 @@ impl Word {
                             NodeKind::Root      => return Err(AliasRuntimeError::NodeCannotBeNone("Root".to_owned(), err_pos)),
                             NodeKind::Manner    => return Err(AliasRuntimeError::NodeCannotBeNone("Manner".to_owned(), err_pos)),
                             NodeKind::Laryngeal => return Err(AliasRuntimeError::NodeCannotBeNone("Largyneal".to_owned(), err_pos)),
-                            NodeKind::Place => {
-                                // e.g. Debuccalization
-                                seg.set_node(NodeKind::Labial    , None);
-                                seg.set_node(NodeKind::Coronal   , None);
-                                seg.set_node(NodeKind::Dorsal    , None);
-                                seg.set_node(NodeKind::Pharyngeal, None);
-                            },
+                            NodeKind::Place => *seg.place = None, // e.g. Debuccalization
                             _ => seg.set_node(node, None),
                             
                         },
@@ -185,12 +179,9 @@ impl Word {
                             NodeKind::Manner    => return Err(AliasRuntimeError::NodeCannotBeSome("Manner".to_owned(), err_pos)),
                             NodeKind::Laryngeal => return Err(AliasRuntimeError::NodeCannotBeSome("Largyneal".to_owned(), err_pos)),
                             NodeKind::Place     => return Err(AliasRuntimeError::NodeCannotBeSome("Place".to_owned(), err_pos)),
-                            _ => {
-                                // preserve node if already positive
-                                if seg.get_node(node).is_none() {
-                                    seg.set_node(node, Some(0))
-                                }
-                            },
+                            // preserve node if already positive
+                            _ if seg.get_node(node).is_none() => seg.set_node(node, Some(0)),
+                            _ => {}
                         },
                     },
                     ModKind::Alpha(_) => unreachable!(),
@@ -199,7 +190,7 @@ impl Word {
         }
 
         for (i, m) in mods.feats.iter().enumerate() {
-            let (n, f) = feature_to_node_mask(FType::from_usize(i));
+            let (n, f) = FType::from_usize(i).to_node_mask();
             if let Some(kind) = m {
                 match kind {
                     ModKind::Binary(bm) => match bm {
@@ -560,7 +551,7 @@ impl Word {
                 if j != 0 && *seg == syll.segments[j-1] {
                     buffer.push('ː');
                 } else {
-                    buffer.push_str(&seg.get_as_grapheme());
+                    buffer.push_str(&seg.get_as_grapheme().unwrap_or("�".to_owned()));
                 }
             }
             if syll.tone != 0 {
@@ -804,7 +795,7 @@ impl Word {
 
                 }
 
-                buffer.push_str(&syll.segments[j].get_as_grapheme());
+                buffer.push_str(&syll.segments[j].get_as_grapheme().unwrap_or("�".to_owned()));
                 j += 1;
             }
 
@@ -834,27 +825,41 @@ impl Word {
 
         buffer
     }
-    #[allow(unused)]
-    pub(crate) fn get_syll_segments(&self, syll_index: usize) -> &VecDeque<Segment> {
-        debug_assert!(syll_index < self.syllables.len());
-        &self.syllables[syll_index].segments
+    
+    pub fn get_syll_segments(&self, syll_index: usize) -> Option<&VecDeque<Segment>> {
+        Some(&self.syllables.get(syll_index)?.segments)
     } 
-    #[allow(unused)]
-    pub(crate) fn get_syll_segments_mut(&mut self, syll_index: usize) -> &mut VecDeque<Segment> {
-        debug_assert!(syll_index < self.syllables.len());
-        &mut self.syllables[syll_index].segments
+    
+    pub fn get_syll_segments_mut(&mut self, syll_index: usize) -> Option<&mut VecDeque<Segment>> {
+        Some(&mut self.syllables.get_mut(syll_index)?.segments)
     } 
 
-    pub(crate) fn remove_syll(&mut self, syll_index: usize) {
+    /// Removes and returns the syllable at `syll_index` within the word, shifting all elements after it to the left.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `syll_index` is out of bounds.
+    pub fn remove_syll(&mut self, syll_index: usize) {
         debug_assert!(self.syllables.len() > 1);
         debug_assert!(syll_index < self.syllables.len());
         self.syllables.remove(syll_index);
     }
-
-    pub(crate) fn swap_syll(&mut self, a_index: usize, b_index: usize) {
-        debug_assert!(a_index < self.syllables.len());
-        debug_assert!(b_index < self.syllables.len());
-        self.syllables.swap(a_index, b_index)
+    /// Swaps two syllable in the word.
+    ///
+    /// If `a` equals to `b`, it's guaranteed that elements won't change value.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - The index of the first syllable
+    /// * `b` - The index of the second syllable
+    ///
+    /// # Panics
+    ///
+    /// Panics if `a` or `b` are out of bounds.
+    pub fn swap_sylls(&mut self, a: usize, b: usize) {
+        debug_assert!(a < self.syllables.len());
+        debug_assert!(b < self.syllables.len());
+        self.syllables.swap(a, b)
     }
 
     /// Finds number of consecutive identical segments ***within a syllable*** starting from the given index.
@@ -862,7 +867,7 @@ impl Word {
     /// Does not take into account if said index is in the middle of the repetition
     /// # Panics
     /// If SegPos is out of bounds
-    pub(crate) fn seg_length_at(&self, seg_index: SegPos) -> usize {
+    pub fn seg_length_at(&self, seg_index: SegPos) -> usize {
         self.syllables[seg_index.syll_index].get_seg_length_at(seg_index.seg_index)
     }
 
@@ -894,37 +899,6 @@ impl Word {
         }
     }
 
-    // pub(crate) fn first_diff(before: &Word, after: &Word) -> Option<(usize, isize)> {
-    //     let mut first_diff = None;
-    //     for (i,( bfr, aft)) in before.syllables.iter().zip(after.syllables.iter()).enumerate() {
-    //         print!("{}, ", bfr.segments.len());
-    //         println!("{}", aft.segments.len());
-    //         let diff = aft.segments.len() as isize - bfr.segments.len() as isize;
-    //         if diff != 0 {
-    //             first_diff = Some((i, diff));
-    //             break;
-    //         } 
-    //     }
-    //     match first_diff {
-    //         Some(_) => first_diff,
-    //         None => {
-    //             if before.syllables.len() > after.syllables.len() {
-    //                 let i = after.syllables.len() - 1;
-    //                 let diff = -(before.syllables[i].segments.len() as isize);
-    //                 Some((i, diff))
-    //             } else if before.syllables.len() < after.syllables.len() {
-    //                 let i = before.syllables.len() - 1;
-    //                 let diff = after.syllables[i].segments.len() as isize;
-    //                 Some((i, diff))
-    //             } else {
-    //                 None
-    //             } 
-    //         },
-    //     }
-    // }
-
-
-
     pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &Modifiers, start_pos: SegPos, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         self.syllables[start_pos.syll_index].apply_seg_mods(alphas, mods, start_pos.seg_index, err_pos)
     }
@@ -952,7 +926,13 @@ mod word_tests {
     #[test]
     fn test_get_grapheme() {
         let s = Word::new("n".to_owned(), &[]).unwrap().syllables[0].segments[0];
-        assert_eq!(s.get_as_grapheme(), "n")
+        assert_eq!(s.get_as_grapheme(), Some("n".to_owned()));
+
+        let s = Word::new("x".to_owned(), &[]).unwrap().syllables[0].segments[0];
+        assert_eq!(s.get_as_grapheme(), Some("x".to_owned()));
+
+        let s = Word::new("xʷ".to_owned(), &[]).unwrap().syllables[0].segments[0];
+        assert_eq!(s.get_as_grapheme(), Some("xʷ".to_owned()));
     }
 
     #[test]

@@ -4,11 +4,14 @@ mod parser;
 mod word;
 mod syll;
 mod seg;
+mod place;
 mod rule;
 mod subrule;
 mod error;
 mod alias;
 
+pub use seg::*;
+pub use place::*;
 pub use error::*;
 
 use serde::Deserialize;
@@ -21,7 +24,6 @@ use lexer ::*;
 use parser::*;
 use trie  ::*;
 use word  ::*;
-use seg   ::*;
 use rule  ::*;
 
 const CARDINALS_FILE: &str = include_str!("cardinals.json");
@@ -127,7 +129,7 @@ impl Default for RuleGroup {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-struct Phrase (Vec<Word>);
+pub struct Phrase (Vec<Word>);
 
 impl std::ops::Deref for Phrase {
     type Target = Vec<Word>;
@@ -200,13 +202,14 @@ fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phra
     Ok(transformed_phrases)
 }
 
-struct Change {
-    ind: usize,  // rule group index
-    bef: Phrase, // the word before
-    aft: Phrase, // the word after
+pub struct Change {
+    /// The [RuleGroup] index that the change applies
+    pub rule_index: usize,
+    /// The resulting phrase
+    pub after: Phrase,
 }
 
-fn apply_rules_trace(rules: &[Vec<Rule>], phrase: Phrase) -> Result<Vec<Change>, Error> {
+fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, Error> {
     let mut changes: Vec<Change> = Vec::new();
 
     let mut res_phrase = phrase.clone();
@@ -218,7 +221,7 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: Phrase) -> Result<Vec<Change>,
             }
         }
         if res_phrase != res_step {
-            changes.push(Change { ind: i, bef: res_step, aft: res_phrase.clone() });
+            changes.push(Change { rule_index: i, after: res_phrase.clone() });
         }
     }
 
@@ -234,20 +237,26 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> V
     ).collect()
 }
 
-fn trace_to_string(changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
+fn trace_to_string(original: &Phrase, changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
     let mut res = Vec::new();
+    let mut last = original.iter().fold(String::new(), |acc, w| {
+        acc + &w.render(&[]) + " "
+    });
     for change in changes {
-        res.push(format!("Applied \"{}\":", rules[change.ind].name));
+        res.push(format!("Applied \"{}\":", rules[change.rule_index].name));
         let mut st = String::new();
-        for bw in change.bef.iter() {
-            st.push_str(&bw.render(&[]));
-            st.push(' ');
-        }
+
+        st.push_str(&last);
         st.push_str("=> ");
-        for aw in change.aft.iter() {
-            st.push_str(&aw.render(&[]));
-            st.push(' ');
+
+        let mut word = String::new();
+        for aw in change.after.iter() {
+            word.push_str(&aw.render(&[]));
+            word.push(' ');
         }
+        last = word;
+        st.push_str(&last);
+
         res.push(st);
     }
     res
@@ -308,14 +317,23 @@ pub fn run(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into
     Ok(phrases_to_string(res, alias_from))
 }
 
-pub fn run_trace(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, Error> {
-    let (alias_into, _) = parse_aliases(alias_into, alias_from)?;
+pub fn get_trace_string(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String]) -> Result<Vec<String>, Error> {
+    let (alias_into, _) = parse_aliases(alias_into, &[])?;
     
     let phrase = unparsed_phrase.split(' ').map(|w| Word::new(normalise(w), &alias_into)).collect::<Result<Phrase, Error>>()?;
     let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rules_trace(&rules, phrase)?;
+    let res = apply_rules_trace(&rules, &phrase)?;
 
-    Ok(trace_to_string(res, unparsed_rules))
+    Ok(trace_to_string(&phrase, res, unparsed_rules))
+}
+
+pub fn trace_changes(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String]) -> Result<Vec<Change>, Error> {
+    let (alias_into, _) = parse_aliases(alias_into, &[])?;
+    
+    let phrase = unparsed_phrase.split(' ').map(|w| Word::new(normalise(w), &alias_into)).collect::<Result<Phrase, Error>>()?;
+    let rules = parse_rule_groups(unparsed_rules)?;
+
+    apply_rules_trace(&rules, &phrase)
 }
 
 fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], alias_from: &[String], trace_index: usize) -> Result<Vec<String>, Error> {
@@ -323,9 +341,9 @@ fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alia
     
     let phrase = get_trace_phrase(unparsed_phrase, &alias_into, trace_index)?.unwrap_or_default();
     let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rules_trace(&rules, phrase)?;
+    let res = apply_rules_trace(&rules, &phrase)?;
 
-    Ok(trace_to_string(res, unparsed_rules))
+    Ok(trace_to_string(&phrase, res, unparsed_rules))
 }
 
 #[wasm_bindgen]

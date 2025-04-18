@@ -1,10 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, fmt};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate :: {
-    error :: RuleRuntimeError, 
-    lexer :: { FType, NodeType, Position }, 
-    parser:: { AlphaMod, BinMod, ModKind, Modifiers, SupraSegs }, 
+    error :: RuleRuntimeError,
+    lexer :: { FType, NodeType, Position },
+    parser:: { AlphaMod, BinMod, ModKind, Modifiers, SupraSegs },
+    place :: Place,
     rule  :: Alpha, 
     CARDINALS_MAP, CARDINALS_VEC, DIACRITS 
 };
@@ -76,7 +77,7 @@ impl fmt::Debug for DiaMods {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub(crate) enum NodeKind {
+pub enum NodeKind {
     Root,
     Manner,
     Laryngeal,
@@ -107,139 +108,28 @@ impl NodeKind {
     }
 }
 
-// pub(crate) fn test_node_variants() {
-//     fn asdf(cache: HashMap<u8, u64>) -> Vec<String> {
-//         let mut v: Vec<_> = cache.into_iter().collect();
-//         v.sort_by(|x, y| x.0.cmp(&y.0));
-//         let width = 8 - v.last().unwrap().0.leading_zeros() as usize;
-//         v.iter().map(|(x, v)| format!("{:0width$b} : {}", x, v)).collect()
-//     }
-//     fn qwer(cache: HashMap<Option<u8>, u64>) -> Vec<String> {
-//         let mut v: Vec<_> = cache.into_iter().collect();
-//         v.sort_by(|x, y| x.0.cmp(&y.0));
-//         let width = 8 - v.last().unwrap().0.unwrap().leading_zeros() as usize;
-//         v.iter().map(|(x, v)| {
-//             if let Some(q) = x {
-//                 format!("{:0width$b} : {}", q, v)
-//             } else {
-//                 format!("- : {v}")
-//             }
-//         }).collect()
-//     }
-    
-//     let mut rut_cache = std::collections::HashMap::<u8, u64>::new();
-//     let mut man_cache = std::collections::HashMap::<u8, u64>::new();
-//     let mut lar_cache = std::collections::HashMap::<u8, u64>::new();
-//     let mut lab_cache = std::collections::HashMap::<Option<u8>, u64>::new();
-//     let mut cor_cache = std::collections::HashMap::<Option<u8>, u64>::new();
-//     let mut dor_cache = std::collections::HashMap::<Option<u8>, u64>::new();
-//     let mut phr_cache = std::collections::HashMap::<Option<u8>, u64>::new();
+/// Representation of a phonemic segment
+/// # Nodes and their features
+/// * `root` - Only lower three bits used: `[consonantal, sonorant, syllabic]`
+/// * `manner` - All bits used: `[continuent, approx., lateral, nasal, del.rel., strident, rhotic, click]`
+/// * `laryngeal` - Only lower three bits used: `[voice, s.g., c.g.]`
+/// * `place` - See [Place]
 
-//     let mut count = 0;
-    
-//     CARDINALS_VEC.iter().for_each(|s| {
-//         let seg = CARDINALS_MAP.get(s).unwrap();
-        
-//         *rut_cache.entry(seg.root).or_default() += 1;
-//         *man_cache.entry(seg.manner).or_default() += 1;
-//         *lar_cache.entry(seg.laryngeal).or_default() += 1;
-//         *lab_cache.entry(seg.labial).or_default() += 1;
-//         *cor_cache.entry(seg.coronal).or_default() += 1;
-//         *dor_cache.entry(seg.dorsal).or_default() += 1;
-//         *phr_cache.entry(seg.pharyngeal).or_default() += 1;
-//         count += 1;
-//     });
-//     println!("Of {count} cardinals:");
-//     println!("rut: - {:#?}", asdf(rut_cache));
-//     println!("man: - {:#?}", asdf(man_cache));
-//     println!("lar: - {:#?}", asdf(lar_cache));
-//     println!("lab: - {:#?}", qwer(lab_cache));
-//     println!("cor: - {:#?}", qwer(cor_cache));
-//     println!("dor: - {:#?}", qwer(dor_cache));
-//     println!("phr: - {:#?}", qwer(phr_cache));
-// }
-
-// pub(crate) fn test_vowel_variants() {
-//     let mut errs = 0;
-//     let mut count = 0;
-//     let root = 0b011;
-//     let manner = 0b11000000;
-//     let laryngeal = 0b100;
-//     let labial = [0b11, 0b10, 0b1, 0b0];
-//     let coronal = None;
-//     let pharyngeal = None;
-
-//     for l in labial {
-//         for d in 0..=0b111111 {
-//             let seg = Segment {root, manner, laryngeal, labial : Some(l), coronal, dorsal: Some(d), pharyngeal };
-//             count += 1;
-//             if let Some(g) = seg.get_as_grapheme() {
-//                 if g == "�".to_string() {
-//                     errs += 1;
-//                 }
-//                 println!("{g}")
-//             } else {
-//                 errs += 1;
-//             }
-//         }
-//     }
-//     println!("Total {errs} out of {count}");
-// }
-
-// More than 246172 legal variants
-// pub(crate) fn test_variants() {
-//     let mut errs = 0;
-//     let mut count = 0;
-//
-//     for root in 1..=0b111 {
-//         for manner in 0..=0b11111111 {
-//             for laryngeal in 0..=0b111 {
-//                 for l in 0..=0b11 {
-//                     for c in 0..=0b11 {
-//                         for d in 0..=0b111111 {
-//                             for p in 0..=0b11 {
-//                                 let seg = Segment { root, manner, laryngeal, labial: Some(l), coronal: Some(c), dorsal: Some(d), pharyngeal: Some(p) };
-//                                 count +=1;
-//                                 if let Some(g) = seg.get_as_grapheme() {
-//                                     if g == "�".to_string() {
-//                                         errs += 1;
-//                                     }
-//                                 } else {
-//                                     errs += 1;
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//         println!("{root}/7: {errs} out of {count} ");
-//     } 
-//     println!("Total {errs} out of {count}");
-// }
-
-#[derive(Default, Clone, Copy, PartialEq, Eq, Deserialize)]
-pub(crate) struct Segment {
-    pub(crate) root      : u8,
-    pub(crate) manner    : u8,
-    pub(crate) laryngeal : u8,
-    pub(crate) labial    : Option<u8>,
-    pub(crate) coronal   : Option<u8>,
-    pub(crate) dorsal    : Option<u8>,
-    pub(crate) pharyngeal: Option<u8>,
+#[derive(Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Segment {
+    pub root      : u8,
+    pub manner    : u8,
+    pub laryngeal : u8,
+    pub place: Place,
 }
  
 impl fmt::Debug for Segment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        let grapheme = self.get_as_grapheme();
-        write!(f, "{}", grapheme)
+        write!(f, "{}", self.get_as_grapheme().unwrap_or("�".to_owned()))
     }
 }
 
 impl Segment {
-
-    // Get 
     pub(crate) fn get_nearest_grapheme(&self) -> String {
         // test against all cardinal values for a match
         for c_grapheme in CARDINALS_VEC.iter() {
@@ -260,7 +150,7 @@ impl Segment {
         // Won't happen when using diff_count < 8, but guarantees
         // that indexing into candidates doesn't error
         if candidates.is_empty() {
-            return self.get_as_grapheme()
+            return self.get_as_grapheme().unwrap_or("�".to_owned())
         }
         // Get best candidate
         // TODO(girv): suffers from same bug as get_as_grapheme where
@@ -269,13 +159,16 @@ impl Segment {
         candidates[0].1.to_string()
     }
 
+    /// Returns the segment as a string in IPA form
+    /// 
+    /// Returns `None`, if the segment value cannot be converted
+    pub fn get_as_grapheme(&self) -> Option<String> {
+        // TODO(girv): This wouldn't get me any leetcode cred
 
-    // TODO(girv): This wouldn't get me any leetcode cred
-    pub(crate) fn get_as_grapheme(&self) -> String {
         // test against all cardinal values for a match
         for c_grapheme in CARDINALS_VEC.iter() {
             let x = CARDINALS_MAP.get(c_grapheme).unwrap();
-            if *x == *self { return c_grapheme.to_string() }
+            if *x == *self { return Some(c_grapheme.to_string()) }
         }
 
         // if no match is found, 
@@ -332,12 +225,13 @@ impl Segment {
                     }
                 }
                 if buf_seg == *self { 
-                    return buf_str;
+                    return Some(buf_str);
                 }
             }
         }
 
-        "�".to_string()
+        // "�".to_string()
+        None
     }
 
     pub(crate) fn match_modifiers(&self, mods: &DiaMods) -> Result<(), (usize, bool)> {
@@ -386,95 +280,115 @@ impl Segment {
     }
 
     pub(crate) fn as_modifiers(&self) -> Modifiers {
+        let as_bin_mod = |b: bool | if b { BinMod::Positive } else { BinMod::Negative };
         
-        let to_bin_mod = |b: bool | { if b {BinMod::Positive} else {BinMod::Negative}};
-        
-        let place = self.labial.is_some() || self.coronal.is_some() || self.dorsal.is_some() || self.pharyngeal.is_some();
-
         let nodes = [
             Some(ModKind::Binary(BinMod::Positive)),
             Some(ModKind::Binary(BinMod::Positive)),
             Some(ModKind::Binary(BinMod::Positive)),
-            Some(ModKind::Binary(to_bin_mod(place))),
-            Some(ModKind::Binary(to_bin_mod(self.labial.is_some()))),
-            Some(ModKind::Binary(to_bin_mod(self.coronal.is_some()))),
-            Some(ModKind::Binary(to_bin_mod(self.dorsal.is_some()))),
-            Some(ModKind::Binary(to_bin_mod(self.pharyngeal.is_some()))),
-            ];
+            Some(ModKind::Binary(as_bin_mod(self.place.is_some()))),
+            Some(ModKind::Binary(as_bin_mod(self.place.labial_is_some()))),
+            Some(ModKind::Binary(as_bin_mod(self.place.coronal_is_some()))),
+            Some(ModKind::Binary(as_bin_mod(self.place.dorsal_is_some()))),
+            Some(ModKind::Binary(as_bin_mod(self.place.pharyngeal_is_some()))),
+        ];
 
         let mut feats = [();FType::count()].map(|_| None);     
         #[allow(clippy::needless_range_loop)] 
         for i in 0..FType::count() {
-            let (n, f) = feature_to_node_mask(FType::from_usize(i));   
+            let (n, f) = FType::from_usize(i).to_node_mask();   
             let Some(x) = self.get_feat(n, f) else { continue };
             
-            feats[i] = Some(ModKind::Binary(to_bin_mod(x != 0)))
+            feats[i] = Some(ModKind::Binary(as_bin_mod(x != 0)))
         }
         
-        let suprs = SupraSegs::new();
-
-        Modifiers { nodes, feats, suprs }
+        Modifiers { nodes, feats, suprs: SupraSegs::new() }
     }
 
     fn diff_count(&self, other: &Segment) -> usize {
-        fn dif_option(f: Option<u8>, s: Option<u8>) -> Option<u8> {
-            let Some(a) = f else { return s };
-            let Some(b) = s else { return f };
+        let diff_option = |f: Place, s: Place| {
+            let Some(a) = *f else { return *s };
+            let Some(b) = *s else { return *f };
             Some(a ^ b)
-        }
+        };
 
         let rut = self.root ^ other.root;
         let man = self.manner ^ other.manner;
         let lar = self.laryngeal ^ other.laryngeal;
-        let lab = dif_option(self.labial, other.labial).unwrap_or(0);
-        let cor = dif_option(self.coronal, other.coronal).unwrap_or(0);
-        let dor = dif_option(self.dorsal, other.dorsal).unwrap_or(0);
-        let phr = dif_option(self.pharyngeal, other.pharyngeal).unwrap_or(0);
+        let plc = diff_option(self.place, other.place).unwrap_or(0);
 
-        ( rut.count_ones()
-        + man.count_ones()
-        + lar.count_ones()
-        + lab.count_ones()
-        + cor.count_ones()
-        + dor.count_ones()
-        + phr.count_ones() ) as usize
+        (rut.count_ones() + man.count_ones() + lar.count_ones() + plc.count_ones()) as usize
     }
 
+    /// Returns the value of a given node or sub-node
+    /// # Arguments
+    /// * `node` - The node to return
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
     #[inline]
-    pub(crate) fn get_node(&self, node: NodeKind) -> Option<u8> {
+    pub fn get_node(&self, node: NodeKind) -> Option<u8> {
         match node {
             NodeKind::Root       => Some(self.root),
             NodeKind::Manner     => Some(self.manner),
             NodeKind::Laryngeal  => Some(self.laryngeal),
-            NodeKind::Labial     => self.labial,
-            NodeKind::Coronal    => self.coronal,
-            NodeKind::Dorsal     => self.dorsal,
-            NodeKind::Pharyngeal => self.pharyngeal,
-            NodeKind::Place      => unreachable!(),
+            NodeKind::Labial     => self.place.get_labial(),
+            NodeKind::Coronal    => self.place.get_coronal(),
+            NodeKind::Dorsal     => self.place.get_dorsal(),
+            NodeKind::Pharyngeal => self.place.get_pharyngeal(),
+            NodeKind::Place      => panic!("`Place` cannot be accessed this way. Use `get_place_nodes()` instead."),
         }
     }
 
+    /// Returns the place node
     #[inline]
-    pub(crate) fn set_node(&mut self, node: NodeKind, val: Option<u8>) {
+    pub fn get_place_node(&self) -> Place { self.place }
+
+    /// Returns the individual values of the four place nodes
+    #[inline]
+    pub fn get_place_sub_nodes(&self) -> (Option<u8>, Option<u8>, Option<u8>, Option<u8>) {
+        (self.place.get_labial(), self.place.get_coronal(), self.place.get_dorsal(), self.place.get_pharyngeal())
+    }
+    
+    /// Sets a given node or sub-node to given value
+    /// # Arguments
+    /// * `node`  - The node to set
+    /// * `value` - The value to set
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
+    #[inline]
+    pub fn set_node(&mut self, node: NodeKind, value: Option<u8>) {
         match node {
-            NodeKind::Root       => self.root = val.expect("RootNode cannot be null"),
-            NodeKind::Manner     => self.manner = val.expect("MannerNode cannot be null"),
-            NodeKind::Laryngeal  => self.laryngeal = val.expect("LaryngealNode cannot be null"),
-            NodeKind::Labial     => self.labial = val,
-            NodeKind::Coronal    => self.coronal = val,
-            NodeKind::Dorsal     => self.dorsal = val,
-            NodeKind::Pharyngeal => self.pharyngeal = val,
-            NodeKind::Place      => unreachable!(),
+            NodeKind::Root       => self.root = value.expect("RootNode cannot be null"),
+            NodeKind::Manner     => self.manner = value.expect("MannerNode cannot be null"),
+            NodeKind::Laryngeal  => self.laryngeal = value.expect("LaryngealNode cannot be null"),
+            NodeKind::Labial     => self.place.set_labial(value),
+            NodeKind::Coronal    => self.place.set_coronal(value),
+            NodeKind::Dorsal     => self.place.set_dorsal(value),
+            NodeKind::Pharyngeal => self.place.set_pharyngeal(value),
+            NodeKind::Place      => panic!("`Place` cannot be set this way. Set each subnode individually instead."),
         }
     }
-
+    
+    /// Returns the values of a given set of features within a node or sub-node
+    /// # Arguments
+    /// * `node` - The node to get
+    /// * `feat` - A bitmask of the feature values to return
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
     #[inline]
-    pub(crate) fn get_feat(&self, node: NodeKind, feat: u8) -> Option<u8> {
+    pub fn get_feat(&self, node: NodeKind, feat: u8) -> Option<u8> {
         Some(self.get_node(node)? & feat)
     }
-
-    pub(crate) fn set_feat(&mut self, node: NodeKind, feat: u8, to_positive: bool) {
-        debug_assert_ne!(node, NodeKind::Place);
+    
+    /// Sets a given set of features within a `node` or sub-node
+    /// # Arguments
+    /// * `node` - The node to set
+    /// * `feat` - A bitmask of the feature values to set
+    /// * `to_positive` - Set the feature values to `0` or `1`
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
+    #[inline]
+    pub fn set_feat(&mut self, node: NodeKind, feat: u8, to_positive: bool) {
         if to_positive {
             let n = self.get_node(node).unwrap_or(0u8);
             self.set_node(node, Some(n | feat)) 
@@ -482,8 +396,48 @@ impl Segment {
             self.set_node(node, Some(n & !(feat)))
         }
     }
+    
+    /// Returns whether a given node or sub-node is a `Some` value
+    /// # Arguments
+    /// * `node` - The node to query
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
+    #[inline]
+    pub fn is_node_some(&self, node: NodeKind) -> bool {
+        self.get_node(node).is_some()
+    }
+    
+    /// Returns whether a given node or sub-node is a `None` value
+    /// # Arguments
+    /// * `node` - The node to query
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
+    #[inline]
+    pub fn is_node_none(&self, node: NodeKind) -> bool {
+        self.get_node(node).is_none()
+    }
+    
+    /// Returns whether place is a `Some` value
+    #[inline]
+    pub fn is_place_some(&self) -> bool {
+        self.place.is_some()
+    }
 
-    pub(crate) fn feat_match(&self, node: NodeKind, mask: u8, positive: bool) -> bool {
+    /// Returns whether place is a `None` value
+    #[inline]
+    pub fn is_place_none(&self) -> bool {
+        self.place.is_none()
+    }
+
+    /// Returns whether a given set of features within a node or sub-node are positive
+    /// # Arguments
+    /// * `node` - The node to match
+    /// * `mask` - A bitmask of the feature values to match
+    /// * `positive` - Match if feature values are positive
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
+    #[inline]
+    pub fn feat_match(&self, node: NodeKind, mask: u8, positive: bool) -> bool {
         let Some(n) = self.get_node(node) else {
             return false
         };
@@ -494,17 +448,13 @@ impl Segment {
         }
     }
 
-    #[inline]
-    pub(crate) fn is_node_some(&self, node: NodeKind) -> bool {
-        self.get_node(node).is_some()
-    }
-
-    #[inline]
-    pub(crate) fn is_node_none(&self, node: NodeKind) -> bool {
-        self.get_node(node).is_none()
-    }
-
-    pub(crate) fn node_match(&self, node: NodeKind, match_value: Option<u8>) -> bool {
+    /// Returns whether a given node or sub-node matches a given value
+    /// # Arguments
+    /// * `node` - The node to match
+    /// * `match_value` - The feature values to match
+    /// # Panics
+    /// Panics if `node` is [NodeKind::Place]
+    pub fn node_match(&self, node: NodeKind, match_value: Option<u8>) -> bool {
         debug_assert_ne!(node, NodeKind::Place);
         let Some(n) = self.get_node(node) else {
             return match_value.is_none()
@@ -530,7 +480,7 @@ impl Segment {
         }
         for (i, m) in dm.feats.iter().enumerate() {
             if let Some(kind) = m {
-                let (n,f) = feature_to_node_mask(FType::from_usize(i));
+                let (n,f) = FType::from_usize(i).to_node_mask();
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_feat(n, f, false),
@@ -558,13 +508,7 @@ impl Segment {
                             NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeNone("Root".to_owned(), err_pos)),
                             NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeNone("Manner".to_owned(), err_pos)),
                             NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeNone("Largyneal".to_owned(), err_pos)),
-                            NodeKind::Place => {
-                                // e.g. Debuccalization
-                                self.set_node(NodeKind::Labial    , None);
-                                self.set_node(NodeKind::Coronal   , None);
-                                self.set_node(NodeKind::Dorsal    , None);
-                                self.set_node(NodeKind::Pharyngeal, None);
-                            },
+                            NodeKind::Place     => *self.place = None, // e.g. Debuccalization
                             _ => self.set_node(node, None),
                             
                         },
@@ -573,12 +517,9 @@ impl Segment {
                             NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeSome("Manner".to_owned(), err_pos)),
                             NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeSome("Largyneal".to_owned(), err_pos)),
                             NodeKind::Place     => return Err(RuleRuntimeError::NodeCannotBeSome("Place".to_owned(), err_pos)),
-                            _ => {
-                                // preserve node if already positive
-                                if self.get_node(node).is_none() {
-                                    self.set_node(node, Some(0))
-                                }
-                            },
+                            // preserve node if already positive
+                            _ if self.get_node(node).is_none() => self.set_node(node, Some(0)),
+                            _ => {}
                         },
                     },
                     ModKind::Alpha(am) => match am {
@@ -639,7 +580,7 @@ impl Segment {
         }
         for (i, m) in feats.iter().enumerate() {
             if let Some(kind) = m { 
-                let (n, f) = feature_to_node_mask(FType::from_usize(i));
+                let (n, f) = FType::from_usize(i).to_node_mask();
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_feat(n, f, false),

@@ -1325,7 +1325,7 @@ mod rule_tests {
         for word in &test_words {
             let mut w = word.clone();
             for (ri, rule) in test_rules.iter().enumerate() {
-                println!("-- {} --", ri+1);
+                println!("-- {} --", ri);
                 println!("{}", w.render(&[]));
                 w = match rule.apply(w) {
                     Ok(w) => w,

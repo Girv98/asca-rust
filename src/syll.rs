@@ -7,7 +7,7 @@ use crate   :: {
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum StressKind {
+pub enum StressKind {
     Primary,
     Secondary,
     Unstressed
@@ -32,10 +32,10 @@ impl fmt::Display for StressKind {
 pub(crate) type Tone = u16;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Syllable {
-    pub(crate) segments: VecDeque<Segment>,
-    pub(crate) stress: StressKind,
-    pub(crate) tone: Tone
+pub struct Syllable {
+    pub segments: VecDeque<Segment>,
+    pub stress: StressKind,
+    pub tone: Tone
 }
 
 impl Syllable {

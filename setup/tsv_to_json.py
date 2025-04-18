@@ -13,10 +13,12 @@ def set_features(d):
     manner = 0
     laryngeal = 0
     
-    labial = None
-    coronal = None
-    dorsal = None
-    pharyngeal = None
+    labial = 0
+    coronal = 0
+    dorsal = 0
+    pharyngeal = 0
+
+    place_head = 0
 
 
     grapheme = d.get("%")
@@ -57,55 +59,57 @@ def set_features(d):
         laryngeal += 0b001
 
     # Set Labial Features
-    if d['LAB']:
-        labial = 0
+    if d['LAB'] == True:
+        place_head |= 0x8000
         if d['ldl']:
-            labial += 0b10
+            labial += 0b10_00_000000_00
         if d['rnd']:
-            labial += 0b01
+            labial += 0b01_00_000000_00
 
     # Set Coronal Features
-    if d['COR']:
-        coronal= 0
+    if d['COR'] == True:
+        place_head |= 0x4000
         if d['ant']:
-            coronal+= 0b10
+            coronal+= 0b10_000000_00
         if d['dist']:
-            coronal+= 0b01
+            coronal+= 0b01_000000_00
 
     # Set Dorsal Features
     if d['DOR'] == True:
-        dorsal = 0b000000
+        place_head |= 0x2000
         if d['fr']:
-            dorsal += 0b100000
+            dorsal += 0b100000_00
         if d['bk']:
-            dorsal += 0b010000
+            dorsal += 0b010000_00
         if d['hi']:
-            dorsal += 0b001000
+            dorsal += 0b001000_00
         if d['lo']:
-            dorsal += 0b000100
+            dorsal += 0b000100_00
         if d['tens']:
-            dorsal += 0b000010
+            dorsal += 0b000010_00
         if d['red']:
-            dorsal += 0b000001
+            dorsal += 0b000001_00
 
     # Set Pharyngeal Features
-    if d['PHR']:
-        pharyngeal = 0b00
+    if d['PHR'] == True:
+        place_head |= 0x1000
         if d['atr']:
             pharyngeal += 0b10
         if d['rtr']:
             pharyngeal += 0b01
 
+    place = None
+
+    if place_head != 0:
+        place = 0
+        place = (place_head | labial | coronal | dorsal | pharyngeal)
 
     return {
         'grapheme': grapheme,
         'root': root,
         'manner': manner,
         'laryngeal': laryngeal,
-        'labial': labial,
-        'coronal': coronal,
-        'dorsal': dorsal,
-        'pharyngeal': pharyngeal
+        'place': place
     }
 
     
