@@ -5,7 +5,7 @@ use crate :: {
 use super::{trace::Change, Rule};
 
 /// The unparsed ASCA Rule Group
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct RuleGroup {
     pub name: String,
     pub rule: Vec<String>,
@@ -22,16 +22,12 @@ impl RuleGroup {
     }
 }
 
-impl Default for RuleGroup {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
+#[derive(Default, Debug)]
 pub struct RuleGroupBuilder {
-    pub name: String,
-    pub rule: Vec<String>,
-    pub description: String, 
+    name: String,
+    rule: Vec<String>,
+    description: String, 
 }
 
 impl RuleGroupBuilder {
@@ -66,13 +62,8 @@ impl RuleGroupBuilder {
     }
 }
 
-impl Default for RuleGroupBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone)]
+/// SOA of the parsed ASCA Rule Group
+#[derive(Default, Debug, Clone)]
 pub struct ParsedRules {
     pub names: Vec<String>,
     pub rules: Vec<Vec<Rule>>,
@@ -112,15 +103,17 @@ impl ParsedRules {
         Self { names: Vec::new(), rules: Vec::new(), descs: Vec::new() }
     }
 
-    pub fn run(&self, phrases: &[Phrase]) -> Result<Vec<Phrase>, ASCAError> {        
+    /// Applies self to the input phrases
+    pub fn apply(&self, phrases: &[Phrase]) -> Result<Vec<Phrase>, ASCAError> {        
         crate::apply_rule_groups(&self.rules, phrases)
     }
 
+    /// Returns the changes that affect the input phrase
     pub fn trace(&self, phrase: &Phrase) -> Result<Vec<Change>, ASCAError> {        
         crate::apply_rules_trace(&self.rules, phrase)
     }
 
-    /// Returns an array of references to the trace rules or None if out of bounds.
+    /// Returns an array of references to the traced rules or None if out of bounds.
     pub fn get_traced_rules(&self, changes: &[Change]) -> Option<Vec<(&String, &Vec<Rule>, &String)>> {
         changes.iter().map(|Change { rule_index: i, .. }| {
             match (self.names.get(*i), self.rules.get(*i), self.descs.get(*i)) {
@@ -153,11 +146,15 @@ impl Iterator for ParsedRulesIter {
         let r = self.rules.get(self.index).cloned();
         let d = self.descs.get(self.index).cloned();
 
-        if n.is_none() && r.is_none() && d.is_none() {
-            None
-        } else {
+        if n.is_some() && r.is_some() && d.is_some() {
             self.index += 1;
-            Some((n.unwrap_or_default(), r.unwrap_or_default(), d.unwrap_or_default()))
+            Some((
+                unsafe { n.unwrap_unchecked() }, 
+                unsafe { r.unwrap_unchecked() }, 
+                unsafe { d.unwrap_unchecked() }
+            ))
+        } else {
+            None
         }
 
     }

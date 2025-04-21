@@ -2,9 +2,9 @@ use crate :: { error::ASCAError, word::Phrase };
 use super :: RuleGroup;
 
 pub struct Change {
-    /// The [RuleGroup] index that the change applies
+    /// The index of the [RuleGroup] or [ParsedRules](super::ParsedRules) that applies the change
     pub rule_index: usize,
-    /// The resulting phrase
+    /// The phrase as the result of this change
     pub after: Phrase,
 }
 
