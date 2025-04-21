@@ -253,7 +253,7 @@ impl Segment {
 
     pub(crate) fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize) -> bool {
         let Some(kind) = md else { return true };
-        let (node, mask) = FType::from_usize(feat_index).to_node_mask();
+        let (node, mask) = FType::from_usize(feat_index).as_node_mask();
         self.match_feat_mod_kind(kind, node, mask)
     }
 
@@ -294,7 +294,7 @@ impl Segment {
         let mut feats = [();FType::count()].map(|_| None);     
         #[allow(clippy::needless_range_loop)] 
         for i in 0..FType::count() {
-            let (n, f) = FType::from_usize(i).to_node_mask();   
+            let (n, f) = FType::from_usize(i).as_node_mask();   
             let Some(x) = self.get_feat(n, f) else { continue };
             
             feats[i] = Some(ModKind::Binary(as_bin_mod(x != 0)))
@@ -478,7 +478,7 @@ impl Segment {
         }
         for (i, m) in dm.feats.iter().enumerate() {
             if let Some(kind) = m {
-                let (n,f) = FType::from_usize(i).to_node_mask();
+                let (n,f) = FType::from_usize(i).as_node_mask();
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_feat(n, f, false),
@@ -578,7 +578,7 @@ impl Segment {
         }
         for (i, m) in feats.iter().enumerate() {
             if let Some(kind) = m { 
-                let (n, f) = FType::from_usize(i).to_node_mask();
+                let (n, f) = FType::from_usize(i).as_node_mask();
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_feat(n, f, false),

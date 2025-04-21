@@ -2626,7 +2626,7 @@ impl SubRule {
 
     fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> Result<bool, RuleRuntimeError> {
         if let Some(kind) = md { 
-            let (node, mask) = FType::from_usize(feat_index).to_node_mask();
+            let (node, mask) = FType::from_usize(feat_index).as_node_mask();
             return self.match_seg_kind(kind, seg, node, mask)
         }
         Ok(true)

@@ -164,7 +164,7 @@ impl FType {
         }
     }
 
-    pub(crate) const fn to_node_mask(&self) -> (NodeKind, u8) {
+    pub(crate) const fn as_node_mask(&self) -> (NodeKind, u8) {
         match self {
             Self::Consonantal         => (NodeKind::Root, 0b100),
             Self::Sonorant            => (NodeKind::Root, 0b010),
