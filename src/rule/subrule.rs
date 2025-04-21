@@ -1,6 +1,5 @@
 #![allow(clippy::comparison_chain, clippy::too_many_arguments)]
 
-
 // NOTE(girv): lots of duplication here atm (and starting to look like spaghetti), focusing on getting things done before optimising
 
 use std ::{
@@ -8,14 +7,10 @@ use std ::{
     collections::{HashMap, VecDeque}
 };
 
-use crate ::{
-    error :: RuleRuntimeError, 
-    lexer ::{FType, Position, Token}, 
-    parser::{AlphaMod, BinMod, Item, ModKind, Modifiers, ParseElement, SupraSegs}, 
-    rule  ::{Alpha, PlaceMod, RuleType}, 
-    seg   ::{NodeKind, Segment}, 
-    syll  ::{StressKind, Syllable, Tone}, 
-    word  ::{SegPos, Word},
+use crate  :: {
+    error  :: RuleRuntimeError, 
+    rule   :: { Alpha, AlphaMod, BinMod, FType, Item, ModKind, Modifiers, ParseElement, PlaceMod, Position, RuleType, SupraSegs, Token }, 
+    word   :: { NodeKind, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
 type SylPos = usize;            // the index of the syllable in the word.syllables array

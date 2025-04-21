@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap:: {
+use clap :: {
     Args, Command, Parser, Subcommand, ValueHint
 };
 use clap_complete::{generate, Generator, Shell};

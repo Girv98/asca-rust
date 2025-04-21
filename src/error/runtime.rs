@@ -1,57 +1,11 @@
+use std::fmt;
 use colored::Colorize;
 
-use crate::{alias::{AliasKind, AliasPosition}, lexer::{Position, Token}};
-
-use super::{ASCAError, Error, RuleGroup};
-
-#[derive(Debug, Clone)]
-pub enum WordRuntimeError {
-    UnknownSegment(String, usize,  usize), // (Segs before, Word Pos in list, Segment Pos in Words)
-}
-
-impl From<WordRuntimeError> for Error {
-    fn from(e: WordRuntimeError) -> Self {
-        Self::WordRun(e)
-    }
-}
-
-impl ASCAError for WordRuntimeError {
-    fn get_error_message(&self) -> String {
-        match self {
-            Self::UnknownSegment(buf, ..) => format!("Unknown Segment `{}`", buf)
-        }
-    }
-
-    fn format_word_error(&self, words: &[String]) -> String {
-        const MARG: &str = "\n    |     ";
-        let mut result = format!("{} {}", "Runtime Error:".bright_red().bold(), self.get_error_message().bold());
-
-        match self {
-            Self::UnknownSegment(buffer, word, seg) => {
-                let arrows = " ".repeat(words[*word].len() + seg) + "^" + "\n";
-                result.push_str(&format!("{}{} => {}{}{}",  
-                    MARG.bright_cyan().bold(), 
-                    words[*word], 
-                    buffer,
-                    MARG.bright_cyan().bold(), 
-                    arrows.bright_red().bold()
-                ));
-            },
-        }
-
-        result
-    }
-
-    fn format_rule_error(&self, _: &[RuleGroup]) -> String {
-        unreachable!()
-    }
-
-    fn format_alias_error(&self, _: &[String], _: &[String]) -> String {
-        unreachable!()
-    }
-}
-
-
+use crate :: { 
+    alias :: { AliasKind, AliasPosition }, 
+    rule  :: { Position, Token }
+};
+use super :: { ASCAError, RuleGroup };
 
 #[derive(Debug, Clone)]
 pub enum RuleRuntimeError { 
@@ -88,53 +42,55 @@ pub enum RuleRuntimeError {
     DeletionOnlySyll,
 }
 
-impl From<RuleRuntimeError> for Error {
+impl From<RuleRuntimeError> for ASCAError {
     fn from(e: RuleRuntimeError) -> Self {
         Self::RuleRun(e)
     }
 }
 
-impl ASCAError for RuleRuntimeError {
-    fn get_error_message(&self) -> String {
+impl fmt::Display for RuleRuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::SubstitutionSylltoMatrix(..) => "Syllables and boundaries cannot be substituted by a segment".to_string(),
-            Self::SubstitutionSylltoBound (..) => "Syllables cannot be substituted by a boundary".to_string(),
-            Self::SubstitutionSyllBound   (..) => "Syllable boundaries cannot be substituted.".to_string(),
-            Self::SubstitutionSylltoSeg   (..) => "Segments cannot be substituted by a syllable or a boundary".to_string(),
-            // Self::SubstitutionSegtoSyll   (..) => "Segments cannot be substituted by a syllable or a boundary".to_string(),
-            Self::SubstitutionBoundMod    (..) => "Syllable boundaries cannot be modified by a matrix.".to_string(),
-            Self::MetathSyllBoundary      (..) => "Cannot swap a syllable with a syllable".to_string(),
-            Self::MetathSyllSegment       (..) => "Cannot swap a syllable with a segment".to_string(),
-            Self::UnevenSet               (..) => "Two matched sets must have the same number of elements".to_string(),
-            Self::NodeCannotBeSome(node, _) => format!("{} node cannot arbitrarily positive", node),
-            Self::NodeCannotBeNone(node, _) => format!("{} node cannot be removed", node),
-            Self::NodeCannotBeSet (node, _) => format!("{} node cannot be assigned using PLACE alpha", node),
-            Self::WordBoundSetLocError(_) => "Word Boundaries cannot be in the input or output".to_string(),
-            Self::SubstitutionEllipsis(_) => "An ellipsis cannot be substituted".to_string(),
-            Self::SyllVarInsideStruct (_) => "Variables assigned to syllables cannot be used inside a structure".to_string(),
-            Self::InsertionGroupedEnv (_) => "Grouped Environments cannot (yet) be used in insertion rules".to_string(),
-            Self::AlphaNodeAssignInv  (_) => "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive.".to_string(),
-            Self::OverlongPosLongNeg  (_) => "A segment cannot be both [+overlong] and [-long]".to_string(),
-            Self::AlphaIsNotSameNode  (_) => "Node alphas must only be used on the same node.".to_string(),
-            Self::SubstitutionMatrix  (_) => "A matrix cannot be used inside a structure when substituting".to_string(),
-            Self::InsertionEllipsis   (_) => "An ellipsis cannot be inserted".to_string(),
-            Self::SubstitutionSyll    (_) => "Blank syllables cannot be used in substitution output.".to_string(),
-            Self::SecStrPosStrNeg     (_) => "A syllable cannot be both [+sec.stress] and [-stress]".to_string(),
-            Self::AlphaUnknownInv     (_) => "First occurence of a node alpha must not be inverted.".to_string(),
-            Self::InsertionMatrix     (_) => "An incomplete matrix cannot be inserted".to_string(),
-            Self::AlphaIsNotNode      (_) => "Node alphas cannot be used on binary features".to_string(),
-            Self::InsertionNoEnv      (_) => "Insertion rules must have a context".to_string(),
-            Self::AlphaUnknown        (_) => "Alpha has not be assigned before applying".to_string(),
-            Self::LonelySet           (_) => "A Set in output must have a matching Set in input".to_string(),
-            Self::UnknownVariable(token)  => format!("Unknown variable '{}' at {}", token.value, token.position.start),
-            Self::DeletionOnlySyll => "Can't delete a word's only syllable".to_string(),
-            Self::DeletionOnlySeg  => "Can't delete a word's only segment".to_string(),
+            Self::SubstitutionSylltoMatrix(..) => write!(f, "Syllables and boundaries cannot be substituted by a segment"),
+            Self::SubstitutionSylltoBound (..) => write!(f, "Syllables cannot be substituted by a boundary"),
+            Self::SubstitutionSyllBound   (..) => write!(f, "Syllable boundaries cannot be substituted."),
+            Self::SubstitutionSylltoSeg   (..) => write!(f, "Segments cannot be substituted by a syllable or a boundary"),
+            // Self::SubstitutionSegtoSyll   (..) write!(f, => "Segments cannot be substituted by a syllable or a boundary"),
+            Self::SubstitutionBoundMod    (..) => write!(f, "Syllable boundaries cannot be modified by a matrix."),
+            Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable"),
+            Self::MetathSyllSegment       (..) => write!(f, "Cannot swap a syllable with a segment"),
+            Self::UnevenSet               (..) => write!(f, "Two matched sets must have the same number of elements"),
+            Self::NodeCannotBeSome(node, _) => write!(f, "{} node cannot arbitrarily positive", node),
+            Self::NodeCannotBeNone(node, _) => write!(f, "{} node cannot be removed", node),
+            Self::NodeCannotBeSet (node, _) => write!(f, "{} node cannot be assigned using PLACE alpha", node),
+            Self::WordBoundSetLocError(_) => write!(f, "Word Boundaries cannot be in the input or output"),
+            Self::SubstitutionEllipsis(_) => write!(f, "An ellipsis cannot be substituted"),
+            Self::SyllVarInsideStruct (_) => write!(f, "Variables assigned to syllables cannot be used inside a structure"),
+            Self::InsertionGroupedEnv (_) => write!(f, "Grouped Environments cannot (yet) be used in insertion rules"),
+            Self::AlphaNodeAssignInv  (_) => write!(f, "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive."),
+            Self::OverlongPosLongNeg  (_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
+            Self::AlphaIsNotSameNode  (_) => write!(f, "Node alphas must only be used on the same node."),
+            Self::SubstitutionMatrix  (_) => write!(f, "A matrix cannot be used inside a structure when substituting"),
+            Self::InsertionEllipsis   (_) => write!(f, "An ellipsis cannot be inserted"),
+            Self::SubstitutionSyll    (_) => write!(f, "Blank syllables cannot be used in substitution output."),
+            Self::SecStrPosStrNeg     (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),
+            Self::AlphaUnknownInv     (_) => write!(f, "First occurence of a node alpha must not be inverted."),
+            Self::InsertionMatrix     (_) => write!(f, "An incomplete matrix cannot be inserted"),
+            Self::AlphaIsNotNode      (_) => write!(f, "Node alphas cannot be used on binary features"),
+            Self::InsertionNoEnv      (_) => write!(f, "Insertion rules must have a context"),
+            Self::AlphaUnknown        (_) => write!(f, "Alpha has not be assigned before applying"),
+            Self::LonelySet           (_) => write!(f, "A Set in output must have a matching Set in input"),
+            Self::UnknownVariable(token)  => write!(f, "Unknown variable '{}' at {}", token.value, token.position.start),
+            Self::DeletionOnlySyll => write!(f, "Can't delete a word's only syllable"),
+            Self::DeletionOnlySeg  => write!(f, "Can't delete a word's only segment"),
         }
     }
+}
 
-    fn format_rule_error(&self, rules: &[RuleGroup]) -> String {
+impl RuleRuntimeError {
+    pub fn format(&self, rules: &[RuleGroup]) -> String {
         const MARG: &str = "\n    |     ";
-        let mut result = format!("{} {}", "Runtime Error:".bright_red().bold(), self.get_error_message().bold());
+        let mut result = format!("{} {}", "Runtime Error:".bright_red().bold(), self.to_string().bold());
         
         let (arrows, group , line) =  match self {
             Self::DeletionOnlySyll | Self::DeletionOnlySeg => return result,
@@ -198,14 +154,6 @@ impl ASCAError for RuleRuntimeError {
 
         result
     }
-
-    fn format_word_error(&self, _: &[String]) -> String {
-        unreachable!()
-    }
-
-    fn format_alias_error(&self, _: &[String], _: &[String]) -> String {
-        unreachable!()
-    }
 }
 
 
@@ -220,28 +168,30 @@ pub enum AliasRuntimeError {
     EmptySyllable     (AliasPosition),
 }
 
-impl From<AliasRuntimeError> for Error {
+impl From<AliasRuntimeError> for ASCAError {
     fn from(e: AliasRuntimeError) -> Self {
         Self::AliasRun(e)
     }
 }
 
-impl ASCAError for AliasRuntimeError {
-    fn get_error_message(&self) -> String {
+impl fmt::Display for AliasRuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NodeCannotBeSome(node, _) => format!("{} node cannot arbitrarily positive", node),
-            Self::NodeCannotBeNone(node, _) => format!("{} node cannot be removed", node),
-            Self::IndefiniteFeatures(_) => "Cannot create a segment from a limited list of features. If you would like to assign to the previous segment, use '+'.".to_string(),
-            Self::OverlongPosLongNeg(_) => "A segment cannot be both [+overlong] and [-long]".to_string(),
-            Self::SecStrPosStrNeg   (_) => "A syllable cannot be both [+sec.stress] and [-stress]".to_string(),
-            Self::LengthNoSegment   (_) => "Cannot apply length. If you would like to assign to the previous segment, use '+'.".to_string(),
-            Self::EmptySyllable     (_) => "Cannot add at the start of a syllable".to_string()
+            Self::NodeCannotBeSome(node, _) => write!(f, "{} node cannot arbitrarily positive", node),
+            Self::NodeCannotBeNone(node, _) => write!(f, "{} node cannot be removed", node),
+            Self::IndefiniteFeatures(_) => write!(f, "Cannot create a segment from a limited list of features. If you would like to assign to the previous segment, use '+'."),
+            Self::OverlongPosLongNeg(_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
+            Self::SecStrPosStrNeg   (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),
+            Self::LengthNoSegment   (_) => write!(f, "Cannot apply length. If you would like to assign to the previous segment, use '+'."),
+            Self::EmptySyllable     (_) => write!(f, "Cannot add at the start of a syllable"),
         }
     }
+}
 
-    fn format_alias_error(&self, into: &[String], from: &[String]) -> String {
+impl AliasRuntimeError {
+    pub fn format(&self, into: &[String], from: &[String]) -> String {
         const MARG: &str = "\n    |     ";
-        let mut result = format!("{} {}", "Syntax Error:".bright_red().bold(), self.get_error_message().bold()); 
+        let mut result = format!("{} {}", "Syntax Error:".bright_red().bold(), self.to_string().bold()); 
 
         let (arrows, kind, line) = match self {
             Self::NodeCannotBeNone(_, pos) |
@@ -257,37 +207,18 @@ impl ASCAError for AliasRuntimeError {
             ),
         };
 
-        match kind {
-            AliasKind::Deromaniser => {
-                result.push_str(&format!("{}{}{}{}    {} deromaniser, line {}",  
-                    MARG.bright_cyan().bold(),
-                    into[line],
-                    MARG.bright_cyan().bold(),
-                    arrows.bright_red().bold(),
-                    "@".bright_cyan().bold(),
-                    line+1,
-                ));
-            },
-            AliasKind::Romaniser => {
-                result.push_str(&format!("{}{}{}{}    {} romaniser, line {}",  
-                    MARG.bright_cyan().bold(),
-                    from[line],
-                    MARG.bright_cyan().bold(),
-                    arrows.bright_red().bold(),
-                    "@".bright_cyan().bold(),
-                    line+1,
-                ));
-            },
-        }
+        let (knd, ln) = match kind {
+            AliasKind::Deromaniser => ("deromaniser", &into[line]),
+            AliasKind::Romaniser   => ("romaniser",   &from[line]),
+        };
+
+        result.push_str(&format!("{0}{ln}{0}{1}    {2} {knd}, line {3}",  
+            MARG.bright_cyan().bold(),
+            arrows.bright_red().bold(),
+            "@".bright_cyan().bold(),
+            line+1,
+        ));
         
         result
-    }
-
-    fn format_word_error(&self, _: &[String]) -> String {
-        unreachable!()
-    }
-
-    fn format_rule_error(&self, _: &[RuleGroup]) -> String {
-        unreachable!()
     }
 }

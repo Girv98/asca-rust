@@ -40,7 +40,7 @@ impl Place {
     const LAB_LOW: u16 = 0xc00;
     const COR_LOW: u16 = 0x300;
     const DOR_LOW: u16 = 0x0FC;
-    const PHR_ASD: u16 = 0x003;
+    const PHR_LOW: u16 = 0x003;
 
     const LAB_OFF: u8 = 10;
     const COR_OFF: u8 = 8;
@@ -116,7 +116,7 @@ impl Place {
     /// Returns value of the labial subnode
     pub fn get_labial(&self) -> Option<u8> {
         if self.labial_is_some() {
-            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::LAB_OFF) & 0b11) as u8)
+            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::LAB_OFF) & Self::LAB_MSK) as u8)
         } else {
             None
         }
@@ -125,7 +125,7 @@ impl Place {
     /// Returns value of the coronal subnode
     pub fn get_coronal(&self) -> Option<u8> {
         if self.coronal_is_some() {
-            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::COR_OFF) & 0b11)as u8)
+            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::COR_OFF) & Self::COR_MSK)as u8)
         } else {
             None
         }
@@ -134,7 +134,7 @@ impl Place {
     /// Returns value of the dorsal subnode
     pub fn get_dorsal(&self) -> Option<u8> {
         if self.dorsal_is_some() {
-            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::DOR_OFF) & 0b111111) as u8)
+            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::DOR_OFF) & Self::DOR_MSK) as u8)
         } else {
             None
         }
@@ -143,7 +143,7 @@ impl Place {
     /// Returns value of the pharyngeal subnode
     pub fn get_pharyngeal(&self) -> Option<u8> {
         if self.pharyngeal_is_some() {
-            Some((unsafe { self.0.unwrap_unchecked() } & 0b11) as u8)
+            Some((unsafe { self.0.unwrap_unchecked() } & Self::PHR_MSK) as u8)
         } else {
             None
         }
@@ -151,18 +151,18 @@ impl Place {
 
     /// Sets the labial subnode to the input value 
     /// # Panics
-    /// Mask values above 3 `0b11` are not used and will panic in debug mode
-    pub fn set_labial(&mut self, mask: Option<u8>) {
-        debug_assert!(mask <= Some(Self::LAB_MSK as u8), "Only lower two bits are used");
-        match mask {
-            Some(m) => if let Some(d) = &mut self.0 {
-                *d |= Self::LAB_BIT;
-                *d = (*d & !Self::LAB_LOW) | ((m as u16) << Self::LAB_OFF);
+    /// Mask values above 3 `0b11` are not used and will panic in debug
+    pub fn set_labial(&mut self, bits: Option<u8>) {
+        debug_assert!(bits <= Some(Self::LAB_MSK as u8), "Only lower two bits are used");
+        match bits {
+            Some(bits) => if let Some(num) = &mut self.0 {
+                *num |= Self::LAB_BIT;
+                *num = (*num & !Self::LAB_LOW) | ((bits as u16) << Self::LAB_OFF);
             } else {
-                self.0 = Some(Self::LAB_BIT | ((Self::LAB_MSK & m as u16) << Self::LAB_OFF))
+                self.0 = Some(Self::LAB_BIT | ((Self::LAB_MSK & bits as u16) << Self::LAB_OFF))
             },
-            None => if let Some(d) = &mut self.0 {
-                *d &= !(Self::LAB_BIT | Self::LAB_LOW)
+            None => if let Some(num) = &mut self.0 {
+                *num &= !(Self::LAB_BIT | Self::LAB_LOW)
             },
         }
 
@@ -171,18 +171,18 @@ impl Place {
 
     /// Sets the coronal subnode to the input value 
     /// # Panics
-    /// Mask values above 3 `0b11` are not used and will panic in debug mode
-    pub fn set_coronal(&mut self, mask: Option<u8>) {
-        debug_assert!(mask <= Some(Self::COR_MSK as u8), "Only lower two bits are used");
-        match mask {
-            Some(m) => if let Some(d) = &mut self.0 {
-                *d |= Self::COR_BIT;
-                *d = (*d & !Self::COR_LOW) | ((m as u16) << Self::COR_OFF);
+    /// Mask values above 3 `0b11` are not used and will panic in debug
+    pub fn set_coronal(&mut self, bits: Option<u8>) {
+        debug_assert!(bits <= Some(Self::COR_MSK as u8), "Only lower two bits are used");
+        match bits {
+            Some(bits) => if let Some(num) = &mut self.0 {
+                *num |= Self::COR_BIT;
+                *num = (*num & !Self::COR_LOW) | ((bits as u16) << Self::COR_OFF);
             } else {
-                self.0 = Some(Self::COR_BIT | ((Self::COR_MSK & m as u16) << Self::COR_OFF))
+                self.0 = Some(Self::COR_BIT | ((Self::COR_MSK & bits as u16) << Self::COR_OFF))
             },
-            None => if let Some(d) = &mut self.0 {
-                *d &= !(Self::COR_BIT | Self::COR_LOW)
+            None => if let Some(num) = &mut self.0 {
+                *num &= !(Self::COR_BIT | Self::COR_LOW)
             },
         }
         if matches!(self.0, Some(0)) { self.0 = None; } 
@@ -190,19 +190,18 @@ impl Place {
 
     /// Sets the dorsal subnode to the input value 
     /// # Panics
-    /// Mask values above 63 `0b111111` are not used and will panic in debug mode
-    pub fn set_dorsal(&mut self, mask: Option<u8>) {
-        debug_assert!(mask <= Some(Self::DOR_MSK as u8), "Only lower six bits are used");
-        match mask {
-            Some(m) => match &mut self.0 {
-                Some(d) => {
-                    *d |= Self::DOR_BIT;
-                    *d = (*d & !Self::DOR_LOW) | ((m as u16) << Self::DOR_OFF);
-                }
-                _ => self.0 = Some(Self::DOR_BIT | ((Self::DOR_MSK & m as u16) << Self::DOR_OFF)),
+    /// Mask values above 63 `0b111111` are not used and will panic in debug 
+    pub fn set_dorsal(&mut self, bits: Option<u8>) {
+        debug_assert!(bits <= Some(Self::DOR_MSK as u8), "Only lower six bits are used");
+        match bits {
+            Some(bits) => if let Some(num) = &mut self.0 {
+                *num |= Self::DOR_BIT;
+                *num = (*num & !Self::DOR_LOW) | ((bits as u16) << Self::DOR_OFF);
+            } else {
+                self.0 = Some(Self::DOR_BIT | ((Self::DOR_MSK & bits as u16) << Self::DOR_OFF))
             },
-            None => if let Some(d) = &mut self.0 {
-                *d &= !(Self::DOR_BIT | Self::DOR_LOW)
+            None => if let Some(num) = &mut self.0 {
+                *num &= !(Self::DOR_BIT | Self::DOR_LOW)
             },
         }
         if matches!(self.0, Some(0)) { self.0 = None; } 
@@ -210,19 +209,18 @@ impl Place {
     
     /// Sets the pharyngeaal subnode to the input value 
     /// # Panics
-    /// Mask values above 3 `0b11` are not used and will panic in debug mode
-    pub fn set_pharyngeal(&mut self, mask: Option<u8>) {
-        debug_assert!(mask <= Some(Self::PHR_MSK as u8), "Only lower two bits are used");
-        match mask {
-            Some(m) => match &mut self.0 {
-                Some(d) => {
-                    *d |= Self::PHR_BIT;
-                    *d = (*d & !0x03) | m as u16;
-                }
-                _ => self.0 = Some(Self::PHR_BIT | (Self::PHR_MSK & m as u16)),
+    /// Mask values above 3 `0b11` are not used and will panic in debug
+    pub fn set_pharyngeal(&mut self, bits: Option<u8>) {
+        debug_assert!(bits <= Some(Self::PHR_MSK as u8), "Only lower two bits are used");
+        match bits {
+            Some(bits) => if let Some(num) = &mut self.0 {
+                *num |= Self::PHR_BIT;
+                *num = (*num & !0x03) | bits as u16;
+            } else {
+                self.0 = Some(Self::PHR_BIT | (Self::PHR_MSK & bits as u16))
             },
-            None => if let Some(d) = &mut self.0 {
-                *d &= !(Self::PHR_BIT | Self::PHR_ASD)
+            None => if let Some(num) = &mut self.0 {
+                *num &= !(Self::PHR_BIT | Self::PHR_LOW)
             },
         }
         if matches!(self.0, Some(0)) { self.0 = None; } 

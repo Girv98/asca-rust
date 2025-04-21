@@ -6,11 +6,9 @@ use std::{
 };
 
 use crate   :: {
-    error   :: { Error, RuleSyntaxError }, 
-    parser  :: { Item, ParseElement }, 
-    seg     :: NodeKind, 
-    subrule :: SubRule, 
-    word    :: Word, 
+    error   :: { ASCAError, RuleSyntaxError }, 
+    rule    :: { Item, ParseElement, SubRule }, 
+    word    :: { NodeKind, Word}, 
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -69,7 +67,8 @@ impl Alpha {
     }
 }
 
-pub(crate) struct Rule {
+#[derive(Clone)]
+pub struct Rule {
     pub(crate) input:     Vec<Vec<Item>>,    // to support multirules
     pub(crate) output:    Vec<Vec<Item>>,    // these need to be Vec<Vec<Item>>
     pub(crate) context:   Vec<Item>,
@@ -126,7 +125,7 @@ impl Rule {
         Ok(sub_vec)
     }
 
-    pub(crate) fn apply(&self, word: Word /*, trace: bool*/) -> Result<Word, Error> {
+    pub(crate) fn apply(&self, word: Word /*, trace: bool*/) -> Result<Word, ASCAError> {
         
         let sub_rules = self.split_into_subrules()?;
         
@@ -169,12 +168,11 @@ impl fmt::Debug for Rule {
 
 #[cfg(test)]
 mod rule_tests {
-    use crate::{ASCAError, normalise, RuleGroup};
+    use crate::{normalise, rule::{Lexer, Parser, RuleGroup}};
 
     use super::*;
     
     fn setup_rule(test_str: &str) -> Rule {
-        use crate::{Lexer, Parser};
 
         let maybe_lex = Lexer::new(&normalise(test_str).chars().collect::<Vec<_>>(),0 ,0).get_line();
         match maybe_lex {
@@ -183,14 +181,14 @@ mod rule_tests {
                     Ok(rule) => return rule.unwrap(),
                     Err(e) => {
                         let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
-                        println!("{}", e.format_rule_error(&vec![rg]));
+                        println!("{}", e.format(&vec![rg]));
                         assert!(false);
                     },
                 }
             },
             Err(e) => {
                 let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
-                println!("{}", e.format_rule_error(&vec![rg]));
+                println!("{}", e.format(&vec![rg]));
                 assert!(false);
             },
         } 
@@ -202,7 +200,7 @@ mod rule_tests {
         match maybe_word {
             Ok(w) => return w,
             Err(e) => {
-                println!("{}", e.format_word_error(&Vec::new()));
+                println!("{}", e.format_word_error());
                 assert!(false);
             },
         }

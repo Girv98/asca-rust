@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io, path::{Path, PathBuf}, rc::Rc};
 use colored::Colorize;
 
-use asca::RuleGroup;
+use asca::rule::RuleGroup;
 use super::{config::{lexer::Lexer, parser::Parser}, parse::{self, parse_wsca}, util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, WORD_FILE_EXT}};
 
 
@@ -272,10 +272,10 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathB
     trace.push(words.clone());
     for (i, entry) in seq.entries.iter().enumerate() {
         files.push(entry.name.clone());
-        match asca::run(&entry.rules, &trace[i], &into, &from) {
+        match asca::run_unparsed(&entry.rules, &trace[i], &into, &from) {
             Ok(res) => trace.push(res),
             Err(err) => {
-                util::print_asca_errors(err, &words, &entry.rules, &into, &from);
+                util::print_asca_errors(err, &entry.rules, &into, &from);
                 return Ok(None)
             },
         }

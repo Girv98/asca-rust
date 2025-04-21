@@ -1,61 +1,59 @@
 mod syntax;
 mod runtime;
 
+use std::fmt;
+
 pub use syntax::*;
 pub use runtime::*;
 
 use crate::RuleGroup;
 
-pub trait ASCAError: Clone {
-    fn get_error_message(&self) -> String;
-    // Fixme: This really isn't the correct solution
-    fn format_word_error(&self, _: &[String]) -> String;
-    fn format_rule_error(&self, _: &[RuleGroup]) -> String;
-    fn format_alias_error(&self, _: &[String], _: &[String]) -> String;
-}
-
 #[derive(Debug, Clone)]
-pub enum Error {
+pub enum ASCAError {
     WordSyn(WordSyntaxError),
     RuleSyn(RuleSyntaxError),
-    WordRun(WordRuntimeError),
+    // WordRun(WordRuntimeError),
     RuleRun(RuleRuntimeError),
     AliasSyn(AliasSyntaxError),
     AliasRun(AliasRuntimeError),
 }
 
-impl ASCAError for Error {
-    fn get_error_message(&self) -> String {
+impl fmt::Display for ASCAError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.get_error_message())
+    }
+}
+
+impl ASCAError {
+    pub fn get_error_message(&self) -> String {
         match self {
-            Self::WordSyn(e) => e.get_error_message(),
-            Self::RuleSyn(e) => e.get_error_message(),
-            Self::WordRun(e) => e.get_error_message(),
-            Self::RuleRun(e) => e.get_error_message(),
-            Self::AliasSyn(e) => e.get_error_message(),
-            Self::AliasRun(e) => e.get_error_message(),
+            Self::WordSyn(e) => e.to_string(),
+            Self::RuleSyn(e) => e.to_string(),
+            Self::RuleRun(e) => e.to_string(),
+            Self::AliasSyn(e) => e.to_string(),
+            Self::AliasRun(e) => e.to_string(),
         }
     }
 
-    fn format_word_error(&self, s: &[String]) -> String {
+    pub fn format_word_error(&self) -> String {
         match self {
-            Self::WordSyn(e) => e.format_word_error(s),
-            Self::WordRun(e) => e.format_word_error(s),
+            Self::WordSyn(e) => e.format(),
             _ => unreachable!()
         }
     }
 
-    fn format_rule_error(&self, s: &[RuleGroup]) -> String {
+    pub fn format_rule_error(&self, s: &[RuleGroup]) -> String {
         match self {
-            Self::RuleSyn(e) => e.format_rule_error(s),
-            Self::RuleRun(e) => e.format_rule_error(s),
+            Self::RuleSyn(e) => e.format(s),
+            Self::RuleRun(e) => e.format(s),
             _ => unreachable!(),
         }
     }
 
-    fn format_alias_error(&self, into: &[String], from: &[String]) -> String {
+    pub fn format_alias_error(&self, into: &[String], from: &[String]) -> String {
         match self {
-            Self::AliasSyn(e) => e.format_alias_error(into, from),
-            Self::AliasRun(e) => e.format_alias_error(into, from),
+            Self::AliasSyn(e) => e.format(into, from),
+            Self::AliasRun(e) => e.format(into, from),
             _ => unreachable!()
         }
     }

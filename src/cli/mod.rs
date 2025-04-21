@@ -6,7 +6,7 @@ pub mod seq;
 pub mod run;
 pub mod convert;
 
-use asca::RuleGroup;
+use asca::rule::RuleGroup;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct AscaJson {

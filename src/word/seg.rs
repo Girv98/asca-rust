@@ -1,12 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, fmt};
 use serde::{Deserialize, Serialize};
 
-use crate :: {
-    error :: RuleRuntimeError,
-    lexer :: { FType, NodeType, Position },
-    parser:: { AlphaMod, BinMod, ModKind, Modifiers, SupraSegs },
-    place :: Place,
-    rule  :: Alpha, 
+use crate  :: {
+    error  :: RuleRuntimeError, 
+    rule   :: { Alpha, AlphaMod, BinMod, FType, ModKind, Modifiers, NodeType, PlaceMod, Position, SupraSegs }, 
+    word   :: Place, 
     CARDINALS_MAP, CARDINALS_VEC, DIACRITS 
 };
 
@@ -47,8 +45,8 @@ impl fmt::Debug for DiaMods {
                         BinMod::Positive => nodes.push('+'),
                     },
                     ModKind::Alpha(am) => match am {
-                        crate::parser::AlphaMod::Alpha(a) => nodes.push(*a),
-                        crate::parser::AlphaMod::InvAlpha(ia) => nodes.push_str(&ia.to_uppercase().to_string()),
+                        AlphaMod::Alpha(a) => nodes.push(*a),
+                        AlphaMod::InvAlpha(ia) => nodes.push_str(&ia.to_uppercase().to_string()),
                     },
                 },
                 None => nodes.push('0'),
@@ -64,8 +62,8 @@ impl fmt::Debug for DiaMods {
                         BinMod::Positive => feats.push('+'),
                     },
                     ModKind::Alpha(am) => match am {
-                        crate::parser::AlphaMod::Alpha(a) => feats.push(*a),
-                        crate::parser::AlphaMod::InvAlpha(ia) => feats.push_str(&ia.to_uppercase().to_string()),
+                        AlphaMod::Alpha(a) => feats.push(*a),
+                        AlphaMod::InvAlpha(ia) => feats.push_str(&ia.to_uppercase().to_string()),
                     },
                 },
                 None => feats.push('0'),
@@ -558,7 +556,7 @@ impl Segment {
                             if !alpha_assigned {
                                 if is_matching_ipa {
                                     if node == NodeKind::Place {
-                                        let pm = crate::PlaceMod { 
+                                        let pm = PlaceMod { 
                                             lab: self.get_node(NodeKind::Labial), 
                                             cor: self.get_node(NodeKind::Coronal), 
                                             dor: self.get_node(NodeKind::Dorsal), 

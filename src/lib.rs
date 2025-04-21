@@ -1,30 +1,19 @@
-mod lexer;
 mod trie;
-mod parser;
-mod word;
-mod syll;
-mod seg;
-mod place;
-mod rule;
-mod subrule;
-mod error;
+pub mod word;
+pub mod rule;
+pub mod error;
 mod alias;
-
-pub use seg::*;
-pub use place::*;
-pub use error::*;
 
 use serde::Deserialize;
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 use wasm_bindgen::prelude::*;
 
-use alias ::{lexer::AliasLexer, parser::AliasParser, AliasKind, Transformation};
-use lexer ::*;
-use parser::*;
+use alias ::Transformation;
 use trie  ::*;
 use word  ::*;
-use rule  ::*;
+use error ::*;
+use rule::{trace::Change, BinMod, ModKind, Rule, RuleGroup};
 
 const CARDINALS_FILE: &str = include_str!("cardinals.json");
 const DIACRITIC_FILE: &str = include_str!("diacritics.json");
@@ -97,58 +86,6 @@ lazy_static! {
 }
 
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct RuleGroup {
-    pub name: String,
-    pub rule: Vec<String>,
-    pub description: String, 
-}
-
-impl RuleGroup {
-    pub fn new() -> Self {
-        Self { name: String::new(), rule: Vec::new(), description: String::new() }
-    }
-
-    pub fn from<T: Into<String>>(name: T, rule: Vec<String>, description: T) -> Self {
-        Self { name: name.into(), rule, description: description.into() }
-    }
-
-    pub fn from_rules(rule: Vec<String>) -> Self {
-        Self { name: String::new(), rule, description: String::new() }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.name.is_empty() && self.rule.is_empty() && self.description.is_empty()
-    }
-}
-
-impl Default for RuleGroup {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Phrase (Vec<Word>);
-
-impl std::ops::Deref for Phrase {
-    type Target = Vec<Word>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl std::ops::DerefMut for Phrase {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl FromIterator<Word> for Phrase {
-    fn from_iter<T: IntoIterator<Item = Word>>(iter: T) -> Self {
-        Phrase(iter.into_iter().collect())
-    }
-}
 
 // We are currently only normalising a few characters as most would be invalid anyway.
 pub(crate) fn normalise(s: &str) -> String {
@@ -182,11 +119,11 @@ pub(crate) fn normalise(s: &str) -> String {
     output
 }
 
-fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, Error> {
+fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, error::ASCAError> {
     let mut transformed_phrases: Vec<Phrase> = Vec::with_capacity(phrases.len());
 
     for phrase in phrases {
-        let mut transformed_phrase = Phrase(Vec::with_capacity(phrase.len()));
+        let mut transformed_phrase = Phrase::with_capacity(phrase.len());
         for word in phrase.iter() {
             let mut res_word = word.clone();
             for rule_group in rules {
@@ -202,14 +139,7 @@ fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phra
     Ok(transformed_phrases)
 }
 
-pub struct Change {
-    /// The [RuleGroup] index that the change applies
-    pub rule_index: usize,
-    /// The resulting phrase
-    pub after: Phrase,
-}
-
-fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, Error> {
+fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, error::ASCAError> {
     let mut changes: Vec<Change> = Vec::new();
 
     let mut res_phrase = phrase.clone();
@@ -237,33 +167,8 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> V
     ).collect()
 }
 
-fn trace_to_string(original: &Phrase, changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
-    let mut res = Vec::new();
-    let mut last = original.iter().fold(String::new(), |acc, w| {
-        acc + &w.render(&[]) + " "
-    });
-    for change in changes {
-        res.push(format!("Applied \"{}\":", rules[change.rule_index].name));
-        let mut st = String::new();
-
-        st.push_str(&last);
-        st.push_str("=> ");
-
-        let mut word = String::new();
-        for aw in change.after.iter() {
-            word.push_str(&aw.render(&[]));
-            word.push(' ');
-        }
-        last = word;
-        st.push_str(&last);
-
-        res.push(st);
-    }
-    res
-}
-
-fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, Error> {
-    unparsed_phrases.iter().map(|phrase| -> Result<Phrase, Error> {
+fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, ASCAError> {
+    unparsed_phrases.iter().map(|phrase| -> Result<Phrase, ASCAError> {
         phrase.split(' ')
         .map(|w| Word::new(normalise(w), alias_into))
         .collect()
@@ -276,7 +181,7 @@ fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>
     for (rgi, rg) in unparsed_rule_groups.iter().enumerate() {
         let mut rule_group = Vec::with_capacity(rg.rule.len());
         for (ri, r) in rg.rule.iter().enumerate() {
-            if let Some(asdf) = Parser::new(Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line()?, rgi, ri).parse()? {
+            if let Some(asdf) = rule::Parser::new(rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line()?, rgi, ri).parse()? {
                 rule_group.push(asdf);
             }
         }
@@ -286,64 +191,27 @@ fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>
     Ok(rule_groups)
 }
 
-fn parse_aliases(into: &[String], from: &[String]) -> Result<(Vec<Transformation>, Vec<Transformation>), Error> {
-    let mut into_parsed = Vec::with_capacity(into.len());
-    for (line, alias) in into.iter().enumerate() {
-        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
-    }
-    
-    let mut from_parsed = Vec::with_capacity(from.len());
-    for (line, alias) in from.iter().enumerate() {
-        from_parsed.extend(AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
-    }
-
-    Ok((into_parsed, from_parsed))
-}
-
-fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[Transformation], trace_index: usize) -> Result<Option<Phrase>, Error> {
+fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[String], trace_index: usize) -> Result<Option<Phrase>, ASCAError> {
     match unparsed_phrases.get(trace_index) {
-        Some(phrase) => Ok(Some(phrase.split(' ').map(|w| Word::new(normalise(w), alias_into)).collect::<Result<Phrase, Error>>()?)),
+        Some(phrase) => Ok(Some(Phrase::try_from(phrase, alias_into)?)),
         None => Ok(None),
     }
 }
 
-pub fn run(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, Error> {
-    let (alias_into, alias_from) = parse_aliases(alias_into, alias_from)?;
-    
-    let phrases = parse_phrases(unparsed_phrases, &alias_into)?;
+pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, ASCAError> {
+    let phrases = parse_phrases(unparsed_phrases, &alias::parse_into(alias_into)?)?;
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rule_groups(&rules, &phrases)?;
 
-    Ok(phrases_to_string(res, alias_from))
+    Ok(phrases_to_string(res, alias::parse_from(alias_from)?))
 }
 
-pub fn get_trace_string(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String]) -> Result<Vec<String>, Error> {
-    let (alias_into, _) = parse_aliases(alias_into, &[])?;
-    
-    let phrase = unparsed_phrase.split(' ').map(|w| Word::new(normalise(w), &alias_into)).collect::<Result<Phrase, Error>>()?;
-    let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rules_trace(&rules, &phrase)?;
-
-    Ok(trace_to_string(&phrase, res, unparsed_rules))
-}
-
-pub fn trace_changes(unparsed_rules: &[RuleGroup], unparsed_phrase: String, alias_into: &[String]) -> Result<Vec<Change>, Error> {
-    let (alias_into, _) = parse_aliases(alias_into, &[])?;
-    
-    let phrase = unparsed_phrase.split(' ').map(|w| Word::new(normalise(w), &alias_into)).collect::<Result<Phrase, Error>>()?;
-    let rules = parse_rule_groups(unparsed_rules)?;
-
-    apply_rules_trace(&rules, &phrase)
-}
-
-fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], alias_from: &[String], trace_index: usize) -> Result<Vec<String>, Error> {
-    let (alias_into, _) = parse_aliases(alias_into, alias_from)?;
-    
+fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<Vec<String>, ASCAError> {
     let phrase = get_trace_phrase(unparsed_phrase, &alias_into, trace_index)?.unwrap_or_default();
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rules_trace(&rules, &phrase)?;
 
-    Ok(trace_to_string(&phrase, res, unparsed_rules))
+    Ok(rule::trace::to_string(&phrase, res, unparsed_rules))
 }
 
 #[wasm_bindgen]
@@ -351,12 +219,12 @@ pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<
     let unparsed_rules: Vec<RuleGroup> = serde_wasm_bindgen::from_value(val).expect("Rules are in valid JSObject format");
     
     match trace {
-        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from, t), &unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from),
-        None => parse_result_web(run(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from),
+        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_from, t), &unparsed_rules, &unparsed_into, &unparsed_from),
+        None => parse_result_web(run_unparsed(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_into, &unparsed_from),
     }
 }
 
-fn parse_result_web(unparsed_result: Result<Vec<String>, Error>, rules: &[RuleGroup], phrases: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Vec<String> {
+fn parse_result_web(unparsed_result: Result<Vec<String>, ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String]) -> Vec<String> {
     let mut res = Vec::new();
     match unparsed_result {
         Ok(output) => {
@@ -365,12 +233,11 @@ fn parse_result_web(unparsed_result: Result<Vec<String>, Error>, rules: &[RuleGr
             }
         },
         Err(err) => match err {
-            Error::WordSyn(e) => res.push(e.format_word_error(phrases)),
-            Error::WordRun(e) => res.push(e.format_word_error(phrases)),
-            Error::AliasSyn(e) => res.push(e.format_alias_error(unparsed_into, unparsed_from)),
-            Error::AliasRun(e) => res.push(e.format_alias_error(unparsed_into, unparsed_from)),
-            Error::RuleSyn(e) => res.push(e.format_rule_error(rules)),
-            Error::RuleRun(e) => res.push(e.format_rule_error(rules)),
+            ASCAError::WordSyn(e) => res.push(e.format()),
+            ASCAError::AliasSyn(e) => res.push(e.format(unparsed_into, unparsed_from)),
+            ASCAError::AliasRun(e) => res.push(e.format(unparsed_into, unparsed_from)),
+            ASCAError::RuleSyn(e) => res.push(e.format(rules)),
+            ASCAError::RuleRun(e) => res.push(e.format(rules)),
         },
     }
 

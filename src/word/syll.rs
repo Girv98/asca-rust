@@ -1,9 +1,8 @@
 use std     :: { cell::RefCell, collections::{ HashMap, VecDeque }, fmt };
 use crate   :: {
     error   :: RuleRuntimeError, 
-    parser  :: { Modifiers, SupraSegs }, 
-    rule    :: Alpha, 
-    seg     :: Segment, Position,  
+    rule    :: { Alpha, Modifiers, Position, SupraSegs }, 
+    word    :: Segment,  
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -5,15 +5,13 @@ use std::{
 };
 
 use crate :: {
-    alias :: { parser::{AliasParseElement, SegType}, AliasPosition, Transformation },
-    error :: { AliasRuntimeError, Error, RuleRuntimeError, WordSyntaxError }, 
-    lexer :: { FType, NodeType, Position },
-    parser:: { BinMod, ModKind, Modifiers, SupraSegs },
-    rule  :: Alpha,
-    seg   :: { NodeKind, Segment },
-    syll  :: { StressKind, Syllable },
-    CARDINALS_MAP, CARDINALS_TRIE, DIACRITS,
+    error :: { ASCAError, AliasRuntimeError, RuleRuntimeError, WordSyntaxError }, 
+    rule  :: { Alpha, BinMod, FType, ModKind, Modifiers, NodeType, Position, SupraSegs }, 
+    word  :: { NodeKind, Segment, StressKind, Syllable }, 
+    CARDINALS_MAP, CARDINALS_TRIE, DIACRITS
 };
+
+use crate::alias::{parser::{ AliasParseElement, SegType }, AliasPosition, Transformation};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct SegPos {
@@ -113,7 +111,7 @@ impl fmt::Debug for Word {
 }
 
 impl Word {
-    pub(crate) fn new(text: String, aliases: &[Transformation]) -> Result<Self, Error>  {
+    pub(crate) fn new(text: String, aliases: &[Transformation]) -> Result<Self, ASCAError>  {
         let mut w = Self { syllables: Vec::new(), americanist: false };
         let t_norm = text.replace('\'', "ˈ")
                     .replace(',', "ˌ")
@@ -258,7 +256,7 @@ impl Word {
         Ok(())
     }
 
-    fn fill_segments(&mut self, input_txt: &String, txt: &[char], i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, Error> {
+    fn fill_segments(&mut self, input_txt: &String, txt: &[char], i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, ASCAError> {
         for alias in aliases {
             if let AliasParseElement::Replacement(string, plus) = &alias.input.kind {
                 let back_pos = *i;
@@ -456,7 +454,7 @@ impl Word {
         }
     }
 
-    fn setup(&mut self, input_txt: String, aliases: &[Transformation]) -> Result<(), Error> {
+    fn setup(&mut self, input_txt: String, aliases: &[Transformation]) -> Result<(), ASCAError> {
         let mut i = 0;
         let txt: Vec<char> = input_txt.chars().collect();
 
@@ -919,7 +917,7 @@ impl Word {
 #[cfg(test)]
 mod word_tests {
 
-    use crate::{alias::{lexer::AliasLexer, parser::AliasParser, AliasKind}, normalise, ASCAError};
+    use crate::{alias::{lexer::AliasLexer, parser::AliasParser, AliasKind}, normalise};
 
     use super::*;
 
@@ -1007,7 +1005,7 @@ mod word_tests {
         match Word::new(normalise("'GAN;CEUN!eB.gRǝ:S.φXOI?,HYZ"), &[]) {
             Ok(w) => assert_eq!(w.render(&[]), "ˈɢɐɴː.ɕɛʊɴǃeʙ.ɡʀəːʃ.ɸχɔɪʔˌʜʏʒ"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         } 
@@ -1018,7 +1016,7 @@ mod word_tests {
         match Word::new(normalise("¢añ.φλełƛ"), &[]) {
             Ok(w) => assert_eq!(w.render(&[]), "¢añ.ɸλełƛ"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1030,7 +1028,7 @@ mod word_tests {
         match Word::new(normalise("ʃa'ta"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "shatá"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1042,7 +1040,7 @@ mod word_tests {
         match Word::new(normalise("ʃ:a't:a:"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "sshattâ"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1054,7 +1052,7 @@ mod word_tests {
         match Word::new(normalise("ka.ta.ka.na"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "カタカナ"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1066,7 +1064,7 @@ mod word_tests {
         match Word::new(normalise("han51.y214"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "汉语"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1078,7 +1076,7 @@ mod word_tests {
         match Word::new(normalise("'ka.ta"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "káta"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1087,7 +1085,7 @@ mod word_tests {
         match Word::new(normalise("'ka.ta"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "ḱta"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1099,7 +1097,7 @@ mod word_tests {
         match Word::new(normalise("'ka.ta"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "káta"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1108,7 +1106,7 @@ mod word_tests {
         match Word::new(normalise("'ka:.ta"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "káta"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1120,7 +1118,7 @@ mod word_tests {
         match Word::new(normalise("san.da"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "sn.d"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1128,7 +1126,7 @@ mod word_tests {
         match Word::new(normalise("sa:n.da"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "sːn.d"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1137,7 +1135,7 @@ mod word_tests {
         match Word::new(normalise("sa:n.da"), &[]) {
             Ok(w) => assert_eq!(w.render(&t), "sn.da"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1149,7 +1147,7 @@ mod word_tests {
         match Word::new(normalise("sha.tá"), &t) {
             Ok(w) => assert_eq!(w.render(&[]), "ʃaˈta"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1161,7 +1159,7 @@ mod word_tests {
         match Word::new(normalise("ssha.tâ"), &t) {
             Ok(w) => assert_eq!(w.render(&[]), "ʃːaˈtaː"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1170,7 +1168,7 @@ mod word_tests {
         match Word::new(normalise("tâ"), &t) {
             Ok(w) => assert_eq!(w.render(&[]), "ˈtaː"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1182,7 +1180,7 @@ mod word_tests {
         match Word::new(normalise("カ.タ.カ.ナ"), &t) {
             Ok(w) => assert_eq!(w.render(&[]), "ka.ta.ka.na"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
@@ -1194,7 +1192,7 @@ mod word_tests {
         match Word::new(normalise("汉.语"), &t) {
             Ok(w) => assert_eq!(w.render(&[]), "han51.y214"),
             Err(e) => {
-                println!("{}", e.format_word_error(&[]));
+                println!("{}", e.format_word_error());
                 assert!(false);
             }
         }

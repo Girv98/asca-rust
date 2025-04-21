@@ -1,9 +1,9 @@
-use std::{fmt::{self, Display}, rc::Rc };
+use std::{ fmt::{self, Display}, rc::Rc };
 use serde::Deserialize;
 
-use crate::{
-    error::RuleSyntaxError, 
-    seg  ::NodeKind, 
+use crate :: {
+    error :: RuleSyntaxError, 
+    word  :: NodeKind, 
     CARDINALS_TRIE, 
     DIACRITS
 };

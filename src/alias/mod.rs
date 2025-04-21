@@ -1,8 +1,9 @@
 use std::fmt;
 
-use parser::AliasItem;
+use lexer::AliasLexer;
+use parser::{AliasItem, AliasParser};
 
-use crate::FeatType;
+use crate::{error::AliasSyntaxError, rule::FeatType};
 
 pub mod lexer;
 pub mod parser;
@@ -185,8 +186,9 @@ impl TryFrom<&str> for NamedEscape {
                                         => Ok(Self::UnderUmlaut),
             "underring"  | "ringbelow"  => Ok(Self::UnderRing),
             "undercomma" | "commabelow" => Ok(Self::UnderComma),
-            "cedilla"  | "cedi"         => Ok(Self::Cedilla),
-            "ogonek"   | "ogon"         => Ok(Self::Ogonek),
+            "cedilla" | "cedi" | "ced"  => Ok(Self::Cedilla),
+            "ogonek"  | "ogon" | 
+            "ogonk"   | "ognk"          => Ok(Self::Ogonek),
             _ => Err(())
         }
     }
@@ -223,4 +225,26 @@ fn test_escape_repr() {
     assert_eq!(NamedEscape::UnderComma.to_char() , '\u{0326}');
     assert_eq!(NamedEscape::Cedilla.to_char()    , '\u{0327}');
     assert_eq!(NamedEscape::Ogonek.to_char()     , '\u{0328}');
+}
+
+pub(crate) fn parse_into(into: &[String]) -> Result<Vec<Transformation>, AliasSyntaxError> {
+    let mut into_parsed = Vec::with_capacity(into.len());
+    for (line, alias) in into.iter().enumerate() {
+        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+    }
+
+    Ok(into_parsed)
+}
+
+pub(crate) fn parse_from(from: &[String]) -> Result<Vec<Transformation>, AliasSyntaxError> {
+    let mut from_parsed = Vec::with_capacity(from.len());
+    for (line, alias) in from.iter().enumerate() {
+        from_parsed.extend(AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+    }
+    Ok(from_parsed)
+}
+
+#[allow(unused)]
+pub(crate) fn parse_aliases(into: &[String], from: &[String]) -> Result<(Vec<Transformation>, Vec<Transformation>), AliasSyntaxError> {
+    Ok((parse_into(into)?, parse_from(from)?))
 }

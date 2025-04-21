@@ -1,8 +1,7 @@
 use std::{ffi::OsStr, fmt::Debug, fs, io::{self, Write}, path::{Path, PathBuf}};
 
 use colored::Colorize;
-use asca::RuleGroup;
-// use asca::Transformation;
+use asca::{error::ASCAError, rule::RuleGroup};
 
 #[cfg(windows)]
 pub const LINE_ENDING: &str = "\r\n";
@@ -313,13 +312,12 @@ pub(super) fn fix_combining_char_pad(string: &str) -> usize {
     pad
 }
 
-pub(super) fn print_asca_errors(err: asca::Error, words: &[String], rules: &[RuleGroup], into: &[String], from: &[String]) {
+pub(super) fn print_asca_errors(err: ASCAError, rules: &[RuleGroup], into: &[String], from: &[String]) {
     match err {
-        asca::Error::WordSyn(e) => println!("{}", asca::ASCAError::format_word_error(&e, words)),
-        asca::Error::WordRun(e) => println!("{}", asca::ASCAError::format_word_error(&e, words)),
-        asca::Error::AliasSyn(e) => println!("{}", asca::ASCAError::format_alias_error(&e, into, from)),
-        asca::Error::AliasRun(e) => println!("{}", asca::ASCAError::format_alias_error(&e, into, from)),
-        asca::Error::RuleSyn(e) => println!("{}", asca::ASCAError::format_rule_error(&e, rules)),
-        asca::Error::RuleRun(e) => println!("{}", asca::ASCAError::format_rule_error(&e, rules)),
+        ASCAError::AliasSyn(e) => println!("{}", e.format(into, from)),
+        ASCAError::AliasRun(e) => println!("{}", e.format(into, from)),
+        ASCAError::WordSyn(e)  => println!("{}", e.format()),
+        ASCAError::RuleSyn(e)  => println!("{}", e.format(rules)),
+        ASCAError::RuleRun(e)  => println!("{}", e.format(rules)),
     }
 }

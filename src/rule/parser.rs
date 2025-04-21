@@ -5,13 +5,13 @@ use std::{
 };
 
 use crate :: {
-    error :: *,
-    lexer :: *,
-    rule  :: { Alpha, Rule },
-    seg   :: Segment,
-    syll  :: Tone, 
+    error :: { RuleRuntimeError, RuleSyntaxError }, 
+    rule  :: { Alpha, FType, Rule }, 
+    word  :: { Segment, Tone }, 
     CARDINALS_MAP, DIACRITS
 };
+
+use super::{FeatType, NodeType, Position, SupraType, Token, TokenKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BinMod {
@@ -1133,13 +1133,13 @@ mod parser_tests {
     // }
 
     use super::*;
-    use crate::CARDINALS_MAP;
+    use crate::{rule::Lexer, CARDINALS_MAP};
 
     fn setup(test_str: &str) -> Vec<Token> { 
         match Lexer::new(&String::from(test_str).chars().collect::<Vec<_>>(),0,0).get_line() {
             Ok(r) => r,
             Err(e) => {
-                println!("{}", e.get_error_message());
+                println!("{}", e.to_string());
                 assert!(false);
                 unreachable!()
             },

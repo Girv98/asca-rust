@@ -1,6 +1,10 @@
-use crate::{error::AliasSyntaxError, FType, FeatType, NodeType, SupraType, CARDINALS_TRIE, DIACRITS};
+use crate :: { 
+    error :: AliasSyntaxError, 
+    rule  :: { FeatType, SupraType }, 
+    CARDINALS_TRIE, DIACRITS
+};
 
-use super::{AliasKind, AliasPosition, AliasToken, AliasTokenKind, NamedEscape};
+use super :: { AliasKind, AliasPosition, AliasToken, AliasTokenKind, NamedEscape };
 
 
 #[allow(unused)]
@@ -86,10 +90,10 @@ impl<'a> AliasLexer<'a> {
     // TODO: Factor this out with Lexer::feature_match
     fn feature_match(&mut self, buffer: &str) -> Option<AliasTokenKind> {
         use AliasTokenKind::*;
-        use FeatType::*;
-        use NodeType::*;
-        use FType::*;
-        use SupraType::*;
+        use crate::rule::FeatType::*;
+        use crate::rule::NodeType::*;
+        use crate::rule::FType::*;
+        use crate::rule::SupraType::*;
         match buffer.to_lowercase().as_str() {
             // Root Node Features
             "root"        | "rut"       | "rt"                    => Some(Feature(Node(Root))),

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, io, path::{Path, PathBuf}, rc::Rc};
 
-use asca::RuleGroup;
+use asca::rule::RuleGroup;
 use colored::Colorize;
 
 use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util::{self, RULE_FILE_EXT}};

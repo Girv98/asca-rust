@@ -1,8 +1,7 @@
 use std::{io, path::{Path, PathBuf}};
-
-use asca::RuleGroup;
 use colored::Colorize;
 
+use asca::rule::RuleGroup;
 use super::{args::InGroup, parse, util::{self, ALIAS_FILE_EXT, LINE_ENDING, RULE_FILE_EXT, WORD_FILE_EXT}, AscaJson};
 
 // Handle comparing the output to the contents of a wsca file.
@@ -121,13 +120,13 @@ fn output_result(output: Option<PathBuf>, res: &[String]) -> io::Result<()> {
 pub(crate) fn run(in_group: InGroup, maybe_words: Option<PathBuf>, maybe_alias: Option<PathBuf>, maybe_output: Option<PathBuf>, maybe_compare: Option<PathBuf>) -> io::Result<()> {
     let (words, rules, into, from) = get_input(in_group, maybe_words, maybe_alias)?;
 
-    match asca::run(&rules, &words, &into, &from) {
+    match asca::run_unparsed(&rules, &words, &into, &from) {
         Ok(res) => {
             print_result(&res, &words, maybe_compare)?;
             output_result(maybe_output, &res)
         },
         Err(err) => { 
-            util::print_asca_errors(err, &words, &rules, &into, &from); 
+            util::print_asca_errors(err, &rules, &into, &from); 
             Ok(())
         },
     }

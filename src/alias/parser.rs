@@ -1,4 +1,8 @@
-use crate::{AliasSyntaxError, BinMod, FType, ModKind, Modifiers, Mods, NodeType, Segment, SupraType, CARDINALS_MAP, DIACRITS};
+use crate  :: {
+    error  :: AliasSyntaxError, 
+    rule   :: { BinMod, FType, ModKind, Modifiers, Mods, NodeType, SupraType }, 
+    word   :: Segment, CARDINALS_MAP, DIACRITS
+};
 
 use super::{AliasKind, AliasPosition, AliasToken, AliasTokenKind, FeatType, Transformation};
 
@@ -521,7 +525,7 @@ impl AliasParser {
 
 #[cfg(test)]
 mod parser_tests {
-    use crate::{alias::lexer::AliasLexer, SupraSegs};
+    use crate::{alias::lexer::AliasLexer, rule::SupraSegs};
 
     use super::*;
 

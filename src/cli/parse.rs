@@ -1,6 +1,6 @@
 use std::{io, path::Path};
 
-use asca::RuleGroup;
+use asca::rule::RuleGroup;
 
 use super::util;
 
