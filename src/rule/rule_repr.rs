@@ -120,11 +120,13 @@ impl ParsedRules {
         crate::apply_rules_trace(&self.rules, phrase)
     }
 
-    /// # Panics
-    /// Panics if rule index is out of bounds
-    pub fn get_traced_rules(&self, changes: &[Change]) -> Vec<(&String, &Vec<Rule>, &String)> {
+    /// Returns an array of references to the trace rules or None if out of bounds.
+    pub fn get_traced_rules(&self, changes: &[Change]) -> Option<Vec<(&String, &Vec<Rule>, &String)>> {
         changes.iter().map(|Change { rule_index: i, .. }| {
-            (&self.names[*i], &self.rules[*i], &self.descs[*i])
+            match (self.names.get(*i), self.rules.get(*i), self.descs.get(*i)) {
+                (Some(n), Some(r), Some(d)) => Some((n, r, d)),
+                _ => None,
+            }
         }).collect()
     }
 }
