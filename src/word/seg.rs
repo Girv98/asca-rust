@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, FType, ModKind, Modifiers, PlaceMod, Position, SupraSegs }, 
+    rule   :: { Alpha, AlphaMod, BinMod, FeatKind, ModKind, Modifiers, PlaceMod, Position, SupraSegs }, 
     word   :: Place, 
     CARDINALS_MAP, CARDINALS_VEC, DIACRITS 
 };
@@ -21,14 +21,14 @@ pub(crate) struct Diacritic {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DiaMods {
     pub(crate) nodes: [Option<ModKind>; NodeKind::Pharyngeal as usize + 1],
-    pub(crate) feats: [Option<ModKind>; FType::RetractedTongueRoot as usize + 1],
+    pub(crate) feats: [Option<ModKind>; FeatKind::RetractedTongueRoot as usize + 1],
 }
 
 impl DiaMods {
     pub(crate) fn new() -> Self {
         Self { 
             nodes: [();NodeKind::Pharyngeal as usize + 1].map(|_| None), 
-            feats: [();FType::RetractedTongueRoot as usize + 1].map(|_| None), 
+            feats: [();FeatKind::RetractedTongueRoot as usize + 1].map(|_| None), 
         }
     }
 }
@@ -268,7 +268,7 @@ impl Segment {
 
     pub(crate) fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize) -> bool {
         let Some(kind) = md else { return true };
-        let (node, mask) = FType::from_usize(feat_index).as_node_mask();
+        let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
         self.match_feat_mod_kind(kind, node, mask)
     }
 
@@ -306,10 +306,10 @@ impl Segment {
             Some(ModKind::Binary(as_bin_mod(self.place.pharyngeal_is_some()))),
         ];
 
-        let mut feats = [();FType::count()].map(|_| None);     
+        let mut feats = [();FeatKind::count()].map(|_| None);     
         #[allow(clippy::needless_range_loop)] 
-        for i in 0..FType::count() {
-            let (n, f) = FType::from_usize(i).as_node_mask();   
+        for i in 0..FeatKind::count() {
+            let (n, f) = FeatKind::from_usize(i).as_node_mask();   
             let Some(x) = self.get_feat(n, f) else { continue };
             
             feats[i] = Some(ModKind::Binary(as_bin_mod(x != 0)))
@@ -493,7 +493,7 @@ impl Segment {
         }
         for (i, m) in dm.feats.iter().enumerate() {
             if let Some(kind) = m {
-                let (n,f) = FType::from_usize(i).as_node_mask();
+                let (n,f) = FeatKind::from_usize(i).as_node_mask();
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_feat(n, f, false),
@@ -511,7 +511,7 @@ impl Segment {
         Ok(())
     }
 
-    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>> , nodes: [Option<ModKind>; NodeKind::count()], feats: [Option<ModKind>; FType::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError>{
+    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>> , nodes: [Option<ModKind>; NodeKind::count()], feats: [Option<ModKind>; FeatKind::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError>{
         for (i, m) in nodes.iter().enumerate() { 
             let node = NodeKind::from_usize(i);
             if let Some(kind) = m {
@@ -593,7 +593,7 @@ impl Segment {
         }
         for (i, m) in feats.iter().enumerate() {
             if let Some(kind) = m { 
-                let (n, f) = FType::from_usize(i).as_node_mask();
+                let (n, f) = FeatKind::from_usize(i).as_node_mask();
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_feat(n, f, false),

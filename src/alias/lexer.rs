@@ -1,6 +1,6 @@
 use crate :: { 
     error :: AliasSyntaxError, 
-    rule  :: { FeatType, SupraType }, 
+    rule  :: { FeatureCategory, SupraKind }, 
     CARDINALS_TRIE, DIACRITS
 };
 
@@ -90,10 +90,10 @@ impl<'a> AliasLexer<'a> {
     // TODO: Factor this out with Lexer::feature_match
     fn feature_match(&mut self, buffer: &str) -> Option<AliasTokenKind> {
         use AliasTokenKind::*;
-        use crate::rule::FeatType::*;
+        use crate::rule::FeatureCategory::*;
         use crate::word::NodeKind::*;
-        use crate::rule::FType::*;
-        use crate::rule::SupraType::*;
+        use crate::rule::FeatKind::*;
+        use crate::rule::SupraKind::*;
         match buffer.to_lowercase().as_str() {
             // Root Node Features
             "root"        | "rut"       | "rt"                    => Some(Feature(Node(Root))),
@@ -194,7 +194,7 @@ impl<'a> AliasLexer<'a> {
             return Err(AliasSyntaxError::UnknownFeature(buffer, AliasPosition::new(self.kind, self.line, start, self.pos)))
         };
         
-        if let AliasTokenKind::Feature(FeatType::Supr(SupraType::Tone)) = tkn_kind { if mod_val == "+" || mod_val == "-" {
+        if let AliasTokenKind::Feature(FeatureCategory::Supr(SupraKind::Tone)) = tkn_kind { if mod_val == "+" || mod_val == "-" {
             return Err(AliasSyntaxError::WrongModTone(self.kind, self.line, start))
         } }
 
@@ -400,8 +400,8 @@ impl<'a> AliasLexer<'a> {
 
     fn string_match(&mut self, buffer: String, start: usize) -> Result<AliasTokenKind, AliasSyntaxError> {
         use AliasTokenKind::*;
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         match buffer.to_lowercase().as_str() {
             "tone" | "ton" | "tne" | "tn" => Ok(Feature(Supr(Tone))),
             _ => Err(AliasSyntaxError::UnknownEnbyFeature(buffer.clone(), AliasPosition::new(self.kind, self.line, start, start+buffer.len())))
@@ -609,8 +609,8 @@ mod lexer_tests {
 
     #[test]
     fn test_deromanisation_stress() {
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         let test_input= String::from("á > a:[+str]");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::String,                 "á".to_owned(), AliasPosition::new(AliasKind::Deromaniser, 0,  0,  1)),
@@ -653,8 +653,8 @@ mod lexer_tests {
 
     #[test]
     fn test_romanisation_length() {
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         let test_input= String::from("ʃ:[-long] > sh");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::Cardinal,               "ʃ".to_owned(), AliasPosition::new(AliasKind::Romaniser, 0,  0,  1)),
@@ -699,8 +699,8 @@ mod lexer_tests {
 
     #[test]
     fn test_romanisation_stress() {
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         let test_input= String::from("a:[+str] > á");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::Cardinal,               "a".to_owned(), AliasPosition::new(AliasKind::Romaniser, 0,  0,  1)),
@@ -724,8 +724,8 @@ mod lexer_tests {
 
     #[test]
     fn test_romanisation_named_escape() {
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         let test_input= String::from("a:[+str] > a@{acute}");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::Cardinal,               "a".to_owned(), AliasPosition::new(AliasKind::Romaniser, 0,  0,  1)),
@@ -749,8 +749,8 @@ mod lexer_tests {
 
     #[test]
     fn test_romanisation_unicode_escape() {
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         let test_input= String::from("a:[+str] > a\\u{0301}");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::Cardinal,               "a".to_owned(), AliasPosition::new(AliasKind::Romaniser, 0,  0,  1)),
@@ -774,8 +774,8 @@ mod lexer_tests {
 
     #[test]
     fn test_romanisation_literal_escape() {
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         let test_input= String::from("a:[+str] > a\\$");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::Cardinal,               "a".to_owned(), AliasPosition::new(AliasKind::Romaniser, 0,  0,  1)),

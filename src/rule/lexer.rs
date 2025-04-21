@@ -10,7 +10,7 @@ use crate :: {
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum SupraType {
+pub(crate) enum SupraKind {
     Long,       // ±long
     Overlong,   // ±overlong
     Stress,     // ±stress    (+ matches prim and sec, - matches unstressed)
@@ -18,20 +18,20 @@ pub(crate) enum SupraType {
     Tone,       // Can only be used with : notation (e.g. Tone : 213 )
 }
 
-impl Display for SupraType {
+impl Display for SupraKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SupraType::Long            => write!(f, "long"),
-            SupraType::Overlong        => write!(f, "overlng"),
-            SupraType::Stress          => write!(f, "str"),
-            SupraType::SecStress       => write!(f, "secstr"),
-            SupraType::Tone            => write!(f, "tone"),
+            SupraKind::Long            => write!(f, "long"),
+            SupraKind::Overlong        => write!(f, "overlng"),
+            SupraKind::Stress          => write!(f, "str"),
+            SupraKind::SecStress       => write!(f, "secstr"),
+            SupraKind::Tone            => write!(f, "tone"),
         }
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum FType { 
+pub(crate) enum FeatKind { 
     // can be ± || α.ω 
     /*RUT*/ Consonantal, Sonorant, Syllabic,      
     /*MAN*/ Continuant, Approximant, Lateral, Nasal, DelayedRelease, Strident, Rhotic, Click,          
@@ -43,40 +43,40 @@ pub(crate) enum FType {
     /*PHR*/ AdvancedTongueRoot, RetractedTongueRoot, 
 }
 
-impl Display for FType {
+impl Display for FeatKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FType::Consonantal         => write!(f, "consonantal"),
-            FType::Sonorant            => write!(f, "sonorant"),
-            FType::Syllabic            => write!(f, "syllablic"),
-            FType::Continuant          => write!(f, "continuant"),
-            FType::Approximant         => write!(f, "approx."),
-            FType::Lateral             => write!(f, "lateral"),
-            FType::Nasal               => write!(f, "nasas"),
-            FType::DelayedRelease      => write!(f, "del.rel."),
-            FType::Strident            => write!(f, "strident"),
-            FType::Rhotic              => write!(f, "rhotic"),
-            FType::Click               => write!(f, "click"),
-            FType::Voice               => write!(f, "voice"),
-            FType::SpreadGlottis       => write!(f, "s.g."),
-            FType::ConstrGlottis       => write!(f, "c.g."),
-            FType::Labiodental         => write!(f, "labiodental"),
-            FType::Round               => write!(f, "round"),
-            FType::Anterior            => write!(f, "anterior"),
-            FType::Distributed         => write!(f, "distributed"),
-            FType::Front               => write!(f, "front"),
-            FType::Back                => write!(f, "back"),
-            FType::High                => write!(f, "high"),
-            FType::Low                 => write!(f, "low"),
-            FType::Tense               => write!(f, "tense"),
-            FType::Reduced             => write!(f, "reduced"),
-            FType::AdvancedTongueRoot  => write!(f, "atr"),
-            FType::RetractedTongueRoot => write!(f, "rtr")
+            FeatKind::Consonantal         => write!(f, "consonantal"),
+            FeatKind::Sonorant            => write!(f, "sonorant"),
+            FeatKind::Syllabic            => write!(f, "syllablic"),
+            FeatKind::Continuant          => write!(f, "continuant"),
+            FeatKind::Approximant         => write!(f, "approx."),
+            FeatKind::Lateral             => write!(f, "lateral"),
+            FeatKind::Nasal               => write!(f, "nasas"),
+            FeatKind::DelayedRelease      => write!(f, "del.rel."),
+            FeatKind::Strident            => write!(f, "strident"),
+            FeatKind::Rhotic              => write!(f, "rhotic"),
+            FeatKind::Click               => write!(f, "click"),
+            FeatKind::Voice               => write!(f, "voice"),
+            FeatKind::SpreadGlottis       => write!(f, "s.g."),
+            FeatKind::ConstrGlottis       => write!(f, "c.g."),
+            FeatKind::Labiodental         => write!(f, "labiodental"),
+            FeatKind::Round               => write!(f, "round"),
+            FeatKind::Anterior            => write!(f, "anterior"),
+            FeatKind::Distributed         => write!(f, "distributed"),
+            FeatKind::Front               => write!(f, "front"),
+            FeatKind::Back                => write!(f, "back"),
+            FeatKind::High                => write!(f, "high"),
+            FeatKind::Low                 => write!(f, "low"),
+            FeatKind::Tense               => write!(f, "tense"),
+            FeatKind::Reduced             => write!(f, "reduced"),
+            FeatKind::AdvancedTongueRoot  => write!(f, "atr"),
+            FeatKind::RetractedTongueRoot => write!(f, "rtr")
         }
     }
 }
 
-impl FType {
+impl FeatKind {
     pub(crate) const fn count() -> usize { 26 }
 
     pub(crate) fn from_usize(value: usize) -> Self {
@@ -158,18 +158,18 @@ impl FType {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum FeatType {
+pub(crate) enum FeatureCategory {
     Node(NodeKind),
-    Feat(FType),
-    Supr(SupraType),
+    Feat(FeatKind),
+    Supr(SupraKind),
 }
 
-impl Display for FeatType {
+impl Display for FeatureCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FeatType::Node(x) => write!(f, "{x}"),
-            FeatType::Feat(x) => write!(f, "{x}"),
-            FeatType::Supr(x) => write!(f, "{x}"),
+            FeatureCategory::Node(x) => write!(f, "{x}"),
+            FeatureCategory::Feat(x) => write!(f, "{x}"),
+            FeatureCategory::Supr(x) => write!(f, "{x}"),
         }
     }
 }
@@ -208,7 +208,7 @@ pub(crate) enum TokenKind {
     EmptySet,         // ∅
     Ellipsis,         // ... or .. or … or ⋯
     Comment,          // Delimited by ';;'
-    Feature(FeatType),
+    Feature(FeatureCategory),
     Eol,              // End of Line 
 }
 
@@ -471,7 +471,7 @@ impl<'a> Lexer<'a> {
 
         let tkn_kind = self.feature_match(buffer, start, self.pos)?;
         
-        if let TokenKind::Feature(FeatType::Supr(SupraType::Tone)) = tkn_kind { if mod_val == "+" || mod_val == "-" {
+        if let TokenKind::Feature(FeatureCategory::Supr(SupraKind::Tone)) = tkn_kind { if mod_val == "+" || mod_val == "-" {
             return Err(RuleSyntaxError::WrongModTone(self.group, self.line, start))
         } }
 
@@ -696,8 +696,8 @@ impl<'a> Lexer<'a> {
 
     fn string_match(&mut self, buffer: String, start: usize) -> Result<TokenKind, RuleSyntaxError> {
         use TokenKind::*;
-        use FeatType::*;
-        use SupraType::*;
+        use FeatureCategory::*;
+        use SupraKind::*;
         match buffer.to_lowercase().as_str() {
             "tone" | "ton" | "tne" | "tn" => Ok(Feature(Supr(Tone))),
             _ => Err(RuleSyntaxError::UnknownEnbyFeature(buffer.clone(), Position::new(self.group, self.line, start, start+buffer.len())))
@@ -706,10 +706,10 @@ impl<'a> Lexer<'a> {
 
     fn feature_match(&mut self, buffer: String, start: usize, end: usize) -> Result<TokenKind, RuleSyntaxError> {
         use TokenKind::*;
-        use FeatType::*;
+        use FeatureCategory::*;
         use NodeKind::*;
-        use FType::*;
-        use SupraType::*;
+        use FeatKind::*;
+        use SupraKind::*;
         match buffer.to_lowercase().as_str() {
             // Root Node Features
             "root"        | "rut"       | "rt"                    => Ok(Feature(Node(Root))),
@@ -948,13 +948,13 @@ mod lexer_tests {
 
     #[test]
     fn test_feature_matrix() {
-        use FeatType::*;
+        use FeatureCategory::*;
         let test_input= String::from("[+voi, -sg, αPLACE]");
         let expected_result = vec![
             Token::new(TokenKind::LeftSquare,                          "[", 0, 0,  0,  1),
-            Token::new(TokenKind::Feature(Feat(FType::Voice)),         "+", 0, 0,  1,  5),
+            Token::new(TokenKind::Feature(Feat(FeatKind::Voice)),         "+", 0, 0,  1,  5),
             Token::new(TokenKind::Comma,                               ",", 0, 0,  5,  6),
-            Token::new(TokenKind::Feature(Feat(FType::SpreadGlottis)), "-", 0, 0,  7, 10),
+            Token::new(TokenKind::Feature(Feat(FeatKind::SpreadGlottis)), "-", 0, 0,  7, 10),
             Token::new(TokenKind::Comma,                               ",", 0, 0, 10, 11),
             Token::new(TokenKind::Feature(Node(NodeKind::Place)),      "α", 0, 0, 12, 18),
             Token::new(TokenKind::RightSquare,                         "]", 0, 0, 18, 19),
@@ -973,7 +973,7 @@ mod lexer_tests {
 
     #[test]
     fn test_negative_alpha() {
-        use FeatType::*;
+        use FeatureCategory::*;
         let test_input= String::from("[-αPLACE]");
         let expected_result = vec![
             Token::new(TokenKind::LeftSquare,                          "[", 0, 0,  0,  1),

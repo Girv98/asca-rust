@@ -16,7 +16,7 @@ use std::{
 
 use crate :: {
     error :: { ASCAError, AliasRuntimeError, RuleRuntimeError, WordSyntaxError }, 
-    rule  :: { Alpha, BinMod, FType, ModKind, Modifiers, Position, SupraSegs }, 
+    rule  :: { Alpha, BinMod, FeatKind, ModKind, Modifiers, Position, SupraSegs }, 
     CARDINALS_MAP, CARDINALS_TRIE, DIACRITS
 };
 
@@ -197,7 +197,7 @@ impl Word {
         }
 
         for (i, m) in mods.feats.iter().enumerate() {
-            let (n, f) = FType::from_usize(i).as_node_mask();
+            let (n, f) = FeatKind::from_usize(i).as_node_mask();
             if let Some(kind) = m {
                 match kind {
                     ModKind::Binary(bm) => match bm {
@@ -439,7 +439,7 @@ impl Word {
                             },
                             Err((mod_index, is_node)) => {
                                 if !is_node {
-                                    let ft = FType::from_usize(mod_index);
+                                    let ft = FeatKind::from_usize(mod_index);
                                     let pos = match d.prereqs.feats[mod_index].unwrap() {
                                         ModKind::Binary(bin_mod) => bin_mod == BinMod::Positive,
                                         _ => unreachable!(),
@@ -618,7 +618,7 @@ impl Word {
 
     fn alias_match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> bool {
         if let Some(kind) = md { 
-            let (node, mask) = FType::from_usize(feat_index).as_node_mask();
+            let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
             return self.alias_match_seg_kind(kind, seg, node, mask)
         }
         true

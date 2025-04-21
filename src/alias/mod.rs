@@ -3,7 +3,7 @@ use std::fmt;
 use lexer::AliasLexer;
 use parser::{AliasItem, AliasParser};
 
-use crate::{error::AliasSyntaxError, rule::FeatType};
+use crate::{error::AliasSyntaxError, rule::FeatureCategory};
 
 pub mod lexer;
 pub mod parser;
@@ -59,7 +59,7 @@ pub(crate) enum AliasTokenKind {
     Star,             // *
     EmptySet,         // ∅
 
-    Feature(FeatType),
+    Feature(FeatureCategory),
     String, 
     Eol,              // End of Line 
 }

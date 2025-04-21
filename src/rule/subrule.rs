@@ -9,7 +9,7 @@ use std ::{
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, FType, Item, ModKind, Modifiers, ParseElement, PlaceMod, Position, RuleType, SupraSegs, Token }, 
+    rule   :: { Alpha, AlphaMod, BinMod, FeatKind, Item, ModKind, Modifiers, ParseElement, PlaceMod, Position, RuleType, SupraSegs, Token }, 
     word   :: { NodeKind, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
@@ -2626,7 +2626,7 @@ impl SubRule {
 
     fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> Result<bool, RuleRuntimeError> {
         if let Some(kind) = md { 
-            let (node, mask) = FType::from_usize(feat_index).as_node_mask();
+            let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
             return self.match_seg_kind(kind, seg, node, mask)
         }
         Ok(true)

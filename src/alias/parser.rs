@@ -1,11 +1,11 @@
 use crate  :: {
     error  :: AliasSyntaxError, 
-    rule   :: { BinMod, FType, ModKind, Modifiers, Mods, SupraType }, 
+    rule   :: { BinMod, FeatKind, ModKind, Modifiers, Mods, SupraKind }, 
     word   :: { NodeKind, Segment }, 
     CARDINALS_MAP, DIACRITS
 };
 
-use super::{AliasKind, AliasPosition, AliasToken, AliasTokenKind, FeatType, Transformation};
+use super::{AliasKind, AliasPosition, AliasToken, AliasTokenKind, FeatureCategory, Transformation};
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -166,7 +166,7 @@ impl AliasParser {
 
     fn is_feature(&self) -> bool{ matches!(self.curr_tkn.kind, AliasTokenKind::Feature(_)) }
 
-    fn curr_token_to_modifier(&self) -> (FeatType, Mods) {
+    fn curr_token_to_modifier(&self) -> (FeatureCategory, Mods) {
         // returns ARG ← ('+' / '-') [a-zA-Z]+ / TONE  
         match self.curr_tkn.kind {
             AliasTokenKind::Feature(feature) => {
@@ -174,7 +174,7 @@ impl AliasParser {
                 match value.as_str() {
                     "+" => (feature, Mods::Binary(BinMod::Positive)),
                     "-" => (feature, Mods::Binary(BinMod::Negative)),
-                    _ if feature == FeatType::Supr(SupraType::Tone) => (feature, Mods::Number(value.parse().expect("value is ascii digit"))),
+                    _ if feature == FeatureCategory::Supr(SupraKind::Tone) => (feature, Mods::Number(value.parse().expect("value is ascii digit"))),
                     _ => {
                         unreachable!();
                     }
@@ -197,21 +197,21 @@ impl AliasParser {
             if self.is_feature() {
                 let (ft, mods) = self.curr_token_to_modifier();
                 match ft {
-                    FeatType::Node(t) => args.nodes[t as usize] = if let Mods::Binary(b) = mods {
+                    FeatureCategory::Node(t) => args.nodes[t as usize] = if let Mods::Binary(b) = mods {
                         Some(ModKind::Binary(b))
                     } else { unreachable!() },
-                    FeatType::Feat(t) => args.feats[t as usize] = if let Mods::Binary(b) = mods {
+                    FeatureCategory::Feat(t) => args.feats[t as usize] = if let Mods::Binary(b) = mods {
                         Some(ModKind::Binary(b))
                     } else { unreachable!() },
-                    FeatType::Supr(t) => match mods {
+                    FeatureCategory::Supr(t) => match mods {
                         Mods::Alpha(_)  => unreachable!(),
                         Mods::Number(n) => args.suprs.tone = Some(n),
                         Mods::Binary(b) => match t {
-                            SupraType::Long => args.suprs.length[0] = Some(ModKind::Binary(b)),
-                            SupraType::Overlong => args.suprs.length[1] = Some(ModKind::Binary(b)),
-                            SupraType::Stress => args.suprs.stress[0] = Some(ModKind::Binary(b)),
-                            SupraType::SecStress => args.suprs.stress[1] = Some(ModKind::Binary(b)),
-                            SupraType::Tone => unreachable!("Tone cannot be `+/-`"),
+                            SupraKind::Long => args.suprs.length[0] = Some(ModKind::Binary(b)),
+                            SupraKind::Overlong => args.suprs.length[1] = Some(ModKind::Binary(b)),
+                            SupraKind::Stress => args.suprs.stress[0] = Some(ModKind::Binary(b)),
+                            SupraKind::SecStress => args.suprs.stress[1] = Some(ModKind::Binary(b)),
+                            SupraKind::Tone => unreachable!("Tone cannot be `+/-`"),
                         },
                     }
                 }
@@ -248,7 +248,7 @@ impl AliasParser {
             let d = dia.kind.as_diacritic().unwrap();
             if let Err((mod_index, is_node)) = ipa.check_and_apply_diacritic(&DIACRITS[*d as usize]) {
                 if !is_node {
-                    let ft = FType::from_usize(mod_index);
+                    let ft = FeatKind::from_usize(mod_index);
                     let positive = match &DIACRITS[*d as usize].prereqs.feats[mod_index].unwrap() {
                         ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
                         _ => unreachable!(),
@@ -279,21 +279,21 @@ impl AliasParser {
     // TODO: factor this out with RuleParser::group_to_matrix()
     fn group_to_matrix(&self, chr: &AliasToken) -> Result<(Modifiers, AliasPosition), AliasSyntaxError> {
         // returns GROUP ← 'C' / 'O' / 'S' / 'L' / 'N' / 'G' / 'V' 
-        use FType::*;
+        use FeatKind::*;
         use ModKind::*;
 
-        const SYLL_M: (FType, ModKind) = (Syllabic,       Binary(BinMod::Negative));  // -syllabic
-        const SYLL_P: (FType, ModKind) = (Syllabic,       Binary(BinMod::Positive));  // +syllabic
-        const CONS_M: (FType, ModKind) = (Consonantal,    Binary(BinMod::Negative));  // -consonantal
-        const CONS_P: (FType, ModKind) = (Consonantal,    Binary(BinMod::Positive));  // +consonantal
-        const SONR_M: (FType, ModKind) = (Sonorant,       Binary(BinMod::Negative));  // -sonorant
-        const SONR_P: (FType, ModKind) = (Sonorant,       Binary(BinMod::Positive));  // +sonorant
-        const APPR_M: (FType, ModKind) = (Approximant,    Binary(BinMod::Negative));  // -approximant
-        const APPR_P: (FType, ModKind) = (Approximant,    Binary(BinMod::Positive));  // +approximant
-        const CONT_M: (FType, ModKind) = (Continuant,     Binary(BinMod::Negative));  // -continuent
-        const CONT_P: (FType, ModKind) = (Continuant,     Binary(BinMod::Positive));  // +continuent
-        const DLRL_M: (FType, ModKind) = (DelayedRelease, Binary(BinMod::Negative));  // -del.rel.
-        const NASL_P: (FType, ModKind) = (Nasal,          Binary(BinMod::Positive));  // +nasal
+        const SYLL_M: (FeatKind, ModKind) = (Syllabic,       Binary(BinMod::Negative));  // -syllabic
+        const SYLL_P: (FeatKind, ModKind) = (Syllabic,       Binary(BinMod::Positive));  // +syllabic
+        const CONS_M: (FeatKind, ModKind) = (Consonantal,    Binary(BinMod::Negative));  // -consonantal
+        const CONS_P: (FeatKind, ModKind) = (Consonantal,    Binary(BinMod::Positive));  // +consonantal
+        const SONR_M: (FeatKind, ModKind) = (Sonorant,       Binary(BinMod::Negative));  // -sonorant
+        const SONR_P: (FeatKind, ModKind) = (Sonorant,       Binary(BinMod::Positive));  // +sonorant
+        const APPR_M: (FeatKind, ModKind) = (Approximant,    Binary(BinMod::Negative));  // -approximant
+        const APPR_P: (FeatKind, ModKind) = (Approximant,    Binary(BinMod::Positive));  // +approximant
+        const CONT_M: (FeatKind, ModKind) = (Continuant,     Binary(BinMod::Negative));  // -continuent
+        const CONT_P: (FeatKind, ModKind) = (Continuant,     Binary(BinMod::Positive));  // +continuent
+        const DLRL_M: (FeatKind, ModKind) = (DelayedRelease, Binary(BinMod::Negative));  // -del.rel.
+        const NASL_P: (FeatKind, ModKind) = (Nasal,          Binary(BinMod::Positive));  // +nasal
 
         let mut args = Modifiers::new(); 
 
