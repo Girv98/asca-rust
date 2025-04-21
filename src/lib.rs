@@ -9,11 +9,11 @@ use std::collections::HashMap;
 use lazy_static::lazy_static;
 use wasm_bindgen::prelude::*;
 
-use alias ::Transformation;
-use trie  ::*;
-use word  ::*;
-use error ::*;
-use rule::{trace::Change, BinMod, ModKind, Rule, RuleGroup};
+use alias :: Transformation;
+use trie  :: *;
+use word  :: *;
+use error :: { ASCAError,  * };
+use rule  :: { trace::Change, BinMod, ModKind, Rule, RuleGroup };
 
 const CARDINALS_FILE: &str = include_str!("cardinals.json");
 const DIACRITIC_FILE: &str = include_str!("diacritics.json");
@@ -119,7 +119,7 @@ pub(crate) fn normalise(s: &str) -> String {
     output
 }
 
-fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, error::ASCAError> {
+fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, ASCAError> {
     let mut transformed_phrases: Vec<Phrase> = Vec::with_capacity(phrases.len());
 
     for phrase in phrases {
@@ -139,7 +139,7 @@ fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phra
     Ok(transformed_phrases)
 }
 
-fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, error::ASCAError> {
+fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, ASCAError> {
     let mut changes: Vec<Change> = Vec::new();
 
     let mut res_phrase = phrase.clone();
@@ -157,7 +157,6 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>
 
     Ok(changes)
 }
-
 
 fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> Vec<String> {
     phrases.iter().map(|phrase| 
@@ -191,13 +190,6 @@ fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>
     Ok(rule_groups)
 }
 
-fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[String], trace_index: usize) -> Result<Option<Phrase>, ASCAError> {
-    match unparsed_phrases.get(trace_index) {
-        Some(phrase) => Ok(Some(Phrase::try_from(phrase, alias_into)?)),
-        None => Ok(None),
-    }
-}
-
 pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, ASCAError> {
     let phrases = parse_phrases(unparsed_phrases, &alias::parse_into(alias_into)?)?;
     let rules = parse_rule_groups(unparsed_rules)?;
@@ -206,13 +198,7 @@ pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], a
     Ok(phrases_to_string(res, alias::parse_from(alias_from)?))
 }
 
-fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<Vec<String>, ASCAError> {
-    let phrase = get_trace_phrase(unparsed_phrase, &alias_into, trace_index)?.unwrap_or_default();
-    let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rules_trace(&rules, &phrase)?;
-
-    Ok(rule::trace::to_string(&phrase, res, unparsed_rules))
-}
+// Functions for interop with WebASCA
 
 #[wasm_bindgen]
 pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<String>, unparsed_from: Vec<String>, trace: Option<usize>) -> Vec<String> {
@@ -222,6 +208,21 @@ pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<
         Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_from, t), &unparsed_rules, &unparsed_into, &unparsed_from),
         None => parse_result_web(run_unparsed(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_into, &unparsed_from),
     }
+}
+
+fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[String], trace_index: usize) -> Result<Option<Phrase>, ASCAError> {
+    match unparsed_phrases.get(trace_index) {
+        Some(phrase) => Ok(Some(Phrase::try_from(phrase, alias_into)?)),
+        None => Ok(None),
+    }
+}
+
+fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<Vec<String>, ASCAError> {
+    let phrase = get_trace_phrase(unparsed_phrase, alias_into, trace_index)?.unwrap_or_default();
+    let rules = parse_rule_groups(unparsed_rules)?;
+    let res = apply_rules_trace(&rules, &phrase)?;
+
+    Ok(rule::trace::to_string(&phrase, res, unparsed_rules))
 }
 
 fn parse_result_web(unparsed_result: Result<Vec<String>, ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String]) -> Vec<String> {
