@@ -91,6 +91,21 @@ impl TryFrom<Vec<RuleGroup>> for ParsedRules {
     }
 }
 
+impl IntoIterator for ParsedRules {
+    type Item = (String, Vec<Rule>, String);
+
+    type IntoIter = ParsedRulesIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ParsedRulesIter {
+            names: self.names,
+            rules: self.rules,
+            descs: self.descs,
+            index: 0,
+        }
+    }
+}
+
 impl ParsedRules {
 
     pub fn new() -> Self {
@@ -117,5 +132,31 @@ impl ParsedRules {
 impl Default for ParsedRules {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct ParsedRulesIter {
+    names: Vec<String>,
+    rules: Vec<Vec<Rule>>,
+    descs: Vec<String>,
+    index: usize
+}
+
+impl Iterator for ParsedRulesIter {
+    type Item = (String, Vec<Rule>, String);
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        let n = self.names.get(self.index).cloned();
+        let r = self.rules.get(self.index).cloned();
+        let d = self.descs.get(self.index).cloned();
+
+        if n.is_none() && r.is_none() && d.is_none() {
+            None
+        } else {
+            self.index += 1;
+            Some((n.unwrap_or_default(), r.unwrap_or_default(), d.unwrap_or_default()))
+        }
+
     }
 }
