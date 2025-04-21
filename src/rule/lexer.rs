@@ -8,51 +8,6 @@ use crate :: {
     DIACRITS
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum NodeType {
-    Root,      
-    Manner,
-    Laryngeal,   
-    Place,      
-    Labial,      
-    Coronal,     
-    Dorsal,      
-    Pharyngeal, 
-}
-
-impl NodeType {
-    pub(crate) const fn count() -> usize { 8 }
-
-    pub(crate) fn from_usize(value: usize) -> Self {
-        use NodeType::*;
-        match value {
-            0 => {debug_assert_eq!(value, Root as usize); Root},
-            1 => {debug_assert_eq!(value, Manner as usize); Manner},
-            2 => {debug_assert_eq!(value, Laryngeal as usize); Laryngeal},
-            3 => {debug_assert_eq!(value, Place as usize); Place},
-            4 => {debug_assert_eq!(value, Labial as usize); Labial},
-            5 => {debug_assert_eq!(value, Coronal as usize); Coronal},
-            6 => {debug_assert_eq!(value, Dorsal as usize); Dorsal},
-            7 => {debug_assert_eq!(value, Pharyngeal as usize); Pharyngeal},
-            _ => unreachable!()
-        }
-    }
-}
-
-impl Display for NodeType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            NodeType::Root         => write!(f, "RUT"),
-            NodeType::Manner       => write!(f, "MAN"),
-            NodeType::Laryngeal    => write!(f, "LAR"),
-            NodeType::Place        => write!(f, "PLC"),
-            NodeType::Labial       => write!(f, "LAB"),
-            NodeType::Coronal      => write!(f, "COR"),
-            NodeType::Dorsal       => write!(f, "DOR"),
-            NodeType::Pharyngeal   => write!(f, "PHR")
-        }
-    }
-}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
 pub(crate) enum SupraType {
@@ -204,7 +159,7 @@ impl FType {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
 pub(crate) enum FeatType {
-    Node(NodeType),
+    Node(NodeKind),
     Feat(FType),
     Supr(SupraType),
 }
@@ -269,7 +224,6 @@ impl TokenKind {
 
 impl Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        
         match self {
             TokenKind::LeftSquare    => write!(f, "LSquare"),
             TokenKind::RightSquare   => write!(f, "RSquare"),
@@ -309,6 +263,7 @@ impl Display for TokenKind {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Position {
     pub(crate) group: usize,
@@ -329,6 +284,7 @@ impl Display for Position {
     }
 }
 
+#[doc(hidden)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct Token {
     pub(crate) kind: TokenKind,
@@ -751,7 +707,7 @@ impl<'a> Lexer<'a> {
     fn feature_match(&mut self, buffer: String, start: usize, end: usize) -> Result<TokenKind, RuleSyntaxError> {
         use TokenKind::*;
         use FeatType::*;
-        use NodeType::*;
+        use NodeKind::*;
         use FType::*;
         use SupraType::*;
         match buffer.to_lowercase().as_str() {
@@ -1000,7 +956,7 @@ mod lexer_tests {
             Token::new(TokenKind::Comma,                               ",", 0, 0,  5,  6),
             Token::new(TokenKind::Feature(Feat(FType::SpreadGlottis)), "-", 0, 0,  7, 10),
             Token::new(TokenKind::Comma,                               ",", 0, 0, 10, 11),
-            Token::new(TokenKind::Feature(Node(NodeType::Place)),      "α", 0, 0, 12, 18),
+            Token::new(TokenKind::Feature(Node(NodeKind::Place)),      "α", 0, 0, 12, 18),
             Token::new(TokenKind::RightSquare,                         "]", 0, 0, 18, 19),
             Token::new(TokenKind::Eol,                                  "", 0, 0, 19, 20),
         ];
@@ -1021,7 +977,7 @@ mod lexer_tests {
         let test_input= String::from("[-αPLACE]");
         let expected_result = vec![
             Token::new(TokenKind::LeftSquare,                          "[", 0, 0,  0,  1),
-            Token::new(TokenKind::Feature(Node(NodeType::Place)),     "-α", 0, 0,  1,  8),
+            Token::new(TokenKind::Feature(Node(NodeKind::Place)),     "-α", 0, 0,  1,  8),
             Token::new(TokenKind::RightSquare,                         "]", 0, 0,  8,  9),
             Token::new(TokenKind::Eol,                                  "", 0, 0,  9, 10),
         ];

@@ -91,7 +91,7 @@ impl<'a> AliasLexer<'a> {
     fn feature_match(&mut self, buffer: &str) -> Option<AliasTokenKind> {
         use AliasTokenKind::*;
         use crate::rule::FeatType::*;
-        use crate::rule::NodeType::*;
+        use crate::word::NodeKind::*;
         use crate::rule::FType::*;
         use crate::rule::SupraType::*;
         match buffer.to_lowercase().as_str() {

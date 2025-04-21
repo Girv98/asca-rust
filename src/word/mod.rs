@@ -16,7 +16,7 @@ use std::{
 
 use crate :: {
     error :: { ASCAError, AliasRuntimeError, RuleRuntimeError, WordSyntaxError }, 
-    rule  :: { Alpha, BinMod, FType, ModKind, Modifiers, NodeType, Position, SupraSegs }, 
+    rule  :: { Alpha, BinMod, FType, ModKind, Modifiers, Position, SupraSegs }, 
     CARDINALS_MAP, CARDINALS_TRIE, DIACRITS
 };
 
@@ -446,7 +446,7 @@ impl Word {
                                     };
                                     return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsFeat(input_txt.to_string(), *i, ft.to_string(), pos).into())
                                 } else {
-                                    let nt = NodeType::from_usize(mod_index);
+                                    let nt = NodeKind::from_usize(mod_index);
                                     let pos = match d.prereqs.nodes[mod_index].unwrap() {
                                         ModKind::Binary(bin_mod) => bin_mod == BinMod::Positive,
                                         _ => unreachable!(),

@@ -7,11 +7,11 @@ use std::{
 use crate :: {
     error :: { RuleRuntimeError, RuleSyntaxError }, 
     rule  :: { Alpha, FType, Rule }, 
-    word  :: { Segment, Tone }, 
+    word  :: { NodeKind, Segment, Tone }, 
     CARDINALS_MAP, DIACRITS
 };
 
-use super::{FeatType, NodeType, Position, SupraType, Token, TokenKind};
+use super::{FeatType, Position, SupraType, Token, TokenKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BinMod {
@@ -89,18 +89,18 @@ impl SupraSegs {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Modifiers {
-    pub(crate) nodes: [Option<ModKind>; NodeType::count()],
+    pub(crate) nodes: [Option<ModKind>; NodeKind::count()],
     pub(crate) feats: [Option<ModKind>; FType::count()],
     pub(crate) suprs: SupraSegs, 
 }
 
 impl Modifiers {
     pub(crate) fn new() -> Self {
-        debug_assert_eq!(NodeType::Pharyngeal as usize + 1, NodeType::count());
+        debug_assert_eq!(NodeKind::Pharyngeal as usize + 1, NodeKind::count());
         debug_assert_eq!(FType::RetractedTongueRoot as usize + 1, FType::count());
 
         Self { 
-            nodes: [();NodeType::count()].map(|_| None), 
+            nodes: [();NodeKind::count()].map(|_| None), 
             feats: [();FType::count()].map(|_| None), 
             suprs: SupraSegs::new()
         }
@@ -213,6 +213,7 @@ impl fmt::Display for ParseElement {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
     pub(crate) kind: ParseElement,
@@ -681,7 +682,7 @@ impl Parser {
                     };
                     return Err(RuleSyntaxError::DiacriticDoesNotMeetPreReqsFeat(pos, dia.position, ft.to_string(), positive))
                 } else {
-                    let nt = NodeType::from_usize(mod_index);
+                    let nt = NodeKind::from_usize(mod_index);
                     let positive = match &DIACRITS[*d as usize].prereqs.nodes[mod_index].unwrap() {
                         ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
                         _ => unreachable!(),

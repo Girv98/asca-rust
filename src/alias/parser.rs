@@ -1,7 +1,8 @@
 use crate  :: {
     error  :: AliasSyntaxError, 
-    rule   :: { BinMod, FType, ModKind, Modifiers, Mods, NodeType, SupraType }, 
-    word   :: Segment, CARDINALS_MAP, DIACRITS
+    rule   :: { BinMod, FType, ModKind, Modifiers, Mods, SupraType }, 
+    word   :: { NodeKind, Segment }, 
+    CARDINALS_MAP, DIACRITS
 };
 
 use super::{AliasKind, AliasPosition, AliasToken, AliasTokenKind, FeatType, Transformation};
@@ -254,12 +255,12 @@ impl AliasParser {
                     };
                     return Err(AliasSyntaxError::DiacriticDoesNotMeetPreReqsFeat(pos, dia.position, ft.to_string(), positive))
                 } else {
-                    let nt = NodeType::from_usize(mod_index);
+                    let nk = NodeKind::from_usize(mod_index);
                     let positive = match &DIACRITS[*d as usize].prereqs.nodes[mod_index].unwrap() {
                         ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
                         _ => unreachable!(),
                     };
-                    return Err(AliasSyntaxError::DiacriticDoesNotMeetPreReqsNode(pos, dia.position, nt.to_string(), positive))
+                    return Err(AliasSyntaxError::DiacriticDoesNotMeetPreReqsNode(pos, dia.position, nk.to_string(), positive))
                 };
             }
         }

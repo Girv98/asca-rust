@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, FType, ModKind, Modifiers, NodeType, PlaceMod, Position, SupraSegs }, 
+    rule   :: { Alpha, AlphaMod, BinMod, FType, ModKind, Modifiers, PlaceMod, Position, SupraSegs }, 
     word   :: Place, 
     CARDINALS_MAP, CARDINALS_VEC, DIACRITS 
 };
@@ -20,14 +20,14 @@ pub(crate) struct Diacritic {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DiaMods {
-    pub(crate) nodes: [Option<ModKind>; NodeType::Pharyngeal as usize + 1],
+    pub(crate) nodes: [Option<ModKind>; NodeKind::Pharyngeal as usize + 1],
     pub(crate) feats: [Option<ModKind>; FType::RetractedTongueRoot as usize + 1],
 }
 
 impl DiaMods {
     pub(crate) fn new() -> Self {
         Self { 
-            nodes: [();NodeType::Pharyngeal as usize + 1].map(|_| None), 
+            nodes: [();NodeKind::Pharyngeal as usize + 1].map(|_| None), 
             feats: [();FType::RetractedTongueRoot as usize + 1].map(|_| None), 
         }
     }
@@ -74,7 +74,7 @@ impl fmt::Debug for DiaMods {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
 pub enum NodeKind {
     Root,
     Manner,
@@ -102,6 +102,21 @@ impl NodeKind {
             6 => {debug_assert_eq!(value, Dorsal as usize); Dorsal}
             7 => {debug_assert_eq!(value, Pharyngeal as usize); Pharyngeal},
             _ => unreachable!("\nOut of Range converting `{value}` to `NodeType`(max: 7) \nThis is a bug!\n")
+        }
+    }
+}
+
+impl fmt::Display for NodeKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Root         => write!(f, "RUT"),
+            Self::Manner       => write!(f, "MAN"),
+            Self::Laryngeal    => write!(f, "LAR"),
+            Self::Place        => write!(f, "PLC"),
+            Self::Labial       => write!(f, "LAB"),
+            Self::Coronal      => write!(f, "COR"),
+            Self::Dorsal       => write!(f, "DOR"),
+            Self::Pharyngeal   => write!(f, "PHR")
         }
     }
 }
@@ -496,7 +511,7 @@ impl Segment {
         Ok(())
     }
 
-    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>> , nodes: [Option<ModKind>; NodeType::count()], feats: [Option<ModKind>; FType::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError>{
+    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>> , nodes: [Option<ModKind>; NodeKind::count()], feats: [Option<ModKind>; FType::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError>{
         for (i, m) in nodes.iter().enumerate() { 
             let node = NodeKind::from_usize(i);
             if let Some(kind) = m {
