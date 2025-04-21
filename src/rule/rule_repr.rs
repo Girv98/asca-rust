@@ -124,12 +124,6 @@ impl ParsedRules {
     }
 }
 
-impl Default for ParsedRules {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 pub struct ParsedRulesIter {
     names: Vec<String>,
     rules: Vec<Vec<Rule>>,
