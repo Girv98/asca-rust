@@ -138,7 +138,7 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Optio
                 let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
                 return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
             };
-            if let Some((t, _)) = run_sequence(rule_seqs, dir, words_path, seq, seq_cache)? {
+            if let Some((t, _, _)) = run_sequence(rule_seqs, dir, words_path, seq, seq_cache)? {
                 let w = t.last().unwrap().clone();
                 seq_cache.insert(seq.tag.clone(), w.clone());
                 w
@@ -174,7 +174,7 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Optio
 }
 
 /// Handle writing the result to file
-fn output_result(dir: &Path, tag: &str, trace: &[Vec<String>], seq_names: &[PathBuf], overwrite: Option<bool>, output_all: bool) -> io::Result<()> {
+fn output_result(dir: &Path, tag: &str, trace: &[Vec<String>], seq_names: &[PathBuf], overwrite: Option<bool>, output_all: bool, is_romanised: bool) -> io::Result<()> {
     // Create <out/tag> subfolder within <dir> if doesn't exist
     // Create files for each seq, <seq_name>.wsca, and write to each
     let mut path = dir.to_path_buf();
@@ -186,13 +186,19 @@ fn output_result(dir: &Path, tag: &str, trace: &[Vec<String>], seq_names: &[Path
     }
 
     if output_all {
+        let num_names = seq_names.len();
+        let mut num = 1;
         for (seq, name) in seq_names.iter().enumerate() {
+            if is_romanised && seq == num_names - 2 {
+                continue;
+            }
             let content = trace[seq+1].join("\n");
             let mut p = path.clone();
-            let name = format!("{}_{}", seq+1, name.file_name().unwrap().to_os_string().into_string().unwrap());
+            let name = format!("{}_{}", num, name.file_name().unwrap().to_os_string().into_string().unwrap());
             p.push(name);
             p.set_extension(WORD_FILE_EXT);
             util::write_to_file(&p, content, WORD_FILE_EXT, overwrite)?;
+            num += 1;
         }
     } else {
         let name = seq_names.last().unwrap().file_name().unwrap();
@@ -251,41 +257,78 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
         str = format!("{str} {arr} {:<pad$}", &trace[num_steps-1][word].bright_green().bold());
         println!("{}", str)
     }
-    // println!();
+}
+
+fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<String>)> {
+    if let Some(alias) = &seq.alias {
+        let mut a_path = dir.to_path_buf();
+        a_path.push(alias.as_ref());
+        a_path.set_extension(ALIAS_FILE_EXT);
+        parse::parse_alias(&util::validate(&a_path, &[ALIAS_FILE_EXT, "txt"])?)
+    } else {
+        Ok((Vec::new(), Vec::new()))
+    }
+}
+
+#[inline]
+fn run_once(trace: &mut Vec<Vec<String>>, files: &mut Vec<PathBuf>, entry: &Entry, index: usize, into: &[String], from: &[String]) -> Option<()> {
+    files.push(entry.name.clone());
+    match asca::run_unparsed(&entry.rules, &trace[index], into, from) {
+        Ok(res) => {
+            trace.push(res);
+            Some(())
+        },
+        Err(err) => {
+            util::print_asca_errors(err, &entry.rules, into, from);
+            None
+        },
+    }
 }
 
 /// Pass a sequence to ASCA and return a trace and the name of each file that was used
-pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathBuf>, seq: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Option<(SeqTrace, Vec<PathBuf>)>> {
+pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathBuf>, seq: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Option<(SeqTrace, Vec<PathBuf>, bool)>> {
     let mut files = Vec::new();
     let mut trace = Vec::new();
 
     let words = get_words(config, dir, words_path, seq, seq_cache)?;
-    let (into , from) = if let Some(alias) = &seq.alias {
-        let mut a_path = dir.to_path_buf();
-        a_path.push(alias.as_ref());
-        a_path.set_extension(ALIAS_FILE_EXT);
-        parse::parse_alias(&util::validate(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
-    } else {
-        (Vec::new(), Vec::new())
-    };
+    let (into, from) = get_aliases(dir, seq)?;
+
     if words.is_empty() { return Ok(None) }
     trace.push(words.clone());
-    for (i, entry) in seq.entries.iter().enumerate() {
-        files.push(entry.name.clone());
-        match asca::run_unparsed(&entry.rules, &trace[i], &into, &from) {
-            Ok(res) => trace.push(res),
-            Err(err) => {
-                util::print_asca_errors(err, &entry.rules, &into, &from);
-                return Ok(None)
-            },
-        }
+
+    let num_steps = seq.entries.len();
+    let last_step = num_steps - 1;
+    
+    if num_steps == 0 {
+        return Ok(Some((trace, files, false)))
+    } else if num_steps == 1 {
+        if run_once(&mut trace, &mut files, &seq.entries[0], 0, &into, &from).is_none() { return Ok(None) }
+        return Ok(Some((trace, files, !from.is_empty())))
     }
-    Ok(Some((trace, files)))
+
+    // Head Iteration
+    if run_once(&mut trace, &mut files, &seq.entries[0], 0, &into, &[]).is_none() { return Ok(None) }
+    // Tail Iterations
+    for (i, entry) in seq.entries.iter().enumerate().skip(1) {
+        if run_once(&mut trace, &mut files, entry, i, &[], &[]).is_none() { return Ok(None) }
+    }
+    // Hack to apply romanisation as a separate step
+    // TODO: What to do with the this in output
+    if !from.is_empty() {
+        let y = seq.entries[last_step].name.clone();
+        // y.set_extension("");
+        // let x = y.file_name().unwrap().to_str().unwrap().to_owned() + "-romanised";
+        // y.set_file_name(x);
+        let empty_entry = Entry { name: y, rules: Vec::new() };
+        let _ = run_once(&mut trace, &mut files, &empty_entry, num_steps, &[], &from).is_none();
+    }
+    
+    Ok(Some((trace, files,!from.is_empty())))
 }
 
 /// Run a given sequence, then deal with output if necessary
 fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<String>>, dir_path: &Path, words_path: &Option<PathBuf>, seq: &ASCAConfig, flags: &SeqFlags) -> io::Result<()> {   
-    if let Some((trace, files)) = run_sequence(config, dir_path, words_path, seq, seq_cache)? {
+    if let Some((trace, files, is_romanised)) = run_sequence(config, dir_path, words_path, seq, seq_cache)? {
         if trace.is_empty() {
             return Err(io::Error::other(format!("{} No words in input for tag '{}'", "Config Error:".bright_red(), seq.tag)))
         }
@@ -293,7 +336,7 @@ fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<S
 
         print_result(&trace, &seq.tag, flags.all_steps);
         if flags.output {
-            return output_result(dir_path, &seq.tag, &trace, &files, flags.overwrite, flags.output_all)
+            return output_result(dir_path, &seq.tag, &trace, &files, flags.overwrite, flags.output_all, is_romanised)
         } 
     }
     Ok(())
