@@ -127,7 +127,7 @@ impl fmt::Debug for Word {
 }
 
 impl Word {
-    pub(crate) fn new(text: String, aliases: &[Transformation]) -> Result<Self, ASCAError>  {
+    pub fn new(text: String, aliases: &[Transformation]) -> Result<Self, ASCAError>  {
         let mut w = Self { syllables: Vec::new(), americanist: false };
         let t_norm = text.replace('\'', "ˈ")
                     .replace(',', "ˌ")
@@ -307,7 +307,7 @@ impl Word {
                                 },
                                 SegType::Matrix(mods) => if *plus {
 
-                                    let seg_indices = sy.get_seg_indices();
+                                    let seg_indices = sy.seg_indices();
                                     let Some(pos) = seg_indices.last() else {
                                         Err(AliasRuntimeError::EmptySyllable(alias.input.position))?
                                     };

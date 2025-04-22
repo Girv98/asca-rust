@@ -3,7 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum FeatureCategory {
+pub enum FeatureCategory {
     Node(NodeKind),
     Feat(FeatKind),
     Supr(SupraKind),
@@ -19,6 +19,7 @@ impl fmt::Display for FeatureCategory {
     }
 }
 
+/// Represents a distinctive feature node
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize, Hash)]
 pub enum NodeKind {
     Root,
@@ -66,9 +67,9 @@ impl fmt::Display for NodeKind {
     }
 }
 
+/// Represents a distinctive feature
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum FeatKind { 
-    // can be ± || α.ω 
+pub enum FeatKind { 
     /*RUT*/ Consonantal, Sonorant, Syllabic,      
     /*MAN*/ Continuant, Approximant, Lateral, Nasal, DelayedRelease, Strident, Rhotic, Click,          
     /*LAR*/ Voice, SpreadGlottis, ConstrGlottis,   
@@ -155,7 +156,8 @@ impl FeatKind {
         }
     }
 
-    pub(crate) const fn as_node_mask(&self) -> (NodeKind, u8) {
+    /// Returns the node and bitmask of the feature
+    pub const fn as_node_mask(&self) -> (NodeKind, u8) {
         match self {
             Self::Consonantal         => (NodeKind::Root, 0b100),
             Self::Sonorant            => (NodeKind::Root, 0b010),
@@ -193,8 +195,9 @@ impl FeatKind {
     }
 }
 
+/// Represents a suprasegmental feature
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
-pub(crate) enum SupraKind {
+pub enum SupraKind {
     Long,       // ±long
     Overlong,   // ±overlong
     Stress,     // ±stress    (+ matches prim and sec, - matches unstressed)

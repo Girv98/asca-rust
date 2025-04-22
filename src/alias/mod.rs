@@ -12,7 +12,7 @@ pub mod lexer;
 pub mod parser;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Transformation {
+pub struct Transformation {
     pub(crate) input: AliasItem,
     pub(crate) output: AliasItem
 }

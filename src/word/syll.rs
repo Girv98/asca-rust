@@ -5,6 +5,7 @@ use crate   :: {
     word    :: Segment,  
 };
 
+/// The stress level of the syllable
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StressKind {
     Primary,
@@ -28,17 +29,25 @@ impl fmt::Display for StressKind {
     }
 }
 
+/// Syllable tone as Chao Tone Numerals
+/// 
+/// `0` equals no tone
 pub type Tone = u16;
 
+/// A syllable within a word
 #[derive(Debug, Clone)]
 pub struct Syllable {
+    /// The segments in the syllable.
+    /// Long segments are represented by consecutive identical segments
     pub segments: VecDeque<Segment>,
+    /// The stress level of the syllable
     pub stress: StressKind,
+    /// Syllable tone as Chao Tone Numerals
     pub tone: Tone
 }
 
 impl Syllable {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {segments: VecDeque::new(), stress: StressKind::default(), tone: 0}
     }
 
@@ -61,7 +70,29 @@ impl Syllable {
         Ok(lc)
     }
 
-    pub fn get_seg_indices(&self) -> Vec<usize> {
+    /// Returns the positions of the segments in the syllable
+    /// 
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use asca::word::Word;
+    /// let word = Word::new("sta:r".to_string(), &[]).unwrap();
+    ///
+    /// let seg_indices = word.syllables[0].seg_indices();
+    /// assert_eq!(4, seg_indices.len());
+    ///
+    /// let mut seg_iter = seg_indices.iter();
+    ///
+    /// assert_eq!(Some(&0), seg_iter.next()); // [s]
+    /// assert_eq!(Some(&1), seg_iter.next()); // [t]
+    /// assert_eq!(Some(&2), seg_iter.next()); // [a:]
+    /// assert_eq!(Some(&4), seg_iter.next()); // [r]
+    ///
+    /// assert_eq!(None, seg_iter.next());
+    /// ```
+    pub fn seg_indices(&self) -> Vec<usize> {
         let mut segments = self.segments.iter();
 
         let mut vec = Vec::new();
@@ -230,19 +261,19 @@ impl fmt::Display for Syllable {
 #[test]
 fn test_seg_indices() {
     use super::*;
-    let indices = (&Word::new("ka:r".to_owned(), &[]).unwrap().syllables[0]).get_seg_indices();
+    let indices = (&Word::new("ka:r".to_owned(), &[]).unwrap().syllables[0]).seg_indices();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[1], 1);
     assert_eq!(indices[2], 3);
 
-    let indices = (&Word::new("ka::r".to_owned(), &[]).unwrap().syllables[0]).get_seg_indices();
+    let indices = (&Word::new("ka::r".to_owned(), &[]).unwrap().syllables[0]).seg_indices();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[1], 1);
     assert_eq!(indices[2], 4);
 
-    let indices = (&Word::new("k:ar:".to_owned(), &[]).unwrap().syllables[0]).get_seg_indices();
+    let indices = (&Word::new("k:ar:".to_owned(), &[]).unwrap().syllables[0]).seg_indices();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[1], 2);
