@@ -1,6 +1,6 @@
 use crate :: { 
     error :: AliasSyntaxError, 
-    rule  :: { FeatureCategory, SupraKind }, 
+    word  :: { FeatureCategory, SupraKind }, 
     CARDINALS_TRIE, DIACRITS
 };
 
@@ -90,10 +90,7 @@ impl<'a> AliasLexer<'a> {
     // TODO: Factor this out with Lexer::feature_match
     fn feature_match(&mut self, buffer: &str) -> Option<AliasTokenKind> {
         use AliasTokenKind::*;
-        use crate::rule::FeatureCategory::*;
-        use crate::word::NodeKind::*;
-        use crate::rule::FeatKind::*;
-        use crate::rule::SupraKind::*;
+        use crate::word::{FeatKind::*, FeatureCategory::*, NodeKind::*, SupraKind::*};
         match buffer.to_lowercase().as_str() {
             // Root Node Features
             "root"        | "rut"       | "rt"                    => Some(Feature(Node(Root))),

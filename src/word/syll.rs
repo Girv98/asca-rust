@@ -28,7 +28,7 @@ impl fmt::Display for StressKind {
     }
 }
 
-pub(crate) type Tone = u16;
+pub type Tone = u16;
 
 #[derive(Debug, Clone)]
 pub struct Syllable {

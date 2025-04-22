@@ -3,23 +3,25 @@ mod parser;
 mod rule_repr;
 mod subrule;
 pub mod trace;
+mod modifier;
 
+pub(crate) use modifier::*;
 pub use rule_repr::*;
 use subrule::*;
 pub use lexer::*;
 pub use parser::*;
 
 
-use std::{
-    cell::RefCell,
-    collections::HashMap, 
+use std ::{
+    cell::RefCell, 
     cmp ::max, 
-    fmt, 
+    collections::HashMap, 
+    fmt 
 };
 
-use crate   :: {
-    error   :: { ASCAError, RuleSyntaxError }, 
-    word    :: { NodeKind, Word}, 
+use crate :: {
+    error :: { ASCAError, RuleSyntaxError }, 
+    word  :: { NodeKind, Word}, 
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -80,14 +82,14 @@ impl Alpha {
 
 #[derive(Clone)]
 pub struct Rule {
-    pub(crate) input:     Vec<Vec<Item>>,    // to support multirules
-    pub(crate) output:    Vec<Vec<Item>>,    // these need to be Vec<Vec<Item>>
-    pub(crate) context:   Vec<Item>,
-    pub(crate) except:    Vec<Item>,
+    pub(crate) input:   Vec<Vec<ParseItem>>, // to support multirules
+    pub(crate) output:  Vec<Vec<ParseItem>>, // these need to be Vec<Vec<Item>>
+    pub(crate) context: Vec<ParseItem>,
+    pub(crate) except:  Vec<ParseItem>,
 }
 
 impl Rule {
-    pub(crate) fn new(i: Vec<Vec<Item>>, o: Vec<Vec<Item>>, c :Vec<Item>, e :Vec<Item>) -> Self {
+    pub(crate) fn new(i: Vec<Vec<ParseItem>>, o: Vec<Vec<ParseItem>>, c :Vec<ParseItem>, e :Vec<ParseItem>) -> Self {
         Self { input: i, output: o, context: c, except: e }
     }
 

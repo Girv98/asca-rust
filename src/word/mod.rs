@@ -1,14 +1,18 @@
+mod diacritic;
 mod phrase;
 mod place;
 mod seg;
 mod syll;
+mod feature;
 
+pub use feature::*;
+pub(crate) use diacritic::*;
 pub use phrase::*;
 pub use place::*;
 pub use seg::*;
 pub use syll::*;
 
-use std::{
+use std :: {
     cell::RefCell, 
     collections::{HashMap, VecDeque}, 
     fmt
@@ -16,11 +20,14 @@ use std::{
 
 use crate :: {
     error :: { ASCAError, AliasRuntimeError, RuleRuntimeError, WordSyntaxError }, 
-    rule  :: { Alpha, BinMod, FeatKind, ModKind, Modifiers, Position, SupraSegs }, 
+    rule  :: { Alpha, BinMod, ModKind, Modifiers, Position, SupraSegs }, 
     CARDINALS_MAP, CARDINALS_TRIE, DIACRITS
 };
 
-use crate::alias::{parser::{ AliasParseElement, SegType }, AliasPosition, Transformation};
+use crate  :: alias :: {
+    parser :: { AliasParseElement, SegType }, 
+    AliasPosition, Transformation
+};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct SegPos {

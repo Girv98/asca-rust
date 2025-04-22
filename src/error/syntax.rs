@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use crate :: {
     alias :: { parser::AliasItem, AliasKind, AliasPosition, AliasToken, AliasTokenKind }, 
-    rule  :: { Item, Position, Token, TokenKind }
+    rule  :: { ParseItem, Position, Token, TokenKind }
 };
 use super::{get_feat_closest, ASCAError, RuleGroup};
 
@@ -136,8 +136,8 @@ pub enum RuleSyntaxError {
     DiacriticDoesNotMeetPreReqsFeat(Position, Position, FeatString, IsPlus),
     DiacriticDoesNotMeetPreReqsNode(Position, Position, NodeString, IsPlus),
     UnexpectedDiacritic(Position, Position),
-    UnbalancedRuleEnv(Vec<Item>),
-    UnbalancedRuleIO (Vec<Vec<Item>>),
+    UnbalancedRuleEnv(Vec<ParseItem>),
+    UnbalancedRuleIO (Vec<Vec<ParseItem>>),
     UnexpectedEol(Token, char),
     OptMathError (Token, usize, usize),
 }

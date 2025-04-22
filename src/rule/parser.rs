@@ -1,116 +1,19 @@
 use std::{
-    cell::RefCell, 
-    collections::HashMap, 
     fmt, rc::Rc,
 };
 
 use crate :: {
-    error :: { RuleRuntimeError, RuleSyntaxError }, 
-    rule  :: { Alpha, FeatKind, Rule }, 
-    word  :: { NodeKind, Segment, Tone }, 
+    error :: RuleSyntaxError, 
+    rule  :: { BinMod, ModKind, Rule }, 
+    word  :: { FeatKind, FeatureCategory, NodeKind, Segment, SupraKind, Tone }, 
     CARDINALS_MAP, DIACRITS
 };
-
-use super::{FeatureCategory, Position, SupraKind, Token, TokenKind};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BinMod {
-    Positive,
-    Negative,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum AlphaMod {
-    Alpha(char),
-    InvAlpha(char)
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ModKind{
-    Binary(BinMod),
-    Alpha(AlphaMod),
-}
-
-impl ModKind {
-    pub(crate) fn as_bool(&self, alphas: &RefCell<HashMap<char, Alpha>>, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        match self {
-            ModKind::Binary(bin_mod) => Ok(*bin_mod == BinMod::Positive),
-            ModKind::Alpha(alpha_mod) => match alpha_mod {
-                AlphaMod::Alpha(ch) => {
-                    if let Some(alpha) = alphas.borrow().get(ch) {
-                        Ok(alpha.as_binary())
-                    } else {
-                        Err(RuleRuntimeError::AlphaUnknown(err_pos))
-                    }
-                },
-                AlphaMod::InvAlpha(ch) => {
-                    if let Some(alpha) = alphas.borrow().get(ch) {
-                        Ok(!alpha.as_binary())
-                    } else {
-                        Err(RuleRuntimeError::AlphaUnknown(err_pos))
-                    }
-                },
-            },
-        }
-    }
-
-    pub(crate) fn as_bin_mod(&self) -> Option<&BinMod> {
-        if let Self::Binary(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Mods {
-    Binary(BinMod),
-    Number(Tone),
-    Alpha(AlphaMod),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SupraSegs {
-    pub(crate) stress: [Option<ModKind>; 2], // [Stress, SecStress]
-    pub(crate) length: [Option<ModKind>; 2], // [Long, Overlong]
-    pub(crate) tone: Option<Tone>,
-}
-
-impl SupraSegs {
-    pub(crate) fn new() -> Self {
-        Self { stress: [None, None], length: [None, None], tone: None }
-    }
-
-    pub(crate) fn from(stress: [Option<ModKind>; 2], length: [Option<ModKind>; 2], tone: Option<Tone>) -> Self {
-        Self { stress, length, tone }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Modifiers {
-    pub(crate) nodes: [Option<ModKind>; NodeKind::count()],
-    pub(crate) feats: [Option<ModKind>; FeatKind::count()],
-    pub(crate) suprs: SupraSegs, 
-}
-
-impl Modifiers {
-    pub(crate) fn new() -> Self {
-        debug_assert_eq!(NodeKind::Pharyngeal as usize + 1, NodeKind::count());
-        debug_assert_eq!(FeatKind::RetractedTongueRoot as usize + 1, FeatKind::count());
-
-        Self { 
-            nodes: [();NodeKind::count()].map(|_| None), 
-            feats: [();FeatKind::count()].map(|_| None), 
-            suprs: SupraSegs::new()
-        }
-    }
-}
+use super :: { AlphaMod, Modifiers, Mods, Position, Token, TokenKind };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Env {
-    pub(crate) before: Vec<Item>,
-    pub(crate) after: Vec<Item>,
+    pub(crate) before: Vec<ParseItem>,
+    pub(crate) after: Vec<ParseItem>,
     pub(crate) position: Position
 }
 
@@ -121,12 +24,12 @@ pub(crate) enum ParseElement {
     SyllBound   ,
     Ellipsis    ,
     Metathesis  ,
-    Set         (Vec<Item>),
+    Set         (Vec<ParseItem>),
     Ipa         (Segment, Option<Modifiers>),
     Matrix      (Modifiers, Option<usize>),
     Syllable    ([Option<ModKind>; 2], Option<Tone>, Option<usize>),
-    Structure   (Vec<Item>, [Option<ModKind>; 2], Option<Tone>, Option<usize>),
-    Optional    (Vec<Item>, usize, usize),
+    Structure   (Vec<ParseItem>, [Option<ModKind>; 2], Option<Tone>, Option<usize>),
+    Optional    (Vec<ParseItem>, usize, usize),
     Environment (Vec<Env>),
     Variable    (Token, Option<Modifiers>),
 }
@@ -215,18 +118,18 @@ impl fmt::Display for ParseElement {
 
 #[doc(hidden)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Item {
+pub struct ParseItem {
     pub(crate) kind: ParseElement,
     pub(crate) position: Position,
 }
 
-impl Item {
+impl ParseItem {
     pub(crate) fn new(k: ParseElement, p: Position) -> Self {
         Self { kind: k, position: p }
     }
 }
 
-impl fmt::Display for Item {
+impl fmt::Display for ParseItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.kind)
     }
@@ -288,31 +191,31 @@ impl Parser {
         }
     }
 
-    fn get_bound(&mut self) -> Option<Item> { 
+    fn get_bound(&mut self) -> Option<ParseItem> { 
         if let Some(token) = self.eat_expect(TokenKind::SyllBoundary) {
-            return Some(Item::new(ParseElement::SyllBound, token.position))
+            return Some(ParseItem::new(ParseElement::SyllBound, token.position))
         }
         if let Some(token) = self.eat_expect(TokenKind::WordBoundary) {
-            return Some(Item::new(ParseElement::WordBound, token.position))
+            return Some(ParseItem::new(ParseElement::WordBound, token.position))
         }
         None
     }
 
-    fn get_word_bound(&mut self) -> Option<Item> {
+    fn get_word_bound(&mut self) -> Option<ParseItem> {
         if let Some(token) = self.eat_expect(TokenKind::WordBoundary) {
-            return Some(Item::new(ParseElement::WordBound, token.position))
+            return Some(ParseItem::new(ParseElement::WordBound, token.position))
         }
         None
     }
 
-    fn get_syll_bound(&mut self) -> Option<Item> {
+    fn get_syll_bound(&mut self) -> Option<ParseItem> {
         if let Some(token) = self.eat_expect(TokenKind::SyllBoundary) {
-            return Some(Item::new(ParseElement::SyllBound, token.position))
+            return Some(ParseItem::new(ParseElement::SyllBound, token.position))
         }
         None
     }
 
-    fn get_env_elements(&mut self, is_after: bool) -> Result<Vec<Item>, RuleSyntaxError> {
+    fn get_env_elements(&mut self, is_after: bool) -> Result<Vec<ParseItem>, RuleSyntaxError> {
         // returns (('WBOUND')? ( SBOUND / ELLIPSS / OPT / TERM )+) / (( SBOUND / ELLIPSS / OPT / TERM )+ ('WBOUND')?)
         let mut els = Vec::new();
         let mut contains_word_bound = false;
@@ -333,7 +236,7 @@ impl Parser {
                 continue;
             }
             if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
-                els.push(Item::new(ParseElement::Ellipsis, el.position));
+                els.push(ParseItem::new(ParseElement::Ellipsis, el.position));
                 continue;
             }
             if let Some(x) = self.get_opt()? {
@@ -378,7 +281,7 @@ impl Parser {
         Ok(Env{ before, after, position: Position::new(self.group, self.line, start, end)})
     }
 
-    fn get_spec_env(&mut self) -> Result<Option<Vec<Item>>, RuleSyntaxError> {
+    fn get_spec_env(&mut self) -> Result<Option<Vec<ParseItem>>, RuleSyntaxError> {
         // returns ENV_SPC ← '_' ',' ENV_EL 
         let start = self.curr_tkn.position.start;
         let pstn = self.pos;
@@ -407,20 +310,20 @@ impl Parser {
         let position = Position::new(self.group, self.line, start, end);
 
         let v = vec![
-            Item::new(ParseElement::Environment(vec![Env { before: x.clone() , after: Vec::new(), position}]), position),
-            Item::new(ParseElement::Environment(vec![Env { before: Vec::new(), after: x.into_iter().rev().collect(), position}]), position)
+            ParseItem::new(ParseElement::Environment(vec![Env { before: x.clone() , after: Vec::new(), position}]), position),
+            ParseItem::new(ParseElement::Environment(vec![Env { before: Vec::new(), after: x.into_iter().rev().collect(), position}]), position)
         ];
 
         Ok(Some(v))
     }
 
-    fn get_envs(&mut self) -> Result<Item, RuleSyntaxError> {
+    fn get_envs(&mut self) -> Result<ParseItem, RuleSyntaxError> {
         // ENV_SET ← ':{' ENV_TRS '}:' /  ENV_TRS 
         let start = self.curr_tkn.position.start;
 
         if !self.expect(TokenKind::LeftColCurly) {
             let env: Env = self.get_env_term()?;
-            return Ok(Item::new(ParseElement::Environment(vec![env.clone()]), env.position))
+            return Ok(ParseItem::new(ParseElement::Environment(vec![env.clone()]), env.position))
         }
 
         let mut envs = Vec::with_capacity(2);
@@ -437,10 +340,10 @@ impl Parser {
 
         let end = self.token_list[self.pos-1].position.end;
 
-        Ok(Item::new(ParseElement::Environment(envs), Position::new(self.group, self.line, start, end)))
+        Ok(ParseItem::new(ParseElement::Environment(envs), Position::new(self.group, self.line, start, end)))
     }
 
-    fn get_env(&mut self) -> Result<Vec<Item>, RuleSyntaxError> { 
+    fn get_env(&mut self) -> Result<Vec<ParseItem>, RuleSyntaxError> { 
         // returns ENV ← ENV_SPC / ENV_SET (',' ENV_SET)* 
         if let Some(s) = self.get_spec_env()? { return Ok(s) }
 
@@ -457,21 +360,21 @@ impl Parser {
         Ok(envs)
     }
 
-    fn get_except_block(&mut self) -> Result<Vec<Item>, RuleSyntaxError> {
+    fn get_except_block(&mut self) -> Result<Vec<ParseItem>, RuleSyntaxError> {
         if !self.expect(TokenKind::Pipe) && !self.expect(TokenKind::DubSlash) {
             return Ok(Vec::new())
         }
         self.get_env()
     }
 
-    fn get_context(&mut self) -> Result<Vec<Item>, RuleSyntaxError> {
+    fn get_context(&mut self) -> Result<Vec<ParseItem>, RuleSyntaxError> {
         if !self.expect(TokenKind::Slash) {
             return Ok(Vec::new())
         }
         self.get_env()
     }
 
-    fn join_group_with_params(&mut self, character: Item, parameters: Item) -> Item {
+    fn join_group_with_params(&mut self, character: ParseItem, parameters: ParseItem) -> ParseItem {
         let mut chr = character.kind.as_matrix().expect("Caller asserts `character` is a matrix").clone();
         let params = parameters.kind.as_matrix().expect("Caller asserts `parameters` is a matrix").clone(); 
         for (i, p) in params.nodes.iter().enumerate() {
@@ -492,7 +395,7 @@ impl Parser {
         chr.suprs.length[1] = if params.suprs.length[1].is_none() {chr.suprs.length[1]} else {params.suprs.length[1]};
         chr.suprs.tone   = if params.suprs.tone.is_none()   {chr.suprs.tone}   else {params.suprs.tone};
 
-        Item::new(ParseElement::Matrix(chr, None), Position::new(self.group, self.line, character.position.start, parameters.position.end ))
+        ParseItem::new(ParseElement::Matrix(chr, None), Position::new(self.group, self.line, character.position.start, parameters.position.end ))
     }
 
     fn ipa_to_vals(&self, ipa: Token) -> Result<Segment, RuleSyntaxError> {
@@ -502,7 +405,7 @@ impl Parser {
         }
     }
 
-    fn group_to_matrix(&self, chr: &Token) -> Result<Item, RuleSyntaxError> {
+    fn group_to_matrix(&self, chr: &Token) -> Result<ParseItem, RuleSyntaxError> {
         // returns GROUP ← 'C' / 'O' / 'S' / 'L' / 'N' / 'G' / 'V' 
         use FeatKind::*;
         use ModKind::*;
@@ -543,7 +446,7 @@ impl Parser {
             args.feats[feature as usize] = Some(value)
         });
 
-        Ok(Item::new(ParseElement::Matrix(args, None), Position::new(self.group, self.line, chr.position.start, chr.position.end )))
+        Ok(ParseItem::new(ParseElement::Matrix(args, None), Position::new(self.group, self.line, chr.position.start, chr.position.end )))
     }
 
     fn is_feature(&self) -> bool{ matches!(self.curr_tkn.kind, TokenKind::Feature(_)) }
@@ -635,16 +538,16 @@ impl Parser {
         Ok(args)
     }
 
-    fn get_params(&mut self) -> Result<Item, RuleSyntaxError> {
+    fn get_params(&mut self) -> Result<ParseItem, RuleSyntaxError> {
         // returns PARAMS ← '[' ARG (',' ARG)* ']'  
         let start = self.token_list[self.pos-1].position.start;
         let args = self.get_param_args(false)?;
         let end = self.token_list[self.pos-1].position.end;
         
-        Ok(Item::new(ParseElement::Matrix(args, None), Position::new(self.group, self.line, start, end)))
+        Ok(ParseItem::new(ParseElement::Matrix(args, None), Position::new(self.group, self.line, start, end)))
     }
 
-    fn get_group(&mut self) -> Result<Item, RuleSyntaxError> {
+    fn get_group(&mut self) -> Result<ParseItem, RuleSyntaxError> {
         // returns GROUP (':' PARAMS)?
         let chr = self.group_to_matrix(&self.curr_tkn)?;
         self.advance();
@@ -664,7 +567,7 @@ impl Parser {
         Ok(joined_matrix)
     }
 
-    fn get_ipa(&mut self) -> Result<Item, RuleSyntaxError> {
+    fn get_ipa(&mut self) -> Result<ParseItem, RuleSyntaxError> {
         // returns IPA (':' PARAMS)?
         let mut ipa = self.ipa_to_vals(self.curr_tkn.clone())?;
         let pos = self.curr_tkn.position;
@@ -693,7 +596,7 @@ impl Parser {
         }
 
         if !self.expect(TokenKind::Colon) {
-            return Ok(Item::new(ParseElement::Ipa(ipa, None), Position::new(self.group, self.line, pos.start, self.token_list[self.pos-1].position.end)))
+            return Ok(ParseItem::new(ParseElement::Ipa(ipa, None), Position::new(self.group, self.line, pos.start, self.token_list[self.pos-1].position.end)))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -701,17 +604,17 @@ impl Parser {
         let params = self.get_params()?;
         let joined_kind = ParseElement::Ipa(ipa, Some(params.kind.as_matrix().unwrap().clone()));
         
-        Ok(Item::new(joined_kind, Position::new(self.group, self.line, pos.start, params.position.end )))
+        Ok(ParseItem::new(joined_kind, Position::new(self.group, self.line, pos.start, params.position.end )))
     }
     
-    fn get_var_assign(&mut self, number: Token, char: &Item) -> Item {
+    fn get_var_assign(&mut self, number: Token, char: &ParseItem) -> ParseItem {
         // returns VAR_ASN ← '=' [0-9]+ 
         let num = number.value.parse::<usize>().expect("number should be a number as set in `self.get_seg`");
         let mods = char.kind.as_matrix().expect("char should be matrix as set in `self.get_group`").clone();
-        Item::new(ParseElement::Matrix(mods, Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end ))
+        ParseItem::new(ParseElement::Matrix(mods, Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end ))
     }
 
-    fn get_seg(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_seg(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns SEG ← IPA (':' PARAMS)? / MATRIX VAR_ASN?  
         if self.peek_expect(TokenKind::Cardinal) {
             return Ok(Some(self.get_ipa()?))
@@ -741,12 +644,12 @@ impl Parser {
         Ok(None)
     }
 
-    fn get_var(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_var(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns VAR ← [0-9]+ (':' PARAMS)? 
         let Some(t) = self.eat_expect(TokenKind::Number) else { return Ok(None) };     
         let mut pos = t.position;
         if !self.expect(TokenKind::Colon) {
-            let var = Item::new(ParseElement::Variable(t, None), pos);
+            let var = ParseItem::new(ParseElement::Variable(t, None), pos);
             return Ok(Some(var))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -756,10 +659,10 @@ impl Parser {
         let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`").clone();
         pos.end = params.position.end;
 
-        Ok(Some(Item::new(ParseElement::Variable(t, Some(matrix)), pos)))    
+        Ok(Some(ParseItem::new(ParseElement::Variable(t, Some(matrix)), pos)))    
     }
 
-    fn get_opt(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_opt(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns OPT ← '(' OPT_TRM+ (',' [0-9]+ (':' [1-9]+)?)? ')'
         let start_pos = self.curr_tkn.position.start;
 
@@ -782,7 +685,7 @@ impl Parser {
         // FIXME(girv): with this, (C,) and (C,:) are legal alternatives to (C,0) (bug or feature!)
         if self.expect(TokenKind::RightBracket) {
             let end_pos = self.token_list[self.pos-1].position.end;
-            return Ok(Some(Item::new(ParseElement::Optional(segs, 0, 1), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Optional(segs, 0, 1), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::Comma) {
             return Err(RuleSyntaxError::ExpectedComma(self.curr_tkn.clone()))
@@ -792,7 +695,7 @@ impl Parser {
         }
         if self.expect(TokenKind::RightBracket) {
             let end_pos = self.token_list[self.pos-1].position.end;
-            return Ok(Some(Item::new(ParseElement::Optional(segs, 0, first_bound), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Optional(segs, 0, first_bound), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::Colon) {
             return Err(RuleSyntaxError::ExpectedColon(self.curr_tkn.clone()))
@@ -805,12 +708,12 @@ impl Parser {
         }
         if self.expect(TokenKind::RightBracket) {
             let end_pos = self.token_list[self.pos-1].position.end;
-            return Ok(Some(Item::new(ParseElement::Optional(segs, first_bound, second_bound), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Optional(segs, first_bound, second_bound), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         Err(RuleSyntaxError::ExpectedRightBracket(self.curr_tkn.clone()))
     }
 
-    fn get_set(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_set(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns SET ← '{' SET_TRM (',' SET_TRM)* '}'
         let start_pos = self.curr_tkn.position.start;
 
@@ -844,11 +747,11 @@ impl Parser {
         if terms.is_empty() {
             Err(RuleSyntaxError::EmptySet(pos))
         } else {
-            Ok(Some(Item::new(ParseElement::Set(terms.clone()), pos)))
+            Ok(Some(ParseItem::new(ParseElement::Set(terms.clone()), pos)))
         }
     }
 
-    fn get_syll(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_syll(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns SYL ← '%' (':' PARAMS)? VAR_ASN?  
         let start_pos = self.curr_tkn.position.start;
 
@@ -860,9 +763,9 @@ impl Parser {
                     return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
-                return Ok(Some(Item::new(ParseElement::Syllable([None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+                return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
-            return Ok(Some(Item::new(ParseElement::Syllable([None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -876,12 +779,12 @@ impl Parser {
                 return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
             };
             let num = number.value.parse::<usize>().unwrap();
-            return Ok(Some(Item::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
         }
-        Ok(Some(Item::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
+        Ok(Some(ParseItem::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
     }
 
-    fn get_struct(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_struct(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         let start_pos = self.curr_tkn.position.start;
 
         if !self.expect(TokenKind::LeftAngle) { return Ok(None) }
@@ -894,7 +797,7 @@ impl Parser {
                 continue;
             }
             if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
-                terms.push(Item::new(ParseElement::Ellipsis, el.position));
+                terms.push(ParseItem::new(ParseElement::Ellipsis, el.position));
                 continue;
             }
 
@@ -913,9 +816,9 @@ impl Parser {
                     return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
-                return Ok(Some(Item::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+                return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
-            return Ok(Some(Item::new(ParseElement::Structure(terms, [None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -929,13 +832,13 @@ impl Parser {
                 return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
             };
             let num = number.value.parse::<usize>().unwrap();
-            return Ok(Some(Item::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
         }
 
-        Ok(Some(Item::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
+        Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
     }
 
-    fn get_term(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns TERM ← SYL / STRUCT / SET / SEG / OPT / VAR 
         if let Some(x) = self.get_syll()?   { return Ok(Some(x)) }
         if let Some(x) = self.get_struct()? { return Ok(Some(x)) }
@@ -947,12 +850,12 @@ impl Parser {
         Ok(None)
     }
 
-    fn get_input_els(&mut self) -> Result<Vec<Item>, RuleSyntaxError> {
+    fn get_input_els(&mut self) -> Result<Vec<ParseItem>, RuleSyntaxError> {
         // returns INP_EL+
         let mut els = Vec::new();
         loop {
             if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
-                els.push(Item::new(ParseElement::Ellipsis, el.position));
+                els.push(ParseItem::new(ParseElement::Ellipsis, el.position));
             } else if let Some(s_bound) = self.get_syll_bound() {
                 els.push(s_bound);
             } else if let Some(trm) = self.get_term()? {
@@ -966,7 +869,7 @@ impl Parser {
         Ok(els)
     }
 
-    fn get_output_el(&mut self) -> Result<Option<Item>, RuleSyntaxError> {
+    fn get_output_el(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns OUT_EL ← SYL / SET / SEG / VAR / SBOUND
         // NOTE: a set in the output only makes sense when matched to a set in the input w/ the same # of elements
         // This will be validated when applying
@@ -980,7 +883,7 @@ impl Parser {
         Ok(None)
     }
 
-    fn get_output_els(&mut self) -> Result<Vec<Item>, RuleSyntaxError> { 
+    fn get_output_els(&mut self) -> Result<Vec<ParseItem>, RuleSyntaxError> { 
         // returns OUT_EL+
         let mut els = Vec::new();
         while let Some(el) = self.get_output_el()? {
@@ -989,16 +892,16 @@ impl Parser {
         Ok(els)
     }
 
-    fn get_empty(&mut self) -> Option<Item> {
+    fn get_empty(&mut self) -> Option<ParseItem> {
         // EMP ← '*' / '∅'
         if !self.peek_expect(TokenKind::Star) && !self.peek_expect(TokenKind::EmptySet) {
             return None
         }
         let token = self.eat();
-        Some(Item::new(ParseElement::EmptySet, token.position))
+        Some(ParseItem::new(ParseElement::EmptySet, token.position))
     }
 
-    fn get_input(&mut self) -> Result<Vec<Vec<Item>>, RuleSyntaxError> {
+    fn get_input(&mut self) -> Result<Vec<Vec<ParseItem>>, RuleSyntaxError> {
         // returns `INP ← INP_TRM  ( ',' INP_TRM )*` where `INP_TRM ← EMP / INP_EL+`
         let mut inputs = Vec::new();
         loop {
@@ -1020,7 +923,7 @@ impl Parser {
             
             if let TokenKind::Diacritic(_) = self.curr_tkn.kind {
                 match inp_term.last() {
-                    Some(Item { kind: _, position }) => return Err(RuleSyntaxError::UnexpectedDiacritic(*position, self.curr_tkn.position)),
+                    Some(ParseItem { kind: _, position }) => return Err(RuleSyntaxError::UnexpectedDiacritic(*position, self.curr_tkn.position)),
                     _ => { unreachable!(); }
                 }
             }
@@ -1037,13 +940,13 @@ impl Parser {
         Ok(inputs)
     }
 
-    fn get_output(&mut self) -> Result<Vec<Vec<Item>>, RuleSyntaxError> {
+    fn get_output(&mut self) -> Result<Vec<Vec<ParseItem>>, RuleSyntaxError> {
         // returns `OUT ← OUT_TRM  ( ',' OUT_TRM )*` where `OUT_TRM ← '&' / EMP / OUT_EL+`
         let mut outputs = Vec::new();
         loop {
             // Metathesis
             if let Some(el) = self.eat_expect(TokenKind::Ampersand) {
-                outputs.push(vec![Item::new(ParseElement::Metathesis, el.position)]);
+                outputs.push(vec![ParseItem::new(ParseElement::Metathesis, el.position)]);
                 if !self.expect(TokenKind::Comma) && (!self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) && !self.peek_expect(TokenKind::Eol)) {
                     return Err(RuleSyntaxError::MetathErr(self.curr_tkn.clone()))
                 }
@@ -1067,7 +970,7 @@ impl Parser {
 
             if let TokenKind::Diacritic(_) = self.curr_tkn.kind {
                 match out_term.last() {
-                    Some(Item { kind: _, position }) => return Err(RuleSyntaxError::UnexpectedDiacritic(*position, self.curr_tkn.position)),
+                    Some(ParseItem { kind: _, position }) => return Err(RuleSyntaxError::UnexpectedDiacritic(*position, self.curr_tkn.position)),
                     _ => { unreachable!(); }
                 }
             }
@@ -1162,8 +1065,8 @@ mod parser_tests {
 
 
         let exp_input = vec![ 
-            Item::new(ParseElement::Syllable([Some(ModKind::Binary(BinMod::Positive)), None], None, None), Position::new(0, 0, 0, 11)),
-            Item::new(ParseElement::Syllable([None, None], None, None), Position::new(0, 0, 13, 14)),
+            ParseItem::new(ParseElement::Syllable([Some(ModKind::Binary(BinMod::Positive)), None], None, None), Position::new(0, 0, 0, 11)),
+            ParseItem::new(ParseElement::Syllable([None, None], None, None), Position::new(0, 0, 13, 14)),
         ];
 
         let mut x = Modifiers::new();
@@ -1171,13 +1074,13 @@ mod parser_tests {
         x.suprs.stress = [Some(ModKind::Binary(BinMod::Negative)), None];
         y.suprs.stress = [Some(ModKind::Binary(BinMod::Positive)), None];
         let exp_output = vec![
-            Item::new(ParseElement::Matrix(x, None), Position::new(0, 0, 17, 26)),
-            Item::new(ParseElement::Matrix(y, None), Position::new(0, 0, 28, 37)),
+            ParseItem::new(ParseElement::Matrix(x, None), Position::new(0, 0, 17, 26)),
+            ParseItem::new(ParseElement::Matrix(y, None), Position::new(0, 0, 28, 37)),
         ];
             
-        let exp_context: Vec<Item> = vec![
-            Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 40, 41)}]), Position::new(0, 0, 40, 41)),
-            Item::new(ParseElement::Environment(vec![Env { before: vec![Item::new(ParseElement::WordBound, Position::new(0, 0, 44, 45))], after: vec![], position: Position::new(0, 0, 44, 46)}]), Position::new(0, 0, 44, 46)),
+        let exp_context: Vec<ParseItem> = vec![
+            ParseItem::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 40, 41)}]), Position::new(0, 0, 40, 41)),
+            ParseItem::new(ParseElement::Environment(vec![Env { before: vec![ParseItem::new(ParseElement::WordBound, Position::new(0, 0, 44, 45))], after: vec![], position: Position::new(0, 0, 44, 46)}]), Position::new(0, 0, 44, 46)),
         ];
 
         assert_eq!(result.input[0][0], exp_input[0], "1");
@@ -1204,9 +1107,9 @@ mod parser_tests {
         assert!(result.except.is_empty());
 
         let exp_input_res = vec![
-            Item::new(ParseElement::Ipa(CARDINALS_MAP.get("t͡ɕ").unwrap().clone(), None),Position::new(0, 0, 0, 3)),
-            Item::new(ParseElement::Ellipsis, Position::new(0, 0, 3, 6)),
-            Item::new(ParseElement::Ipa(CARDINALS_MAP.get("b͡β").unwrap().clone(), None), Position::new(0, 0, 6, 9)),
+            ParseItem::new(ParseElement::Ipa(CARDINALS_MAP.get("t͡ɕ").unwrap().clone(), None),Position::new(0, 0, 0, 3)),
+            ParseItem::new(ParseElement::Ellipsis, Position::new(0, 0, 3, 6)),
+            ParseItem::new(ParseElement::Ipa(CARDINALS_MAP.get("b͡β").unwrap().clone(), None), Position::new(0, 0, 6, 9)),
         ];
 
         assert_eq!(result.input[0][0], exp_input_res[0]);
@@ -1220,14 +1123,14 @@ mod parser_tests {
         let mut x = Modifiers::new();
         x.feats[FeatKind::Syllabic as usize] = Some(ModKind::Binary(BinMod::Negative));
         
-        let _c = Item::new(ParseElement::Matrix(x, Some(1)), Position::new(0, 0, 0, 1));
+        let _c = ParseItem::new(ParseElement::Matrix(x, Some(1)), Position::new(0, 0, 0, 1));
 
         let mut y = Modifiers::new();
         y.feats[FeatKind::Consonantal as usize] = Some(ModKind::Binary(BinMod::Negative));
         y.feats[FeatKind::Sonorant as usize] = Some(ModKind::Binary(BinMod::Positive));
         y.feats[FeatKind::Syllabic as usize] = Some(ModKind::Binary(BinMod::Positive));
 
-        let _v = Item::new(ParseElement::Matrix(y, Some(2)), Position::new(0, 0, 4, 5));
+        let _v = ParseItem::new(ParseElement::Matrix(y, Some(2)), Position::new(0, 0, 4, 5));
 
         let maybe_result = Parser:: new(setup("C=1 V=2 > 2 1 / _C"), 0, 0).parse();
 
@@ -1255,12 +1158,12 @@ mod parser_tests {
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
-        let exp_input = Item::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
+        let exp_input = ParseItem::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
 
         let mut out = Modifiers::new();
 
         out.suprs.tone = Some(321);
-        let exp_output = Item::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
+        let exp_output = ParseItem::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
 
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);
@@ -1272,11 +1175,11 @@ mod parser_tests {
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
-        let exp_input = Item::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
+        let exp_input = ParseItem::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
         
         let mut out: Modifiers = Modifiers::new();
         out.suprs.tone = Some(321);
-        let exp_output = Item::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
+        let exp_output = ParseItem::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
 
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);
@@ -1323,9 +1226,9 @@ mod parser_tests {
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
-        let itm = Item::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 14, 15));
-        let exp_cont = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 8, 9)}]), Position::new(0, 0, 8, 9));
-        let exp_expt = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 13, 15)}]), Position::new(0, 0, 13, 15));
+        let itm = ParseItem::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 14, 15));
+        let exp_cont = ParseItem::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 8, 9)}]), Position::new(0, 0, 8, 9));
+        let exp_expt = ParseItem::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 13, 15)}]), Position::new(0, 0, 13, 15));
 
         assert_eq!(result.context[0], exp_cont);
         assert_eq!(result.except[0] , exp_expt);
@@ -1335,9 +1238,9 @@ mod parser_tests {
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
-        let itm = Item::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 13, 14));
-        let exp_cont = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 8, 9)}]), Position::new(0, 0, 8, 9));
-        let exp_expt = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 12, 14)}]), Position::new(0, 0, 12, 14));
+        let itm = ParseItem::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 13, 14));
+        let exp_cont = ParseItem::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![], position: Position::new(0, 0, 8, 9)}]), Position::new(0, 0, 8, 9));
+        let exp_expt = ParseItem::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 12, 14)}]), Position::new(0, 0, 12, 14));
 
         assert_eq!(result.context[0], exp_cont);
         assert_eq!(result.except[0] , exp_expt);
@@ -1347,8 +1250,8 @@ mod parser_tests {
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
-        let itm = Item::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 9, 10));
-        let exp_expt = Item::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 8, 10)}]), Position::new(0, 0, 8, 10));
+        let itm = ParseItem::new(ParseElement::Ipa(CARDINALS_MAP.get("u").unwrap().clone(), None),Position::new(0, 0, 9, 10));
+        let exp_expt = ParseItem::new(ParseElement::Environment(vec![Env { before: vec![], after: vec![itm], position: Position::new(0, 0, 8, 10)}]), Position::new(0, 0, 8, 10));
 
         assert_eq!(result.except[0] , exp_expt);
     }

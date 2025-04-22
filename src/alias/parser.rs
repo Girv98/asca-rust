@@ -1,7 +1,7 @@
 use crate  :: {
     error  :: AliasSyntaxError, 
-    rule   :: { BinMod, FeatKind, ModKind, Modifiers, Mods, SupraKind }, 
-    word   :: { NodeKind, Segment }, 
+    rule   :: { BinMod, ModKind, Modifiers, Mods }, 
+    word   :: { FeatKind, NodeKind, Segment, SupraKind },
     CARDINALS_MAP, DIACRITS
 };
 

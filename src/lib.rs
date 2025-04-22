@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::*;
 
 use alias :: Transformation;
 use trie  :: *;
-use word  :: *;
+use word  :: { DiaMods, Diacritic, * };
 use error :: { ASCAError,  * };
 use rule  :: { trace::Change, BinMod, ModKind, Rule, RuleGroup };
 

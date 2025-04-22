@@ -3,7 +3,10 @@ use std::fmt;
 use lexer::AliasLexer;
 use parser::{AliasItem, AliasParser};
 
-use crate::{error::AliasSyntaxError, rule::FeatureCategory};
+use crate :: {
+    error :: AliasSyntaxError, 
+    word  :: FeatureCategory
+};
 
 pub mod lexer;
 pub mod parser;

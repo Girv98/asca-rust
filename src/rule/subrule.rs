@@ -9,8 +9,8 @@ use std ::{
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, FeatKind, Item, ModKind, Modifiers, ParseElement, PlaceMod, Position, RuleType, SupraSegs, Token }, 
-    word   :: { NodeKind, SegPos, Segment, StressKind, Syllable, Tone, Word },
+    rule   :: { Alpha, AlphaMod, BinMod, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, RuleType, SupraSegs, Token }, 
+    word   :: { FeatKind, NodeKind, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
 type SylPos = usize;            // the index of the syllable in the word.syllables array
@@ -42,10 +42,10 @@ pub(crate) enum VarKind {
 
 #[derive(Debug)]
 pub(crate) struct SubRule {
-    pub(crate) input    : Vec<Item>,
-    pub(crate) output   : Vec<Item>,
-    pub(crate) context  : Option<Item>,
-    pub(crate) except   : Option<Item>,
+    pub(crate) input    : Vec<ParseItem>,
+    pub(crate) output   : Vec<ParseItem>,
+    pub(crate) context  : Option<ParseItem>,
+    pub(crate) except   : Option<ParseItem>,
     pub(crate) rule_type: RuleType,
     pub(crate) variables: RefCell<HashMap<usize, VarKind>>,
     pub(crate) alphas   : RefCell<HashMap<char, Alpha>>
@@ -53,7 +53,7 @@ pub(crate) struct SubRule {
 
 impl SubRule {
 
-    fn get_contexts(&self) -> Vec<(&Vec<Item>, &Vec<Item>)> {
+    fn get_contexts(&self) -> Vec<(&Vec<ParseItem>, &Vec<ParseItem>)> {
         match &self.context {
             Some(x) => match &x.kind {
                 ParseElement::Environment(env) => env.iter().map(|e| (&e.before, &e.after)).collect(),
@@ -63,7 +63,7 @@ impl SubRule {
         }
     }
 
-    fn get_exceptions(&self) -> Vec<(&Vec<Item>, &Vec<Item>)> {
+    fn get_exceptions(&self) -> Vec<(&Vec<ParseItem>, &Vec<ParseItem>)> {
         // static EMPTY_ENV: Vec<Item> = Vec::new();
         match &self.except {
             Some(x) => match &x.kind {
@@ -143,7 +143,7 @@ impl SubRule {
         Ok(word)
     }
 
-    fn match_before_env(&self, states: &[Item], word_rev: &Word, pos: &SegPos, ins_match_before: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_before_env(&self, states: &[ParseItem], word_rev: &Word, pos: &SegPos, ins_match_before: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
         // NOTE: assumes parent has done reversals
         let mut start_pos = *pos;
         start_pos.increment(word_rev);
@@ -164,7 +164,7 @@ impl SubRule {
         Ok(is_match)
     }
 
-    fn match_after_env(&self, states: &[Item], word: &Word, pos: &SegPos, ins_match_before: bool, inc: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_after_env(&self, states: &[ParseItem], word: &Word, pos: &SegPos, ins_match_before: bool, inc: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
         let mut start_pos = *pos;
         if inc {
             start_pos.increment(word);
@@ -218,7 +218,7 @@ impl SubRule {
         Ok(!is_expt_match && is_cont_match)
     }
 
-    fn context_match(&self, states: &[Item], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, ins_match_before: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, ins_match_before: bool) -> Result<bool, RuleRuntimeError> {
         let state = &states[*state_index];
         match &state.kind {
             ParseElement::WordBound => Ok(word.out_of_bounds(*pos)),
@@ -252,7 +252,7 @@ impl SubRule {
         }
     }
 
-    fn context_match_structure(&self, items: &[Item], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_structure(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         if items.is_empty() {
             return self.context_match_syll(stress, tone, var, word, pos, forwards)
         }
@@ -317,7 +317,7 @@ impl SubRule {
         Ok(true)
     }
 
-    fn context_match_ellipis_struct(&self, items: &[Item], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize) -> Result<bool, RuleRuntimeError> {
+    fn context_match_ellipis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize) -> Result<bool, RuleRuntimeError> {
         if *index >= items.len() {
             return Ok(true)
         }
@@ -373,7 +373,7 @@ impl SubRule {
         Ok(false)
     }
 
-    fn context_match_ellipsis(&self, states: &[Item], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_ellipsis(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         if *state_index >= states.len() {
             return Ok(true)
         }
@@ -408,7 +408,7 @@ impl SubRule {
         Ok(false)
     }
 
-    fn match_opt_states(&self, opt_states: &[Item], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_opt_states(&self, opt_states: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         let mut si = 0;
         while si < opt_states.len() {
             if !self.context_match(opt_states, &mut si, word, pos, forwards, false)? {
@@ -419,7 +419,7 @@ impl SubRule {
         Ok(true)
     }
 
-    fn context_match_option(&self, states: &[Item], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, opt_states: &[Item], match_min: usize, match_max: usize) -> Result<bool, RuleRuntimeError> {
+    fn context_match_option(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, opt_states: &[ParseItem], match_min: usize, match_max: usize) -> Result<bool, RuleRuntimeError> {
         // should work like regex (...){min, max}? 
         let match_max = if match_max == 0 { None } else { Some(match_max) };
         let back_pos = *pos;
@@ -487,7 +487,7 @@ impl SubRule {
         Ok(false)
     }
 
-    fn context_match_set(&self, set: &[Item], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_set(&self, set: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         let back_pos= *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_varlbs = self.variables.borrow().clone();
@@ -874,7 +874,7 @@ impl SubRule {
         Ok(maybe_ins)
     }
 
-    fn insertion_between(&self, bef_states: &[Item], aft_states: &[Item], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+    fn insertion_between(&self, bef_states: &[ParseItem], aft_states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
         let mut start_pos = start_pos;
         
         // FIXME: This is scuffed
@@ -911,7 +911,7 @@ impl SubRule {
         Ok(None)
     }
 
-    fn insertion_after(&self, states: &[Item], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+    fn insertion_after(&self, states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
         // i.e. #_
         let mut cur_pos = start_pos;
         let mut state_index = 0;
@@ -964,7 +964,7 @@ impl SubRule {
         }
     }
 
-    fn insertion_before(&self, states: &[Item], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+    fn insertion_before(&self, states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
         // i.e. _#
         let mut cur_pos = start_pos;
         let mut state_index = 0;
@@ -1223,7 +1223,7 @@ impl SubRule {
         Ok(lc)
     }
 
-    fn gen_syll_from_struct(&self, items: &[Item], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
+    fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
         let mut syll = Syllable::new();
         let mods = SupraSegs { stress: *stress, length: [None, None], tone: *tone };
 
@@ -2040,7 +2040,7 @@ impl SubRule {
         seg_pos: &mut SegPos, 
         state_index: &mut usize,
         word: &Word, 
-        states: &[Item], 
+        states: &[ParseItem], 
     ) -> Result<bool, RuleRuntimeError> {
         let err_pos = states[*state_index].position;
         match &states[*state_index].kind {
@@ -2076,7 +2076,7 @@ impl SubRule {
         }
     }
 
-    fn input_match_structure(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, items: &[Item], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_structure(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         if items.is_empty() {
             return self.input_match_syll(captures, state_index, stress, tone, var, word, pos)
         }
@@ -2139,7 +2139,7 @@ impl SubRule {
         Ok(true)
     }
     
-    fn input_match_ellipsis(&self, captures: &mut Vec<MatchElement>, word: &Word, pos: &mut SegPos, states: &[Item], state_index: &mut usize) -> Result<bool, RuleRuntimeError> {
+    fn input_match_ellipsis(&self, captures: &mut Vec<MatchElement>, word: &Word, pos: &mut SegPos, states: &[ParseItem], state_index: &mut usize) -> Result<bool, RuleRuntimeError> {
         // should work akin to '.+?' in Regex, that is, a lazy-match of one-or-more elements
         // increment seg_pos
         // save position
@@ -2351,7 +2351,7 @@ impl SubRule {
         }
     }
 
-    fn input_match_set(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, set: &[Item], word: &Word, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_set(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, set: &[ParseItem], word: &Word, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_varlbs = self.variables.borrow().clone();
