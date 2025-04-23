@@ -35,7 +35,7 @@ impl fmt::Display for StressKind {
 pub type Tone = u16;
 
 /// A syllable within a word
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Syllable {
     /// The segments in the syllable.
     /// Long segments are represented by consecutive identical segments
