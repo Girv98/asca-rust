@@ -5,9 +5,9 @@
 @setup $../pie ["../pie-uvular-common", "../pie-pronouns"]: "setup"
 
 @proto-germanic %setup:
-    "./pgmc/pre",
-    "./pgmc/early",
-    "./pgmc/late",
+    "pgmc/pre",
+    "pgmc/early",
+    "pgmc/late",
 
 
 ################# NorthWest Germanic ##################
