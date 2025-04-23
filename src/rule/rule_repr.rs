@@ -82,16 +82,14 @@ impl TryFrom<Vec<RuleGroup>> for ParsedRules {
     }
 }
 
-impl IntoIterator for ParsedRules {
-    type Item = (String, Vec<Rule>, String);
+impl<'a>  IntoIterator for &'a ParsedRules {
+    type Item = (&'a str, &'a [Rule], &'a str);
 
-    type IntoIter = ParsedRulesIter;
+    type IntoIter = ParsedRulesIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         ParsedRulesIter {
-            names: self.names,
-            rules: self.rules,
-            descs: self.descs,
+            pr: self,
             index: 0,
         }
     }
@@ -124,28 +122,26 @@ impl ParsedRules {
     }
 }
 
-pub struct ParsedRulesIter {
-    names: Vec<String>,
-    rules: Vec<Vec<Rule>>,
-    descs: Vec<String>,
+pub struct ParsedRulesIter<'a> {
+    pr: &'a ParsedRules,
     index: usize
 }
 
-impl Iterator for ParsedRulesIter {
-    type Item = (String, Vec<Rule>, String);
+impl<'a> Iterator for ParsedRulesIter<'a> {
+    type Item = (&'a str, &'a [Rule], &'a str);
 
     fn next(&mut self) -> Option<Self::Item> {
 
-        let n = self.names.get(self.index).cloned();
-        let r = self.rules.get(self.index).cloned();
-        let d = self.descs.get(self.index).cloned();
+        let n = self.pr.names.get(self.index);
+        let r = self.pr.rules.get(self.index);
+        let d = self.pr.descs.get(self.index);
 
         if n.is_some() && r.is_some() && d.is_some() {
             self.index += 1;
             Some((
-                unsafe { n.unwrap_unchecked() }, 
-                unsafe { r.unwrap_unchecked() }, 
-                unsafe { d.unwrap_unchecked() }
+                unsafe { &n.unwrap_unchecked() }, 
+                unsafe { &r.unwrap_unchecked() }, 
+                unsafe { &d.unwrap_unchecked() }
             ))
         } else {
             None
