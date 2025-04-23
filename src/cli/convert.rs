@@ -10,7 +10,7 @@ pub fn from_asca(words: Option<PathBuf>, rules: Option<PathBuf>, alias: Option<P
     let rules = parse::parse_rsca(&util::validate_or_get_path(rules.as_deref(), &[RULE_FILE_EXT, "txt"], "rule")?)?;
 
     let (into, from) = if let Some(al) = alias {
-        parse::parse_alias(&util::validate(&al, &[ALIAS_FILE_EXT, "txt"])?)?
+        parse::parse_alias(&util::validate_file(&al, &[ALIAS_FILE_EXT, "txt"])?)?
     } else {
         (Vec::new(), Vec::new())
     };
@@ -81,7 +81,7 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
             let mut a_path = dir_path.to_path_buf();
             a_path.push(alias.as_ref());
             a_path.set_extension(ALIAS_FILE_EXT);
-            parse::parse_alias(&util::validate(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
+            parse::parse_alias(&util::validate_file(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
         } else {
             (Vec::new(), Vec::new())
         };
@@ -99,7 +99,7 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
             let mut a_path = dir_path.to_path_buf();
             a_path.push(alias.as_ref());
             a_path.set_extension(ALIAS_FILE_EXT);
-            parse::parse_alias(&util::validate(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
+            parse::parse_alias(&util::validate_file(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
         } else {
             (Vec::new(), Vec::new())
         };

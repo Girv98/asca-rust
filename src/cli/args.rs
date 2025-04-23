@@ -4,6 +4,7 @@ use clap :: {
     Args, Command, Parser, Subcommand, ValueHint
 };
 use clap_complete::{generate, Generator, Shell};
+use clap_stdin::MaybeStdin;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
@@ -24,11 +25,10 @@ pub enum AscaCommand {
         #[clap(flatten)]
         i_group: InGroup,
 
-        /// Path to a wsca file containing the input words.
-        /// - If this and -j are not provided, asca will look for a file in the current directory.
-        #[arg(short, long, verbatim_doc_comment, value_hint=ValueHint::FilePath)]
-        words: Option<PathBuf>,
-
+        /// Paths to wsca files containing the input words.
+        /// If -j is provided, these words with be used instead of the words listed in the json file
+        #[clap(verbatim_doc_comment, value_hint=ValueHint::FilePath)]
+        words: Vec<MaybeStdin<PathBuf>>,
         /// Path to an alias file containing romanisations to and from.
         #[arg(short='l', long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
         alias: Option<PathBuf>,

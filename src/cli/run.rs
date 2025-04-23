@@ -2,7 +2,7 @@ use std::{io, path::{Path, PathBuf}};
 use colored::Colorize;
 
 use asca::rule::RuleGroup;
-use super::{args::InGroup, parse, util::{self, ALIAS_FILE_EXT, LINE_ENDING, RULE_FILE_EXT, WORD_FILE_EXT}, AscaJson};
+use super::{args::InGroup, parse, util::{self, LINE_ENDING, RULE_FILE_EXT, WORD_FILE_EXT}, AscaJson};
 
 // Handle comparing the output to the contents of a wsca file.
 fn print_comparison(result: &[String], comp_path: &Path) -> io::Result<()> {
@@ -73,7 +73,7 @@ type FromAliases = Vec<String>;
 /// Gets input file. 
 /// If -j,validate and parse words and rules from it. If -w, use those words instead.
 /// Else, validate and parse -r and -w.
-fn get_input(i_group: InGroup, input: Option<PathBuf>, alias: Option<PathBuf>) -> io::Result<(Words, Vec<RuleGroup>, IntoAliases, FromAliases)> {
+fn get_input(i_group: InGroup, input: Vec<PathBuf>, alias: Option<PathBuf>) -> io::Result<(Words, Vec<RuleGroup>, IntoAliases, FromAliases)> {
     let InGroup { from_json, rules } = i_group;
     if let Some(json) = from_json {
         let json_file_path = util::validate_or_get_path(Some(&json), &["json"], "json")?;
@@ -81,14 +81,22 @@ fn get_input(i_group: InGroup, input: Option<PathBuf>, alias: Option<PathBuf>) -
         let file = util::file_open(&json_file_path)?;
         let json: AscaJson = serde_json::from_reader(file)?;
 
-        let (words, _) = if let Some(inp) = input {
-            parse::parse_wsca(&util::validate(&inp, &[WORD_FILE_EXT, "txt"])?)?
+        let words = if !input.is_empty() {
+            let mut w = Vec::new();
+            for wf in input {
+                w.extend(parse::parse_wsca(util::as_file(&wf)?)?.0);
+            }
+            w
         } else {
-            (json.words, Vec::new())
+            json.words
         };
 
+        if words.is_empty() {
+            return Err(io::Error::other(format!("{} no words provided", "asca:".bright_blue())))
+        }
+
         let (into, from) = if let Some(af) = alias {
-            parse::parse_alias(&util::validate(&af, &[ALIAS_FILE_EXT, "txt"])?)?
+            parse::parse_alias(util::as_file(&af)?)?
         } else {
             (json.into, json.from)
         };
@@ -96,11 +104,19 @@ fn get_input(i_group: InGroup, input: Option<PathBuf>, alias: Option<PathBuf>) -
         Ok((words, json.rules, into, from))
 
     } else {
-        let (words, _) = parse::parse_wsca(&util::validate_or_get_path(input.as_deref(), &[WORD_FILE_EXT, "txt"], "word")?)?;
+        let mut words = Vec::new();
+        for wf in input {
+                words.extend(parse::parse_wsca(util::as_file(&wf)?)?.0);
+        }
+        
+        if words.is_empty() {
+            return Err(io::Error::other(format!("{} no words provided", "asca:".bright_blue())))
+        }
+
         let rules = parse::parse_rsca(&util::validate_or_get_path(rules.as_deref(), &[RULE_FILE_EXT, "txt"], "rule")?)?;
 
         let (into, from) = if let Some(af) = alias {
-            parse::parse_alias(&util::validate(&af, &[ALIAS_FILE_EXT, "txt"])?)?
+            parse::parse_alias(util::as_file(&af)?)?
         } else {
             (Vec::new(), Vec::new())
         };
@@ -117,7 +133,7 @@ fn output_result(output: Option<PathBuf>, res: &[String]) -> io::Result<()> {
     Ok(())
 }
 
-pub(crate) fn run(in_group: InGroup, maybe_words: Option<PathBuf>, maybe_alias: Option<PathBuf>, maybe_output: Option<PathBuf>, maybe_compare: Option<PathBuf>) -> io::Result<()> {
+pub(crate) fn run(in_group: InGroup, maybe_words: Vec<PathBuf>, maybe_alias: Option<PathBuf>, maybe_output: Option<PathBuf>, maybe_compare: Option<PathBuf>) -> io::Result<()> {
     let (words, rules, into, from) = get_input(in_group, maybe_words, maybe_alias)?;
 
     match asca::run_unparsed(&rules, &words, &into, &from) {

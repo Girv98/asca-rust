@@ -97,7 +97,7 @@ pub(super) fn get_orig_alias_into(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &
         let mut path = dir.to_path_buf();
         path.push(al_path.as_ref());
         path.set_extension(ALIAS_FILE_EXT);
-        let (into, _) = parse::parse_alias(&util::validate(&path, &[ALIAS_FILE_EXT, "txt"])?)?;
+        let (into, _) = parse::parse_alias(&util::validate_file(&path, &[ALIAS_FILE_EXT, "txt"])?)?;
         Ok(into)           
     } else {
         Ok(Vec::new())
@@ -264,7 +264,7 @@ fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<Str
         let mut a_path = dir.to_path_buf();
         a_path.push(alias.as_ref());
         a_path.set_extension(ALIAS_FILE_EXT);
-        parse::parse_alias(&util::validate(&a_path, &[ALIAS_FILE_EXT, "txt"])?)
+        parse::parse_alias(&util::validate_file(&a_path, &[ALIAS_FILE_EXT, "txt"])?)
     } else {
         Ok((Vec::new(), Vec::new()))
     }

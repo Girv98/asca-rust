@@ -92,15 +92,27 @@ pub(super) fn validate_directory(maybe_path: Option<PathBuf>) -> io::Result<Path
     }
 }
 
-pub(super) fn validate(path: &Path, valid_extensions: &[&str]) -> io::Result<PathBuf> {
-    match path.extension() {
-        Some(ext) => if match_exts(ext, valid_extensions) {
-            Ok(path.to_path_buf())
-        } else {
-            let exts_str = create_ext_list(valid_extensions);
-            Err(util_err(format!("File {} is not of the right type. Must be {}", format!("{path:?}").yellow(), exts_str)))
-        },
-        None => Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow()))),
+pub(super) fn as_file(path: &Path) -> io::Result<&Path> {
+    if path.is_file() {
+        Ok(path)
+    } else {
+        Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow())))
+    }
+}
+
+pub(super) fn validate_file(path: &Path, valid_extensions: &[&str]) -> io::Result<PathBuf> {
+    if path.is_file() {
+        match path.extension() {
+            Some(ext) => if match_exts(ext, valid_extensions) {
+                Ok(path.to_path_buf())
+            } else {
+                let exts_str = create_ext_list(valid_extensions);
+                Err(util_err(format!("File {} is not of the right type. Must be {}", format!("{path:?}").yellow(), exts_str)))
+            },
+            None => Err(util_err(format!("Given path {} has no extension", format!("{path:?}").yellow()))),
+        }
+    } else {
+        Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow())))
     }
 }
 
@@ -108,13 +120,16 @@ pub(super) fn validate(path: &Path, valid_extensions: &[&str]) -> io::Result<Pat
 pub(super) fn validate_or_get_path(maybe_path: Option<&Path>, valid_extensions: &[&str], kind: &str) -> io::Result<PathBuf> {
     match maybe_path {
         // Probably don't have to check if path exists as checking if it has an extension should be enough
-        Some(path) => validate(path, valid_extensions),
+        Some(path) => validate_file(path, valid_extensions),
         None => {
             let files = get_dir_files(".", valid_extensions)?;
             match files.len().cmp(&1) {
                 std::cmp::Ordering::Greater => Err(util_err(format!("More than one matching {} file found in current directory. Please specify.", kind))),
                 std::cmp::Ordering::Less    => Err(util_err(format!("No matching {} files found in current directory", kind))),
-                std::cmp::Ordering::Equal   => Ok(files[0].clone()),
+                std::cmp::Ordering::Equal   => {
+                    println!("{} No {} file provided. Using {}", "Note:".bright_blue(), kind, format!("{:?}", files[0]).yellow());
+                    Ok(files[0].clone())
+                },
             }
         }
     }
@@ -202,7 +217,7 @@ pub(super) fn write_to_file(path: &Path, content: String, extension: &str, auto:
             }
             Ok(())
         } else {
-            Err(util_err(format!("Provided file '{}' has the wrong extension. Must be .{:?}", format!("{path:?}").yellow(), extension)))
+            Err(util_err(format!("Provided file '{}' has the wrong extension. Must be .{}", format!("{path:?}").yellow(), extension)))
         }
     } else if path.is_dir() {
         // if path is dir, write to file of <dir>/out.<extension>
@@ -214,9 +229,9 @@ pub(super) fn write_to_file(path: &Path, content: String, extension: &str, auto:
             Some(ext) => if ext == extension {
                 file_write(path, content)
             } else {
-                Err(util_err(format!("Provided file '{}' has the wrong extension. Must be .{:?}", format!("{path:?}").yellow(), extension)))
+                Err(util_err(format!("Provided file '{}' has the wrong extension. Must be .{}", format!("{path:?}").yellow(), extension)))
             },
-            None => Err(util_err(format!("Provided dir '{:?}' does not exist", format!("{path:?}").yellow()))),
+            None => Err(util_err(format!("Provided dir '{}' does not exist", format!("{path:?}").yellow()))),
         } 
     }
 }
