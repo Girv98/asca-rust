@@ -224,13 +224,12 @@ pub(super) fn write_to_file(path: &Path, content: String, extension: &str, auto:
 /// Make sure string has no illegal filename characters
 pub(super) fn sanitise_str(str: &str) -> String {
     // 26 is arbitrary, but we want to make sure that the file names don't get too long
-    str.chars().take(26)
-    .map(|ch| match ch { 
+    str.chars().take(26).filter_map(|ch| match ch { 
         ' ' | '*' | '/' | '\\' | 
-        '?' | ':' | '|' | '\0'  | 
-        '<' | '>' | '%' | '"'
-        => '-', 
-        _ => ch.to_ascii_lowercase()
+        '?' | ':' | '|' | '<'  | 
+        '>' | '%' => Some('-'), 
+        '"' | '\'' | '\0' => None,
+        _ => Some(ch.to_ascii_lowercase())
     }).collect()
 }
 

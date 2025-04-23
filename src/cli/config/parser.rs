@@ -3,14 +3,14 @@ use std::{collections::HashSet, io, path::{Path, PathBuf}, rc::Rc};
 use asca::rule::RuleGroup;
 use colored::Colorize;
 
-use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util::{self, RULE_FILE_EXT}};
+use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util};
 use super::lexer::{Position, Token, TokenKind};
 
 pub(crate) struct Parser<'a> {
     token_list: Vec<Token>,
     pos: usize,
     curr_tkn: Token,
-    path: &'a Path
+    path: &'a Path,
 }
 
 impl<'a> Parser<'a> {
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
         let mut s = Self { 
             token_list: lst, 
             pos: 0, 
-            curr_tkn: Token { kind: TokenKind::EoF, value: Rc::default(), position: Position::new(0, 0, 0, 1 ) },
+            curr_tkn: Token { kind: TokenKind::Eof, value: Rc::default(), position: Position::new(0, 0, 0, 1 ) },
             path,
         };
         s.curr_tkn = s.token_list[s.pos].clone();
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
             self.token_list[self.pos].clone()
         } else {
             let last_pos = self.token_list.last().unwrap().position;
-            Token { kind: TokenKind::EoF, value: Rc::default(), position: Position::new(last_pos.s_line, last_pos.s_pos, last_pos.e_line, last_pos.e_line+1) }
+            Token { kind: TokenKind::Eof, value: Rc::default(), position: Position::new(last_pos.s_line, last_pos.s_pos, last_pos.e_line, last_pos.e_line+1) }
         };
 
         if self.curr_tkn.kind == TokenKind::Comment {
@@ -78,44 +78,121 @@ impl<'a> Parser<'a> {
     }
 
     fn error(&self, message: String) -> io::Error {
-        let message = format!("{}: {}", "Config Error".bright_red(), message);
-        
-        io::Error::other(message)
+        io::Error::other(format!("{}: {}", "Config Parse Error".bright_red(), message))
     }
 
-    fn get_filter_list(&mut self) -> io::Result<Vec<String>>{
-        if !self.expect(TokenKind::LeftCurly) {
-            return Err(self.error(format!("Expected '{{', found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+    fn line_lookahead(&self, knd: TokenKind) -> bool {
+        let mut pos = self.pos;
+        while pos < self.token_list.len() && self.token_list[pos].kind != TokenKind::Eol && self.token_list[pos].kind != TokenKind::Eof {
+            if self.token_list[pos].kind == knd {
+                return true
+            }
+            pos += 1;
+        }
+        false
+    }
+
+    fn get_ident(&mut self) -> io::Result<(Vec<Rc<str>>, Token)> {
+        let mut has_arrow = false;
+
+        let mut token_list = Vec::new();
+        let mut len = 0;
+
+        loop {
+            if let Some(colon) = self.eat_expect(TokenKind::Colon) {
+                if token_list.is_empty() {
+                    return Err(self.error(format!("Expected tag, but received ':' at '{:?}'", colon.position)))
+                }
+                break;
+            }
+            if self.eat_expect(TokenKind::Arrow).is_some() {
+                if has_arrow {
+                    // TODO: Better errors
+                    return Err(self.error("Can't have multiple arrows".to_string()))
+                }
+                has_arrow = true;
+                len = token_list.len();
+                continue;
+            }
+            if let Some(lit) = self.eat_expect(TokenKind::Literal) {
+                token_list.push(lit);
+                continue;
+            }
+
+            if token_list.is_empty() {
+                return Err(self.error(format!("Expected tag, but received '{}' at '{:?}'", self.curr_tkn.value, self.curr_tkn.position)))
+            } else {
+                return Err(self.error(format!("Unexpected token '{}' at '{:?}'", self.curr_tkn.value, self.curr_tkn.position)))
+            }
         }
 
-        let mut filters = Vec::new();
+        if !has_arrow {
+            match token_list.len().cmp(&1) {
+                std::cmp::Ordering::Equal => return Ok((vec![], token_list[0].clone())),
+                std::cmp::Ordering::Greater => return Err(self.error(format!("Too many tags"))),
+                std::cmp::Ordering::Less => unreachable!(),
+            }
+        }
 
-        if let Some(f) =  self.eat_expect(TokenKind::String) {
-            filters.push(f.value.to_lowercase());
+        if token_list.len() > len + 1 {
+            return Err(self.error(format!("Too many tags")))
+        }
 
-            loop {
-                if self.expect(TokenKind::RightCurly) { break; }
-                if !self.expect(TokenKind::Comma)     { 
-                    let pos = self.curr_tkn.position;
-                    return Err(self.error(format!("Expected comma, found {} at {}:{}", self.curr_tkn.kind, pos.s_line, pos.s_pos)))
-                }
+        let tag = token_list[len].clone();
 
-                match self.eat_expect(TokenKind::String) {
-                    Some(f) => filters.push(f.value.to_lowercase()),
-                    None => if self.expect(TokenKind::RightCurly) { 
-                        break;
-                    } else {
-                        return Err(self.error(format!("Expected a rule name, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
-                    },
+        token_list.pop();
+
+        let words = token_list.into_iter().map(|tkn| {
+            tkn.value
+        }).collect();
+        
+        Ok((words, tag))
+
+    }
+
+    fn get_entries(&mut self) -> io::Result<Vec<Entry>>  {
+        let mut entries = Vec::new();
+
+        if let Some(e) =  self.get_entry()? {
+            entries.push(e);
+
+            while self.has_more_tokens() {
+                match self.get_entry()? {
+                    Some(e) => entries.push(e),
+                    None =>  break,
                 }
             }
         }
 
-        if filters.is_empty() {
-            return Err(self.error(format!("Expected a rule name, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+        Ok(entries)
+    }
+
+    fn get_entry(&mut self) -> io::Result<Option<Entry>> {
+        if !self.expect(TokenKind::Eol) {
+            return Ok(None)
         }
-        
-        Ok(filters)
+        if self.line_lookahead(TokenKind::Colon) {
+            return Ok(None)
+        }
+        let Some(rule) = self.eat_expect(TokenKind::Literal) else {
+            return Ok(None)
+        };
+
+        let filter = self.get_filter()?;
+
+        let mut file_path = self.path.to_path_buf();
+        let rule_file = rule.value.trim();
+        file_path.set_file_name(rule_file);
+
+        if file_path.is_file(){
+            let entry_rules = parse_rsca(&file_path)?;
+            match filter {
+                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, file_path, PathBuf::from(rule_file))?)),
+                None => Ok(Some(Entry::from(file_path, entry_rules))),
+            }
+        } else {
+            Err(self.error(format!("Cannot find {file_path:?}. {}:{}", rule.position.s_line, rule.position.s_pos)))
+        } 
     }
 
     fn get_filter(&mut self) -> io::Result<Option<RuleFilter>> {
@@ -144,25 +221,64 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, file_path: PathBuf, rule_file: &str) -> io::Result<Entry> {
+    fn get_filter_list(&mut self) -> io::Result<Vec<String>>{
+        let mut filters = Vec::new();
+        let mut phrase = Vec::new();
+
+        if let Some(f) =  self.eat_expect(TokenKind::Literal) {
+            phrase.push(f.value.to_lowercase());
+
+            loop {
+                if self.peek(TokenKind::Eol) {
+                    let x = phrase.join(" ");
+                    filters.push(x);
+                    break;
+                }
+                if self.expect(TokenKind::Comma) {
+                    let x = phrase.join(" ");
+                    filters.push(x);
+                    phrase.clear();
+                }
+
+                match self.eat_expect(TokenKind::Literal) {
+                    Some(f) => phrase.push(f.value.to_lowercase()),
+                    None => if self.peek(TokenKind::Eol) || self.peek(TokenKind::Eof) { 
+                        let x = phrase.join(" ");
+                        filters.push(x);
+                        break;
+                    } else {
+                        return Err(self.error(format!("Expected a rule name, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+                    },
+                }
+            }
+        }
+
+        if filters.is_empty() {
+            return Err(self.error(format!("Expected a rule name, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+        }
+        Ok(filters)
+    }
+
+    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
         let mut file_path = file_path.clone();
+        let file_stem = rule_file.file_stem().expect("File exists").to_str().unwrap();
         match filter {
             RuleFilter::Only(rule_str) => {
                 match entry_rules.iter().find(|r| r.name.to_lowercase() == rule_str.to_lowercase()).cloned() {
                     Some(rule) => {
-                        file_path.set_file_name(format!("{}_only_{}", rule_file, util::sanitise_str(&rule_str)));
+                        file_path.set_file_name(format!("{}_o_{}", file_stem, util::sanitise_str(&rule_str)));
                         Ok(Entry::from(file_path, vec![rule]))
                     },
-                    None => Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file))),
+                    None => Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file.to_str().unwrap()))),
                 }
             },
             RuleFilter::Without(rule_str) => {
                 let before_len = entry_rules.len();
                 let entries = entry_rules.iter().filter(|r| r.name.to_lowercase() != rule_str.to_lowercase()).cloned().collect::<Vec<_>>();
                 if entries.len() == before_len {
-                    return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file)))
+                    return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file.to_str().unwrap())))
                 }
-                file_path.set_file_name(format!("{}_excl_{}", rule_file, util::sanitise_str(&rule_str)));
+                file_path.set_file_name(format!("{}_x_{}", file_stem, util::sanitise_str(&rule_str)));
                 Ok(Entry::from(file_path, entries))
             },
             RuleFilter::OnlyMult(filters) => {
@@ -170,159 +286,44 @@ impl<'a> Parser<'a> {
                 for filter in &filters {
                     match entry_rules.iter().find(|r| r.name.to_lowercase() == filter.to_lowercase()) {
                         Some(entry) => entries.push(entry.clone()),
-                        None => return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", filter, rule_file))),
+                        None => return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", filter, rule_file.to_str().unwrap()))),
                     }
                 }
-                file_path.set_file_name(format!("{}_only-mult_{}", rule_file, util::sanitise_str(&filters[0])));
+                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
+                file_path.set_file_name(format!("{}_om_{}", file_stem, util::sanitise_str(&abv_filt)));
                 Ok(Entry::from(file_path, entries))
             },
             RuleFilter::WithoutMult(filters) => {
                 let before_len = entry_rules.len();
                 let entries = entry_rules.iter().filter(|r| !filters.contains(&r.name.to_lowercase())).cloned().collect::<Vec<_>>();
                 if entries.len() == before_len {
-                    return Err(self.error(format!("Could not find any of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file)))
+                    return Err(self.error(format!("Could not find any of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file.to_str().unwrap())))
                 }
-                file_path.set_file_name(format!("{}_excl-mult_{}", rule_file, util::sanitise_str(&filters[0])));
+                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
+                file_path.set_file_name(format!("{}_xm_{}", file_stem, util::sanitise_str(&abv_filt)));
                 Ok(Entry::from(file_path, entries))
             },
         }
     }
 
-    fn get_entry(&mut self) -> io::Result<Option<Entry>> {
-        let Some(rule) = self.eat_expect(TokenKind::String) else {
-            return Ok(None)
-        };
-
-        let rule_file = rule.value.trim();
-        let mut file_path = self.path.to_path_buf();
-        file_path.set_file_name(rule_file);
-        file_path.set_extension(RULE_FILE_EXT);
-
-        let filter = self.get_filter()?;
-
-        if file_path.is_file(){
-            let entry_rules = parse_rsca(&file_path)?;
-            match filter {
-                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, file_path, rule_file)?)),
-                None => Ok(Some(Entry::from(file_path, entry_rules))),
-            }
-        } else {
-            Err(self.error(format!("Cannot find {file_path:?}. {}:{}", rule.position.s_line, rule.position.s_pos)))
-        }    
-    }
-
-    fn get_entries(&mut self) -> io::Result<Vec<Entry>> {
-        let mut entries = Vec::new();
-
-        if let Some(e) =  self.get_entry()? {
-            entries.push(e);
-            
-            while self.has_more_tokens() {
-                if !self.expect(TokenKind::Comma) { break; }
-                match self.get_entry()? {
-                    Some(e) => entries.push(e),
-                    None => break,
-                }
-            }
-        }
-
-        Ok(entries)
-    }
-
-    fn get_word_paths(&mut self) -> io::Result<Vec<Rc<str>>> {
-        if !self.expect(TokenKind::LeftSquare) {
-            return Ok(Vec::new())
-        }
-
-        let mut word_files = vec![];
-
-        match self.eat_expect(TokenKind::String) {
-            Some(w) => word_files.push(w.value),
-            None => return Err(self.error(format!("Expected a file path, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos))),
-        }
-
-        while self.has_more_tokens() {
-            if self.expect(TokenKind::RightSquare) { break; }
-            if !self.expect(TokenKind::Comma)      { 
-                let pos = self.curr_tkn.position;
-                return Err(self.error(format!("Expected comma, found {} at {}:{}", self.curr_tkn.kind, pos.s_line, pos.s_pos)))
-            }
-            match self.eat_expect(TokenKind::String) {
-                Some(w) => word_files.push(w.value),
-                None => if self.expect(TokenKind::RightSquare) {
-                    break;
-                } else {
-                    return Err(self.error(format!("Expected a file path, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
-                },
-            }
-        }
-
-        Ok(word_files)
-    }
-
-    // fn get_from(&mut self) -> Option<Token> {
-    //     self.eat_expect(TokenKind::From)
-    // }
-
-    fn get_tag(&mut self) -> io::Result<Token> {
-        match self.eat_expect(TokenKind::Tag) {
-            Some(tag) => Ok(tag),
-            None => Err(self.error(format!("Expected a tag, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos))),
-        }
-    }
-
     fn get_seq(&mut self) -> io::Result<ASCAConfig> {
-
         self.skip_comments();
 
-        let tag_token = self.get_tag()?;
+        while self.eat_expect(TokenKind::Eol).is_some() { }
+
+        let (words, tag_token) = self.get_ident()?;
 
         let tag = tag_token.value;
-
-        let mut from = None;
-        let mut alias = None;
-
-        match self.curr_tkn.kind {
-            TokenKind::From => from = Some(self.eat().value),
-            TokenKind::Alias => alias = Some(self.eat().value),
-            _ => {}
-        }
-
-        match self.curr_tkn.kind {
-            TokenKind::From => if from.is_none() {
-                 from = Some(self.eat().value)
-            } else {
-                return Err(self.error(format!("A sequence can only have one from tag {}:{}", self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
-            },
-            TokenKind::Alias => if alias.is_none() {
-                alias = Some(self.eat().value)
-            } else {
-                return Err(self.error(format!("A sequence can only have one alias tag {}:{}", self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
-            },
-            _ => {}
-        }
-
-        let words = self.get_word_paths()?;
-
-        if !self.expect(TokenKind::Colon) {
-            if words.is_empty() {
-                return Err(self.error(format!("Expected colon after tag at {}:{}", tag_token.position.e_line, tag_token.position.e_pos)))
-            } else {
-                let pos = self.token_list[self.pos-1].position;
-                return Err(self.error(format!("Expected colon after words list at {}:{}", pos.e_line, pos.e_pos)))
-            }
-        }
-
         let entries = self.get_entries()?;
 
-        Ok(ASCAConfig { tag, from, alias, words, entries })
+        Ok(ASCAConfig { tag, from: None, alias: None, words, entries })
     }
 
     pub(crate) fn parse(&mut self) -> io::Result<Vec<ASCAConfig>> {
         let mut tag_set = HashSet::new();
         let mut conf = Vec::new();
 
-        while self.curr_tkn.kind != TokenKind::EoF {
+        while self.curr_tkn.kind != TokenKind::Eof {
             let seq = self.get_seq()?;
 
             if !tag_set.insert(seq.tag.clone()) {
@@ -362,7 +363,99 @@ impl<'a> Parser<'a> {
             }
             head = conf.iter().find(|c| c.tag == *from).unwrap()
         }
-
         false
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+
+    use super::*;
+    use super::super::lexer::{Lexer, Token};
+
+    fn setup(test_str: &str) -> Vec<Token> {
+        match Lexer::new(&String::from(test_str).chars().collect::<Vec<_>>()).tokenise() {
+            Ok(tkns) => tkns,
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false);
+                unreachable!()
+            },
+        }
+    }
+
+    #[test]
+    fn test_with_words() {
+        let test_input= String::from(
+            "foo.wsca bar.wsca > beta:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law"
+            );
+        let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+
+        assert!(maybe_result.is_ok());
+
+        let result = maybe_result.unwrap();
+
+        assert_eq!(result[0].tag, "beta".into());
+        assert_eq!(result[0].from, None);
+        assert_eq!(result[0].alias, None);
+        assert_eq!(result[0].words, ["foo.wsca".into(), "bar.wsca".into()]);
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
+    }
+
+    #[test]
+    fn test_without_words() {
+        let test_input= String::from(
+            "beta:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law"
+            );
+        let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+
+        assert!(maybe_result.is_ok());
+
+        let result = maybe_result.unwrap();
+
+        assert_eq!(result[0].tag, "beta".into());
+        assert_eq!(result[0].from, None);
+        assert_eq!(result[0].alias, None);
+        assert_eq!(result[0].words, []);
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
+
+    }
+
+    #[test]
+    fn test_mult() {
+        let test_input= String::from(
+            "alpha:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law
+
+            foo.wsca bar.wsca > beta:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
+            );
+        let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+
+        assert!(maybe_result.is_ok());
+
+        let result = maybe_result.unwrap();
+
+        assert_eq!(result[0].tag, "alpha".into());
+        assert_eq!(result[0].from, None);
+        assert_eq!(result[0].alias, None);
+        assert_eq!(result[0].words, []);
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
+
+        assert_eq!(result[1].tag, "beta".into());
+        assert_eq!(result[1].from, None);
+        assert_eq!(result[1].alias, None);
+        assert_eq!(result[1].words, ["foo.wsca".into(), "bar.wsca".into()]);
+        assert_eq!(result[1].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[1].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_o_cowgills-law"));
     }
 }

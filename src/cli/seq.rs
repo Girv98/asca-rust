@@ -2,7 +2,7 @@ use std::{collections::HashMap, io, path::{Path, PathBuf}, rc::Rc};
 use colored::Colorize;
 
 use asca::rule::RuleGroup;
-use super::{config::{lexer::Lexer, parser::Parser}, parse::{self, parse_wsca}, util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, WORD_FILE_EXT}};
+use super::{config::{lexer_old::Lexer, parser_old::Parser}, parse::{self, parse_wsca}, util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, WORD_FILE_EXT}};
 
 
 #[derive(Debug, Clone)]
