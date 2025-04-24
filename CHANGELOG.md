@@ -1,10 +1,18 @@
 Next (Unreleased)
 ==================
+Breaking:
+* Cli:
+    * New config file syntax (conversion is available through `asca conv config`) ([#6](https://github.com/Girv98/asca-rust/issues/6))
+    * Extensions of files used within a config must now be specified (if any) ([#6](https://github.com/Girv98/asca-rust/issues/6))
+* Lib:
+    * Removes `AliasRuntimeError`
+    * Module structure changes
+
 Features:
 * Cli:
-    * New config file syntax ([#6](https://github.com/Girv98/asca-rust/issues/6))
     * Multiple word files can be passed to `asca run` ([#5](https://github.com/Girv98/asca-rust/issues/5))
     * Word files can be passed by stdin to `asca run` ([#5](https://github.com/Girv98/asca-rust/issues/5))
+    * If there are multiple configs within a directory a config file can be specified
 * Lib: 
     * `ParsedRules` struct 
     * `Rule` tracing
@@ -13,10 +21,6 @@ Features:
 Fixes:
 * Cli: `into` aliases work as expected ([#4](https://github.com/Girv98/asca-rust/issues/4))
 
-Breaking:
-* Lib:
-    * Removes `AliasRuntimeError`
-    * Module structure changes
 
 0.6.1
 ==================
