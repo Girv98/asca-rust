@@ -6,14 +6,14 @@ use colored::Colorize;
 use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util::{self, RULE_FILE_EXT}};
 use super::lexer_old::{Position, Token, TokenKind};
 
-pub(crate) struct Parser<'a> {
+pub(crate) struct OldParser<'a> {
     token_list: Vec<Token>,
     pos: usize,
     curr_tkn: Token,
     path: &'a Path
 }
 
-impl<'a> Parser<'a> {
+impl<'a> OldParser<'a> {
     pub(crate) fn new(lst: Vec<Token>, path: &'a Path) -> Self {
         let mut s = Self { 
             token_list: lst, 
@@ -83,6 +83,45 @@ impl<'a> Parser<'a> {
         io::Error::other(message)
     }
 
+    fn get_verbatum(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
+        let mut rule_str = rule.value.to_string();
+
+        match filter {
+            Some(f) => match f {
+                // ~
+                RuleFilter::Only(s) => {
+                    rule_str.push_str(" ~ ");
+                    rule_str.push_str(s);
+                },
+                RuleFilter::OnlyMult(items) => {
+                    rule_str.push_str(" ~ ");
+                    rule_str.push_str(&items[0]);
+
+                    for s in items.iter().skip(1) {
+                        rule_str.push_str(", ");
+                        rule_str.push_str(s);
+                    }
+                },
+                // !
+                RuleFilter::Without(s) => {
+                    rule_str.push_str(" ! ");
+                    rule_str.push_str(s);
+                },
+                RuleFilter::WithoutMult(items) => {
+                    rule_str.push_str(" ! ");
+                    rule_str.push_str(&items[0]);
+
+                    for s in items.iter().skip(1) {
+                        rule_str.push_str(", ");
+                        rule_str.push_str(s);
+                    }
+                },
+            },
+            None => {},
+        }
+        rule_str
+    }
+
     fn get_filter_list(&mut self) -> io::Result<Vec<String>> {
         if !self.expect(TokenKind::LeftCurly) {
             return Err(self.error(format!("Expected '{{', found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
@@ -144,14 +183,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, file_path: PathBuf, rule_file: &str) -> io::Result<Entry> {
+    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, verbatum: String, file_path: PathBuf, rule_file: &str) -> io::Result<Entry> {
         let mut file_path = file_path.clone();
         match filter {
             RuleFilter::Only(rule_str) => {
                 match entry_rules.iter().find(|r| r.name.to_lowercase() == rule_str.to_lowercase()).cloned() {
                     Some(rule) => {
                         file_path.set_file_name(format!("{}_only_{}", rule_file, util::sanitise_str(&rule_str)));
-                        Ok(Entry::from(file_path, vec![rule]))
+                        Ok(Entry::from(file_path, verbatum, vec![rule]))
                     },
                     None => Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file))),
                 }
@@ -163,7 +202,7 @@ impl<'a> Parser<'a> {
                     return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file)))
                 }
                 file_path.set_file_name(format!("{}_excl_{}", rule_file, util::sanitise_str(&rule_str)));
-                Ok(Entry::from(file_path, entries))
+                Ok(Entry::from(file_path, verbatum, entries))
             },
             RuleFilter::OnlyMult(filters) => {
                 let mut entries = Vec::new();
@@ -174,7 +213,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 file_path.set_file_name(format!("{}_only-mult_{}", rule_file, util::sanitise_str(&filters[0])));
-                Ok(Entry::from(file_path, entries))
+                Ok(Entry::from(file_path, verbatum, entries))
             },
             RuleFilter::WithoutMult(filters) => {
                 let before_len = entry_rules.len();
@@ -183,7 +222,7 @@ impl<'a> Parser<'a> {
                     return Err(self.error(format!("Could not find any of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file)))
                 }
                 file_path.set_file_name(format!("{}_excl-mult_{}", rule_file, util::sanitise_str(&filters[0])));
-                Ok(Entry::from(file_path, entries))
+                Ok(Entry::from(file_path, verbatum, entries))
             },
         }
     }
@@ -200,11 +239,14 @@ impl<'a> Parser<'a> {
 
         let filter = self.get_filter()?;
 
+        let verbatum = self.get_verbatum(&rule, &filter);
+
+
         if file_path.is_file(){
             let entry_rules = parse_rsca(&file_path)?;
             match filter {
-                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, file_path, rule_file)?)),
-                None => Ok(Some(Entry::from(file_path, entry_rules))),
+                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, verbatum, file_path, rule_file)?)),
+                None => Ok(Some(Entry::from(file_path, verbatum, entry_rules))),
             }
         } else {
             Err(self.error(format!("Cannot find {file_path:?}. {}:{}", rule.position.s_line, rule.position.s_pos)))

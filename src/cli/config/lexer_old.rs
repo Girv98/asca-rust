@@ -69,7 +69,7 @@ impl Token {
 }
 
 #[derive(Default)]
-pub(in super::super) struct Lexer<'a> {
+pub(in super::super) struct OldLexer<'a> {
     source: &'a [char],
     l_num: usize,
     l_pos: usize,
@@ -77,7 +77,7 @@ pub(in super::super) struct Lexer<'a> {
     inside_curly: bool,
 }
 
-impl<'a> Lexer<'a> {
+impl<'a> OldLexer<'a> {
     pub(crate) fn new(source: &'a [char]) -> Self {
         Self { source, l_num: 1, l_pos: 0, inside_square: false, inside_curly: false }
     }
@@ -234,7 +234,7 @@ impl<'a> Lexer<'a> {
 
         let s_line = self.l_num;
         let start = self.l_pos;
-        let buffer = self.chop_while(Lexer::is_tag_char);
+        let buffer = self.chop_while(OldLexer::is_tag_char);
 
         if buffer.is_empty() {
             return Err(self.error(format!("Empty alias at {}:{}", self.l_num, self.l_pos)))
@@ -249,7 +249,7 @@ impl<'a> Lexer<'a> {
 
         let s_line = self.l_num;
         let start = self.l_pos;
-        let buffer = self.chop_while(Lexer::is_tag_char);
+        let buffer = self.chop_while(OldLexer::is_tag_char);
 
         if buffer.is_empty() {
             return Err(self.error(format!("Empty pipeline at {}:{}", self.l_num, self.l_pos)))
@@ -264,7 +264,7 @@ impl<'a> Lexer<'a> {
 
         let s_line = self.l_num;
         let start = self.l_pos;
-        let buffer = self.chop_while(Lexer::is_tag_char);
+        let buffer = self.chop_while(OldLexer::is_tag_char);
 
         if buffer.is_empty() {
             return Err(self.error(format!("Empty tag at {}:{}", self.l_num, self.l_pos)))

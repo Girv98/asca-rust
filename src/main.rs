@@ -29,6 +29,7 @@ fn run() -> io::Result<()> {
             Conv::Asca { words, rules, alias, output } => cli::convert::from_asca(words, rules, alias, output),
             Conv::Json { path, words, alias, rules }   => cli::convert::from_json(path, words, alias, rules),
             Conv::Tag  { path, tag, recurse, output }  => cli::convert::from_seq(path, tag, output, recurse),
+            Conv::Config { path } => cli::convert::update_conf_format(path),
         },
         // Some(AscaCommand::Mult { rules, words, compare, output }) => todo!(),
         Some(AscaCommand::Seq { path, tag, words, all_steps, output, overwrite , no_overwrite, output_all }) => {

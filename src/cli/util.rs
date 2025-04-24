@@ -3,6 +3,8 @@ use std::{ffi::OsStr, fmt::Debug, fs, io::{self, Write}, path::{Path, PathBuf}};
 use colored::Colorize;
 use asca::{error::ASCAError, rule::RuleGroup};
 
+use super::seq::ASCAConfig;
+
 #[cfg(windows)]
 pub const LINE_ENDING: &str = "\r\n";
 #[cfg(not(windows))]
@@ -79,13 +81,29 @@ fn create_ext_list(valid_extensions: &[&str]) -> String {
     }
 }
 
+/// returns true if input is a dir, false if it a file
+pub(super) fn validate_file_or_dir(maybe_path: Option<PathBuf>) -> io::Result<(PathBuf, bool)> {
+    match maybe_path {
+        Some(path) => {
+            if path.is_dir() {
+                Ok((path, true))
+            } else if path.is_file() {
+                Ok((path, false))
+            } else {
+                Err(util_err(format!("Given path {} cannot be found", format!("{}", path.display()).yellow())))
+            }
+        },
+        None => Ok((PathBuf::from("."), true)),
+    }
+}
+
 pub(super) fn validate_directory(maybe_path: Option<PathBuf>) -> io::Result<PathBuf> {
     match maybe_path {
         Some(path) => {
             if path.is_dir() {
                 Ok(path)
             } else {
-                Err(util_err(format!("{} is not a directory", format!("{path:?}").yellow())))
+                Err(util_err(format!("{} is not a directory", format!("{}", path.display()).yellow())))
             }
         },
         None => Ok(PathBuf::from(".")),
@@ -96,7 +114,7 @@ pub(super) fn as_file(path: &Path) -> io::Result<&Path> {
     if path.is_file() {
         Ok(path)
     } else {
-        Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow())))
+        Err(util_err(format!("Given path {} is not a file", format!("{}", path.display()).yellow())))
     }
 }
 
@@ -115,7 +133,6 @@ pub(super) fn validate_file(path: &Path, valid_extensions: &[&str]) -> io::Resul
         Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow())))
     }
 }
-
 
 pub(super) fn validate_or_get_path(maybe_path: Option<&Path>, valid_extensions: &[&str], kind: &str) -> io::Result<PathBuf> {
     match maybe_path {
@@ -246,6 +263,32 @@ pub(super) fn sanitise_str(str: &str) -> String {
         '"' | '\'' | '\0' => None,
         _ => Some(ch.to_ascii_lowercase())
     }).collect()
+}
+
+// TODO: To be updated when syntax is finalised
+pub(super) fn to_new_config_format(conf: Vec<ASCAConfig>) -> String {
+    let mut result = String::new();
+    for seq in conf {
+
+        let words = if seq.words.is_empty() {
+            "".to_string()
+        } else {
+            let mut x = seq.words.join(" ");
+            x.push_str(" > ");
+            x
+        };
+
+        let indent = words + &seq.tag + ":\n";
+        result.push_str(&indent);
+
+        for rule in seq.entries {
+            result.push_str(&format!("    {}\n", rule.verbatum));
+        }
+        result.push('\n');
+    }
+
+    println!("{}", result);
+    result
 }
 
 pub(super) fn to_rsca_format(rules: Vec<RuleGroup>) -> String {

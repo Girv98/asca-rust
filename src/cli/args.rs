@@ -161,6 +161,13 @@ pub enum Conv {
         #[arg(short, long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
         output: Option<PathBuf>,
     },
+    /// Convert an old config file into the new format
+    Config {
+        /// Path to the config file or the directory it is within
+        /// - If not provided, asca will look for a config in the current directory.
+        #[clap(verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
+        path: Option<PathBuf>
+    }
 }
 
 #[derive(Debug, Args)]

@@ -2,7 +2,7 @@ use std::{io, path::PathBuf};
 
 use colored::Colorize;
 
-use super::{parse, seq::{get_all_rules, get_config, get_orig_alias_into, get_orig_words, get_words}, util::{self, ALIAS_FILE_EXT, JSON_FILE_EXT, RULE_FILE_EXT, WORD_FILE_EXT}, AscaJson};
+use super::{parse, seq::{get_all_rules, get_old_config, get_orig_alias_into, get_orig_words, get_words}, util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, JSON_FILE_EXT, RULE_FILE_EXT, WORD_FILE_EXT}, AscaJson};
 
 /// Convert rsca/wsca/alias files into an asca-web json file
 pub fn from_asca(words: Option<PathBuf>, rules: Option<PathBuf>, alias: Option<PathBuf>, output: Option<PathBuf>) -> io::Result<()> {
@@ -10,7 +10,7 @@ pub fn from_asca(words: Option<PathBuf>, rules: Option<PathBuf>, alias: Option<P
     let rules = parse::parse_rsca(&util::validate_or_get_path(rules.as_deref(), &[RULE_FILE_EXT, "txt"], "rule")?)?;
 
     let (into, from) = if let Some(al) = alias {
-        parse::parse_alias(&util::validate_file(&al, &[ALIAS_FILE_EXT, "txt"])?)?
+        parse::parse_alias(&util::as_file(&al)?)?
     } else {
         (Vec::new(), Vec::new())
     };
@@ -59,10 +59,31 @@ pub fn from_json(path: Option<PathBuf>, words_path: Option<PathBuf>, rules_path:
     Ok(())
 }
 
+pub fn update_conf_format(config_dir: Option<PathBuf>) -> io::Result<()> {
+    let (mut path, is_dir) = util::validate_file_or_dir(config_dir)?;
+    let conf = get_old_config(&path, is_dir)?;
+
+    let new_conf = util::to_new_config_format(conf);
+
+    if !is_dir {
+        path.pop();
+    }
+
+    path.push(&format!("config-new.{}", CONF_FILE_EXT));
+
+    util::dir_create_file(&path, new_conf, None)
+    
+}
+
 /// Convert a tag within a config file to an asca-web json file
 pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf>, recurse: bool) -> io::Result<()> {
-    let dir_path = util::validate_directory(config_dir)?;
-    let conf = get_config(&dir_path)?;
+    let (mut path, is_dir) = util::validate_file_or_dir(config_dir)?;
+    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", format!("{}", "UPDATE TO NEW CONFIG".bright_red()));
+    let conf = get_old_config(&path, is_dir)?;
+
+    if !is_dir {
+        path.pop();
+    }
 
     let Some(seq) = conf.iter().find(|c| c.tag.as_ref() == tag) else {
         let possible_tags = conf.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
@@ -72,23 +93,23 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
     // TODO: replace with if-let chain when stable
     let json = if seq.from.is_some() && recurse {
         // get original words list and entire rule history
-        let words = get_orig_words(&conf, &dir_path, seq)?;
+        let words = get_orig_words(&conf, &path, seq)?;
         let rules = get_all_rules(&conf, seq)?;
 
-        let into = get_orig_alias_into(&conf, &dir_path, seq)?;
+        let into = get_orig_alias_into(&conf, &path, seq)?;
 
         let (_ , from) = if let Some(alias) = &seq.alias {
-            let mut a_path = dir_path.to_path_buf();
+            let mut a_path = path.to_path_buf();
             a_path.push(alias.as_ref());
-            a_path.set_extension(ALIAS_FILE_EXT);
-            parse::parse_alias(&util::validate_file(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
+            // a_path.set_extension(ALIAS_FILE_EXT);
+            parse::parse_alias(&util::as_file(&a_path)?)?
         } else {
             (Vec::new(), Vec::new())
         };
 
         serde_json::to_string_pretty(&(AscaJson { into, from, words, rules }))?
     } else {
-        let words = get_words(&conf, &dir_path, &None, seq, &mut std::collections::HashMap::new())?;
+        let words = get_words(&conf, &path, &None, seq, &mut std::collections::HashMap::new())?;
 
         let mut rules = vec![];
         for entry in &seq.entries {
@@ -96,10 +117,10 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
         }
 
         let (into, from) = if let Some(alias) = &seq.alias {
-            let mut a_path = dir_path.to_path_buf();
+            let mut a_path = path.to_path_buf();
             a_path.push(alias.as_ref());
-            a_path.set_extension(ALIAS_FILE_EXT);
-            parse::parse_alias(&util::validate_file(&a_path, &[ALIAS_FILE_EXT, "txt"])?)?
+            // a_path.set_extension(ALIAS_FILE_EXT);
+            parse::parse_alias(&util::as_file(&a_path)?)?
         } else {
             (Vec::new(), Vec::new())
         };

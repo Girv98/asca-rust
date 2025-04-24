@@ -2,7 +2,11 @@ use std::{collections::HashMap, io, path::{Path, PathBuf}, rc::Rc};
 use colored::Colorize;
 
 use asca::rule::RuleGroup;
-use super::{config::{lexer_old::Lexer, parser_old::Parser}, parse::{self, parse_wsca}, util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, WORD_FILE_EXT}};
+use super  :: {
+    config :: { lexer::Lexer, lexer_old::OldLexer, parser::Parser, parser_old::OldParser }, 
+    parse  :: { self, parse_wsca }, 
+    util   :: { self, CONF_FILE_EXT, WORD_FILE_EXT }
+};
 
 
 #[derive(Debug, Clone)]
@@ -24,12 +28,13 @@ impl ASCAConfig {
 #[derive(Debug, Clone)]
 pub struct Entry {
     pub name: PathBuf,
+    pub verbatum: String, 
     pub rules: Vec<RuleGroup>,
 }
 
 impl Entry {
-    pub fn from(name: PathBuf, rules: Vec<RuleGroup>) -> Self {
-        Self { name, rules }
+    pub fn from(name: PathBuf, verbatum: String, rules: Vec<RuleGroup>) -> Self {
+        Self { name, verbatum, rules }
     }
 }
 
@@ -51,18 +56,44 @@ type SeqTrace = Vec<Vec<String>>;
 
 
 /// Read config file and return result
-pub(super) fn get_config(dir: &Path) -> io::Result<Vec<ASCAConfig>> {
-    let maybe_conf = util::get_dir_files(dir.to_str().unwrap(), &[CONF_FILE_EXT])?;
+pub(super) fn get_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>> {
+    let conf = if is_dir {
+        let maybe_conf = util::get_dir_files(dir.to_str().unwrap(), &[CONF_FILE_EXT])?;
 
-    if maybe_conf.is_empty() {
-        return Err(io::Error::other(format!("{} No config file found in directory {dir:?}", "Error:".bright_red())))
-    } else if maybe_conf.len() > 1 {
-        return Err(io::Error::other(format!("{} Multiple config files found in directory {dir:?}", "Error:".bright_red())))
-    }
+        if maybe_conf.is_empty() {
+            return Err(io::Error::other(format!("{} No config file found in directory {dir:?}", "Error:".bright_red())))
+        } else if maybe_conf.len() > 1 {
+            return Err(io::Error::other(format!("{} Multiple config files found in directory {dir:?}", "Error:".bright_red())))
+        }
+        maybe_conf[0].to_path_buf()
+    } else {
+        dir.to_path_buf()
+    };
 
-    let tokens = Lexer::new(&util::file_read(maybe_conf[0].as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
+    let tokens = Lexer::new(&util::file_read(conf.as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
 
-    Parser::new(tokens, maybe_conf[0].as_path()).parse()
+    Parser::new(tokens, conf.as_path()).parse()
+}
+
+
+/// Read config file and return result
+pub(super) fn get_old_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>> {
+    let conf = if is_dir {
+        let maybe_conf = util::get_dir_files(dir.to_str().unwrap(), &[CONF_FILE_EXT])?;
+
+        if maybe_conf.is_empty() {
+            return Err(io::Error::other(format!("{} No config file found in directory {dir:?}", "Error:".bright_red())))
+        } else if maybe_conf.len() > 1 {
+            return Err(io::Error::other(format!("{} Multiple config files found in directory {dir:?}", "Error:".bright_red())))
+        }
+        maybe_conf[0].to_path_buf()
+    } else {
+        dir.to_path_buf()
+    };
+
+    let tokens = OldLexer::new(&util::file_read(conf.as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
+
+    OldParser::new(tokens, conf.as_path()).parse()
 }
 
 pub(super) fn get_all_rules(rule_seqs: &[ASCAConfig], conf: &ASCAConfig) -> io::Result<Vec<RuleGroup>> {
@@ -96,8 +127,8 @@ pub(super) fn get_orig_alias_into(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &
     } else if let Some(al_path) = &conf.alias {
         let mut path = dir.to_path_buf();
         path.push(al_path.as_ref());
-        path.set_extension(ALIAS_FILE_EXT);
-        let (into, _) = parse::parse_alias(&util::validate_file(&path, &[ALIAS_FILE_EXT, "txt"])?)?;
+        // path.set_extension(ALIAS_FILE_EXT);
+        let (into, _) = parse::parse_alias(&util::as_file(&path)?)?;
         Ok(into)           
     } else {
         Ok(Vec::new())
@@ -151,14 +182,14 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Optio
     };
 
     if let Some(wp) = words_path {
-        let (mut w, _) = parse_wsca(&util::validate_or_get_path(Some(wp), &[WORD_FILE_EXT, "txt"], "word")?)?;
+        let (mut w, _) = parse_wsca(&util::as_file(&wp)?)?;
         words.append(&mut w);
     } else if !conf.words.is_empty() {
         for ws in &conf.words {
             let mut wp = dir.to_path_buf();
             wp.push(ws.as_ref());
-            wp.set_extension(WORD_FILE_EXT);
-            let (mut w_file, _) = parse_wsca(&util::validate_or_get_path(Some(&wp), &[WORD_FILE_EXT, "txt"], "word")?)?;
+            // wp.set_extension(WORD_FILE_EXT);
+            let (mut w_file, _) = parse_wsca(&util::as_file(&wp)?)?;
             if !words.is_empty() {
                 words.push("".to_string());
             }
@@ -263,8 +294,8 @@ fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<Str
     if let Some(alias) = &seq.alias {
         let mut a_path = dir.to_path_buf();
         a_path.push(alias.as_ref());
-        a_path.set_extension(ALIAS_FILE_EXT);
-        parse::parse_alias(&util::validate_file(&a_path, &[ALIAS_FILE_EXT, "txt"])?)
+        // a_path.set_extension(ALIAS_FILE_EXT);
+        parse::parse_alias(&util::as_file(&a_path)?)
     } else {
         Ok((Vec::new(), Vec::new()))
     }
@@ -315,11 +346,12 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathB
     // Hack to apply romanisation as a separate step
     // TODO: What to do with the this in output
     if !from.is_empty() {
-        let y = seq.entries[last_step].name.clone();
+        let name = seq.entries[last_step].name.clone();
+        let verbatum = seq.entries[last_step].verbatum.clone();
         // y.set_extension("");
         // let x = y.file_name().unwrap().to_str().unwrap().to_owned() + "-romanised";
         // y.set_file_name(x);
-        let empty_entry = Entry { name: y, rules: Vec::new() };
+        let empty_entry = Entry { name, verbatum, rules: Vec::new() };
         let _ = run_once(&mut trace, &mut files, &empty_entry, num_steps, &[], &from).is_none();
     }
     
@@ -343,8 +375,13 @@ fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<S
 }
 
 pub(crate) fn run(maybe_dir_path: Option<PathBuf>, words_path: Option<PathBuf>, maybe_tag: Option<String>, output: bool, overwrite: Option<bool>, output_all: bool, all_steps: bool) -> io::Result<()> {
-    let dir_path = util::validate_directory(maybe_dir_path)?;
-    let config = get_config(&dir_path)?;
+    let (mut path, is_dir) = util::validate_file_or_dir(maybe_dir_path)?;
+    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", format!("{}", "UPDATE TO NEW CONFIG".bright_red()));
+    let config = get_old_config(&path, is_dir)?;
+
+    if !is_dir {
+        path.pop();
+    }
 
     let mut seq_cache = HashMap::new();
 
@@ -357,11 +394,11 @@ pub(crate) fn run(maybe_dir_path: Option<PathBuf>, words_path: Option<PathBuf>, 
             let possible_tags = config.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
             return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), tag.yellow(), possible_tags)))
         };
-        handle_sequence(&config, &mut seq_cache, &dir_path, &words_path, seq, &flags)
+        handle_sequence(&config, &mut seq_cache, &path, &words_path, seq, &flags)
     } else {
         // Run all sequences
         for seq in &config {
-            handle_sequence(&config, &mut seq_cache, &dir_path, &words_path, seq, &flags)?;
+            handle_sequence(&config, &mut seq_cache, &path, &words_path, seq, &flags)?;
         }
         Ok(())
     }
