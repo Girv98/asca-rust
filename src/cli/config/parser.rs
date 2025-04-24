@@ -129,13 +129,13 @@ impl<'a> Parser<'a> {
         if !has_arrow {
             match token_list.len().cmp(&1) {
                 std::cmp::Ordering::Equal => return Ok((vec![], token_list[0].clone())),
-                std::cmp::Ordering::Greater => return Err(self.error(format!("Too many tags"))),
+                std::cmp::Ordering::Greater => return Err(self.error("Too many tags".to_string())),
                 std::cmp::Ordering::Less => unreachable!(),
             }
         }
 
         if token_list.len() > len + 1 {
-            return Err(self.error(format!("Too many tags")))
+            return Err(self.error("Too many tags".to_string()))
         }
 
         let tag = token_list[len].clone();
@@ -170,8 +170,8 @@ impl<'a> Parser<'a> {
     fn get_verbatum(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
         let mut rule_str = rule.value.to_string();
 
-        match filter {
-            Some(f) => match f {
+        if let Some(f) = filter {
+            match f {
                 // ~
                 RuleFilter::Only(s) => {
                     rule_str.push_str(" ~ ");
@@ -200,8 +200,7 @@ impl<'a> Parser<'a> {
                         rule_str.push_str(s);
                     }
                 },
-            },
-            None => {},
+            }
         }
         rule_str
     }

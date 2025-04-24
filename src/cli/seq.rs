@@ -128,7 +128,7 @@ pub(super) fn get_orig_alias_into(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &
         let mut path = dir.to_path_buf();
         path.push(al_path.as_ref());
         // path.set_extension(ALIAS_FILE_EXT);
-        let (into, _) = parse::parse_alias(&util::as_file(&path)?)?;
+        let (into, _) = parse::parse_alias(util::as_file(&path)?)?;
         Ok(into)           
     } else {
         Ok(Vec::new())
@@ -182,14 +182,14 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Optio
     };
 
     if let Some(wp) = words_path {
-        let (mut w, _) = parse_wsca(&util::as_file(&wp)?)?;
+        let (mut w, _) = parse_wsca(util::as_file(wp)?)?;
         words.append(&mut w);
     } else if !conf.words.is_empty() {
         for ws in &conf.words {
             let mut wp = dir.to_path_buf();
             wp.push(ws.as_ref());
             // wp.set_extension(WORD_FILE_EXT);
-            let (mut w_file, _) = parse_wsca(&util::as_file(&wp)?)?;
+            let (mut w_file, _) = parse_wsca(util::as_file(&wp)?)?;
             if !words.is_empty() {
                 words.push("".to_string());
             }
@@ -295,7 +295,7 @@ fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<Str
         let mut a_path = dir.to_path_buf();
         a_path.push(alias.as_ref());
         // a_path.set_extension(ALIAS_FILE_EXT);
-        parse::parse_alias(&util::as_file(&a_path)?)
+        parse::parse_alias(util::as_file(&a_path)?)
     } else {
         Ok((Vec::new(), Vec::new()))
     }
@@ -376,7 +376,7 @@ fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<S
 
 pub(crate) fn run(maybe_dir_path: Option<PathBuf>, words_path: Option<PathBuf>, maybe_tag: Option<String>, output: bool, overwrite: Option<bool>, output_all: bool, all_steps: bool) -> io::Result<()> {
     let (mut path, is_dir) = util::validate_file_or_dir(maybe_dir_path)?;
-    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", format!("{}", "UPDATE TO NEW CONFIG".bright_red()));
+    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", "UPDATE TO NEW CONFIG".bright_red());
     let config = get_old_config(&path, is_dir)?;
 
     if !is_dir {

@@ -139,9 +139,9 @@ impl<'a> Iterator for ParsedRulesIter<'a> {
         if n.is_some() && r.is_some() && d.is_some() {
             self.index += 1;
             Some((
-                unsafe { &n.unwrap_unchecked() }, 
-                unsafe { &r.unwrap_unchecked() }, 
-                unsafe { &d.unwrap_unchecked() }
+                unsafe { n.unwrap_unchecked() }, 
+                unsafe { r.unwrap_unchecked() }, 
+                unsafe { d.unwrap_unchecked() }
             ))
         } else {
             None

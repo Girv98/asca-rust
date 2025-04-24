@@ -86,8 +86,8 @@ impl<'a> OldParser<'a> {
     fn get_verbatum(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
         let mut rule_str = rule.value.to_string();
 
-        match filter {
-            Some(f) => match f {
+        if let Some(f) = filter {
+            match f {
                 // ~
                 RuleFilter::Only(s) => {
                     rule_str.push_str(" ~ ");
@@ -116,8 +116,7 @@ impl<'a> OldParser<'a> {
                         rule_str.push_str(s);
                     }
                 },
-            },
-            None => {},
+            }
         }
         rule_str
     }

@@ -10,7 +10,7 @@ pub fn from_asca(words: Option<PathBuf>, rules: Option<PathBuf>, alias: Option<P
     let rules = parse::parse_rsca(&util::validate_or_get_path(rules.as_deref(), &[RULE_FILE_EXT, "txt"], "rule")?)?;
 
     let (into, from) = if let Some(al) = alias {
-        parse::parse_alias(&util::as_file(&al)?)?
+        parse::parse_alias(util::as_file(&al)?)?
     } else {
         (Vec::new(), Vec::new())
     };
@@ -69,7 +69,7 @@ pub fn update_conf_format(config_dir: Option<PathBuf>) -> io::Result<()> {
         path.pop();
     }
 
-    path.push(&format!("config-new.{}", CONF_FILE_EXT));
+    path.push(format!("config-new.{}", CONF_FILE_EXT));
 
     util::dir_create_file(&path, new_conf, None)
     
@@ -78,7 +78,7 @@ pub fn update_conf_format(config_dir: Option<PathBuf>) -> io::Result<()> {
 /// Convert a tag within a config file to an asca-web json file
 pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf>, recurse: bool) -> io::Result<()> {
     let (mut path, is_dir) = util::validate_file_or_dir(config_dir)?;
-    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", format!("{}", "UPDATE TO NEW CONFIG".bright_red()));
+    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", "UPDATE TO NEW CONFIG".bright_red());
     let conf = get_old_config(&path, is_dir)?;
 
     if !is_dir {
@@ -102,7 +102,7 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
             let mut a_path = path.to_path_buf();
             a_path.push(alias.as_ref());
             // a_path.set_extension(ALIAS_FILE_EXT);
-            parse::parse_alias(&util::as_file(&a_path)?)?
+            parse::parse_alias(util::as_file(&a_path)?)?
         } else {
             (Vec::new(), Vec::new())
         };
@@ -120,7 +120,7 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
             let mut a_path = path.to_path_buf();
             a_path.push(alias.as_ref());
             // a_path.set_extension(ALIAS_FILE_EXT);
-            parse::parse_alias(&util::as_file(&a_path)?)?
+            parse::parse_alias(util::as_file(&a_path)?)?
         } else {
             (Vec::new(), Vec::new())
         };
