@@ -282,7 +282,7 @@ pub(super) fn to_new_config_format(conf: Vec<ASCAConfig>) -> String {
         result.push_str(&indent);
 
         for rule in seq.entries {
-            result.push_str(&format!("    {}\n", rule.verbatum));
+            result.push_str(&format!("    {}\n", rule.verbatim));
         }
         result.push('\n');
     }

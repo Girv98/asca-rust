@@ -28,13 +28,13 @@ impl ASCAConfig {
 #[derive(Debug, Clone)]
 pub struct Entry {
     pub name: PathBuf,
-    pub verbatum: String, 
+    pub verbatim: String, 
     pub rules: Vec<RuleGroup>,
 }
 
 impl Entry {
-    pub fn from(name: PathBuf, verbatum: String, rules: Vec<RuleGroup>) -> Self {
-        Self { name, verbatum, rules }
+    pub fn from(name: PathBuf, verbatim: String, rules: Vec<RuleGroup>) -> Self {
+        Self { name, verbatim, rules }
     }
 }
 
@@ -347,11 +347,11 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathB
     // TODO: What to do with the this in output
     if !from.is_empty() {
         let name = seq.entries[last_step].name.clone();
-        let verbatum = seq.entries[last_step].verbatum.clone();
+        let verbatim = seq.entries[last_step].verbatim.clone();
         // y.set_extension("");
         // let x = y.file_name().unwrap().to_str().unwrap().to_owned() + "-romanised";
         // y.set_file_name(x);
-        let empty_entry = Entry { name, verbatum, rules: Vec::new() };
+        let empty_entry = Entry { name, verbatim, rules: Vec::new() };
         let _ = run_once(&mut trace, &mut files, &empty_entry, num_steps, &[], &from).is_none();
     }
     

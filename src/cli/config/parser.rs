@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
         Ok(entries)
     }
 
-    fn get_verbatum(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
+    fn get_verbatim(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
         let mut rule_str = rule.value.to_string();
 
         if let Some(f) = filter {
@@ -218,7 +218,7 @@ impl<'a> Parser<'a> {
 
         let filter = self.get_filter()?;
 
-        let verbatum = self.get_verbatum(&rule, &filter);
+        let verbatim = self.get_verbatim(&rule, &filter);
 
         let mut file_path = self.path.to_path_buf();
         let rule_file = rule.value.trim();
@@ -227,8 +227,8 @@ impl<'a> Parser<'a> {
         if file_path.is_file(){
             let entry_rules = parse_rsca(&file_path)?;
             match filter {
-                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, verbatum, file_path, PathBuf::from(rule_file))?)),
-                None => Ok(Some(Entry::from(file_path, verbatum, entry_rules))),
+                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, verbatim, file_path, PathBuf::from(rule_file))?)),
+                None => Ok(Some(Entry::from(file_path, verbatim, entry_rules))),
             }
         } else {
             Err(self.error(format!("Cannot find {file_path:?}. {}:{}", rule.position.s_line, rule.position.s_pos)))
@@ -299,7 +299,7 @@ impl<'a> Parser<'a> {
         Ok(filters)
     }
 
-    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, verbatum: String, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
+    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, verbatim: String, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
         let mut file_path = file_path.clone();
         let file_stem = rule_file.file_stem().expect("File exists").to_str().unwrap();
         match filter {
@@ -307,7 +307,7 @@ impl<'a> Parser<'a> {
                 match entry_rules.iter().find(|r| r.name.to_lowercase() == rule_str.to_lowercase()).cloned() {
                     Some(rule) => {
                         file_path.set_file_name(format!("{}_o_{}", file_stem, util::sanitise_str(&rule_str)));
-                        Ok(Entry::from(file_path, verbatum, vec![rule]))
+                        Ok(Entry::from(file_path, verbatim, vec![rule]))
                     },
                     None => Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file.to_str().unwrap()))),
                 }
@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
                     return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file.to_str().unwrap())))
                 }
                 file_path.set_file_name(format!("{}_x_{}", file_stem, util::sanitise_str(&rule_str)));
-                Ok(Entry::from(file_path, verbatum, entries))
+                Ok(Entry::from(file_path, verbatim, entries))
             },
             RuleFilter::OnlyMult(filters) => {
                 let mut entries = Vec::new();
@@ -331,7 +331,7 @@ impl<'a> Parser<'a> {
                 }
                 let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
                 file_path.set_file_name(format!("{}_om_{}", file_stem, util::sanitise_str(&abv_filt)));
-                Ok(Entry::from(file_path, verbatum, entries))
+                Ok(Entry::from(file_path, verbatim, entries))
             },
             RuleFilter::WithoutMult(filters) => {
                 let before_len = entry_rules.len();
@@ -341,7 +341,7 @@ impl<'a> Parser<'a> {
                 }
                 let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
                 file_path.set_file_name(format!("{}_xm_{}", file_stem, util::sanitise_str(&abv_filt)));
-                Ok(Entry::from(file_path, verbatum, entries))
+                Ok(Entry::from(file_path, verbatim, entries))
             },
         }
     }
