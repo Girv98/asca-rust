@@ -453,7 +453,7 @@ mod parser_tests {
         assert_eq!(result[0].from, None);
         assert_eq!(result[0].alias, None);
         assert_eq!(result[0].words, ["foo.wsca".into(), "bar.wsca".into()]);
-        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
     }
 
@@ -474,7 +474,7 @@ mod parser_tests {
         assert_eq!(result[0].from, None);
         assert_eq!(result[0].alias, None);
         assert_eq!(result[0].words, []);
-        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
 
     }
@@ -500,14 +500,14 @@ mod parser_tests {
         assert_eq!(result[0].from, None);
         assert_eq!(result[0].alias, None);
         assert_eq!(result[0].words, []);
-        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
 
         assert_eq!(result[1].tag, "beta".into());
         assert_eq!(result[1].from, None);
         assert_eq!(result[1].alias, None);
         assert_eq!(result[1].words, ["foo.wsca".into(), "bar.wsca".into()]);
-        assert_eq!(result[1].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_x_laryngeal-colouring"));
-        assert_eq!(result[1].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_o_cowgills-law"));
+        assert_eq!(result[1].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
+        assert_eq!(result[1].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_only_cowgills-law"));
     }
 }
