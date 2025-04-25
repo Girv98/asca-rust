@@ -378,3 +378,44 @@ pub(super) fn print_asca_errors(err: ASCAError, rules: &[RuleGroup], into: &[Str
         ASCAError::RuleRun(e)  => println!("{}", e.format(rules)),
     }
 }
+
+pub(super) fn lev(a: &str, b: &str) -> usize {
+    let mut dist = 0;
+
+    if a == b { return dist }
+
+    let a_len = a.chars().count();
+    let b_len = b.chars().count();
+
+    debug_assert!(a_len > 0);
+    debug_assert!(b_len > 0);
+
+    let mut cache: Vec<usize> = (1..).take(a_len).collect();
+
+    for (bi, b_ch) in b.chars().enumerate() {
+        dist = bi;
+        let mut a_dist = bi;
+
+        for (ai, a_ch) in a.chars().enumerate() {
+            let b_dist = a_dist + (a_ch != b_ch) as usize;
+
+            a_dist = cache[ai];
+
+            dist = if a_dist > dist {
+                if b_dist > dist {
+                    dist + 1
+                } else {
+                    b_dist
+                }
+            } else if b_dist > a_dist {
+                a_dist + 1
+            } else {
+                b_dist
+            };
+
+            cache[ai] = dist;
+        }
+    }
+
+    dist
+}

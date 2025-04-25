@@ -45,6 +45,28 @@ pub enum RuleFilter {
     WithoutMult(Vec<String>),
 }
 
+impl RuleFilter {
+    pub fn as_file_string(&self) -> String {
+        match self {
+            RuleFilter::Only(rule_str) => {
+                format!("_only_{}", util::sanitise_str(rule_str))
+            },
+            RuleFilter::Without(rule_str) => {
+                format!("_excl_{}", util::sanitise_str(rule_str))
+            },
+            RuleFilter::OnlyMult(filters) => {
+                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
+                format!("_om_{}", util::sanitise_str(&abv_filt))
+            },
+            RuleFilter::WithoutMult(filters) => {
+                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
+                format!("_xm_{}", util::sanitise_str(&abv_filt))
+                
+            },
+        }
+    }
+}
+
 struct SeqFlags {
     output: bool,
     overwrite: Option<bool>,

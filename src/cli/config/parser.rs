@@ -266,7 +266,7 @@ impl<'a> Parser<'a> {
         let mut phrase = Vec::new();
 
         if let Some(f) =  self.eat_expect(TokenKind::Literal) {
-            phrase.push(f.value.to_lowercase());
+            phrase.push(f.value.to_string());
 
             loop {
                 if self.peek(TokenKind::Eol) {
@@ -281,7 +281,7 @@ impl<'a> Parser<'a> {
                 }
 
                 match self.eat_expect(TokenKind::Literal) {
-                    Some(f) => phrase.push(f.value.to_lowercase()),
+                    Some(f) => phrase.push(f.value.to_string()),
                     None => if self.peek(TokenKind::Eol) || self.peek(TokenKind::Eof) { 
                         let x = phrase.join(" ");
                         filters.push(x);
@@ -301,49 +301,61 @@ impl<'a> Parser<'a> {
 
     fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, verbatim: String, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
         let mut file_path = file_path.clone();
-        let file_stem = rule_file.file_stem().expect("File exists").to_str().unwrap();
+        let file_stem = rule_file.file_stem().expect("Caller insures file exists").to_str().unwrap();
+        file_path.set_file_name(format!("{}{}", file_stem, filter.as_file_string()));
+
         match filter {
             RuleFilter::Only(rule_str) => {
                 match entry_rules.iter().find(|r| r.name.to_lowercase() == rule_str.to_lowercase()).cloned() {
-                    Some(rule) => {
-                        file_path.set_file_name(format!("{}_o_{}", file_stem, util::sanitise_str(&rule_str)));
-                        Ok(Entry::from(file_path, verbatim, vec![rule]))
-                    },
-                    None => Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file.to_str().unwrap()))),
+                    Some(rule) => Ok(Entry::from(file_path, verbatim, vec![rule])),
+                    None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
                 }
             },
             RuleFilter::Without(rule_str) => {
-                let before_len = entry_rules.len();
                 let entries = entry_rules.iter().filter(|r| r.name.to_lowercase() != rule_str.to_lowercase()).cloned().collect::<Vec<_>>();
-                if entries.len() == before_len {
-                    return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", rule_str, rule_file.to_str().unwrap())))
+                if entries.len() == entry_rules.len() {
+                    return Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
                 }
-                file_path.set_file_name(format!("{}_x_{}", file_stem, util::sanitise_str(&rule_str)));
                 Ok(Entry::from(file_path, verbatim, entries))
             },
             RuleFilter::OnlyMult(filters) => {
-                let mut entries = Vec::new();
-                for filter in &filters {
+                let entries = filters.iter().map(|filter| {
                     match entry_rules.iter().find(|r| r.name.to_lowercase() == filter.to_lowercase()) {
-                        Some(entry) => entries.push(entry.clone()),
-                        None => return Err(self.error(format!("Could not find rule '{}' in '{}'.\nMake sure the rule name matches exactly!", filter, rule_file.to_str().unwrap()))),
+                        Some(entry) => Ok(entry.clone()),
+                        None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", filter, rule_file.to_str().unwrap(), self.lev(entry_rules.clone(), filter).yellow())))
                     }
-                }
-                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
-                file_path.set_file_name(format!("{}_om_{}", file_stem, util::sanitise_str(&abv_filt)));
+                }).collect::<io::Result<Vec<RuleGroup>>>()?;
+
                 Ok(Entry::from(file_path, verbatim, entries))
             },
-            RuleFilter::WithoutMult(filters) => {
-                let before_len = entry_rules.len();
+            RuleFilter::WithoutMult(mut filters) => {
+                // TODO: which rules was not found
+                filters = filters.iter().map(|f| f.to_lowercase()).collect();
                 let entries = entry_rules.iter().filter(|r| !filters.contains(&r.name.to_lowercase())).cloned().collect::<Vec<_>>();
-                if entries.len() == before_len {
+                if entries.len() == entry_rules.len() {
                     return Err(self.error(format!("Could not find any of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file.to_str().unwrap())))
+                } else if entries.len() != entry_rules.len() - filters.len() {
+                    return Err(self.error(format!("Could not find one or more of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file.to_str().unwrap())))
                 }
-                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
-                file_path.set_file_name(format!("{}_xm_{}", file_stem, util::sanitise_str(&abv_filt)));
                 Ok(Entry::from(file_path, verbatim, entries))
             },
         }
+    }
+
+    fn lev(&self, entry_rules: Vec<RuleGroup>, filter: &str) -> String {
+        let mut best_lev = usize::MAX;
+        let mut best_match= "";
+        let names = entry_rules.iter().map(|e| &e.name);
+
+        for name in names {
+            let len = util::lev(name, filter);
+            if len < best_lev {
+                best_match = name;
+                best_lev = len;
+            }
+        }
+        
+        best_match.to_string()
     }
 
     fn get_seq(&mut self) -> io::Result<ASCAConfig> {
