@@ -90,7 +90,7 @@ pub(super) fn validate_file_or_dir(maybe_path: Option<PathBuf>) -> io::Result<(P
             } else if path.is_file() {
                 Ok((path, false))
             } else {
-                Err(util_err(format!("Given path {} cannot be found", format!("{}", path.display()).yellow())))
+                Err(util_err(format!("Given path {} cannot be found", format!("{:?}", path).yellow())))
             }
         },
         None => Ok((PathBuf::from("."), true)),
@@ -103,7 +103,7 @@ pub(super) fn validate_directory(maybe_path: Option<PathBuf>) -> io::Result<Path
             if path.is_dir() {
                 Ok(path)
             } else {
-                Err(util_err(format!("{} is not a directory", format!("{}", path.display()).yellow())))
+                Err(util_err(format!("{} is not a directory", format!("{:?}", path).yellow())))
             }
         },
         None => Ok(PathBuf::from(".")),
@@ -114,7 +114,7 @@ pub(super) fn as_file(path: &Path) -> io::Result<&Path> {
     if path.is_file() {
         Ok(path)
     } else {
-        Err(util_err(format!("Given path {} is not a file", format!("{}", path.display()).yellow())))
+        Err(util_err(format!("Given path {} is not a file", format!("{:?}", path).yellow())))
     }
 }
 
@@ -156,7 +156,7 @@ pub(super) fn file_open<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
     match fs::File::open(path) {
         Ok(file) => Ok(file),
         Err(e) => {
-            println!("Error occured when reading file {path:?}");
+            println!("{} error occured when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
             Err(map_io_error(e))
         }
     }
@@ -164,7 +164,7 @@ pub(super) fn file_open<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
 
 pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String) -> io::Result<()> {
     if let Err (e) = fs::write(path, content) {
-        println!("Error occurred writing to file {path:?}");
+        println!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     }
     println!(":: Wrote to file {:?}", path);
@@ -173,10 +173,10 @@ pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: Str
 
 pub(super) fn file_create_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String) -> io::Result<()> {
     if let Err (e) = fs::write(path, content) {
-        println!("Error occurred writing to file {path:?}");
+        println!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     }
-    println!(":: Created file {path:?} in current directory");
+    println!(":: Created file {} in current directory", format!("{:?}", path).yellow());
     Ok(())
 }
 
@@ -184,7 +184,7 @@ pub(super) fn file_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
     match fs::read_to_string(path) {
         Ok(dir) => Ok(dir),
         Err(e) => {            
-            println!("Error occurred when reading file {path:?}");
+            println!("{} error occurred when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
             Err(map_io_error(e))
         },
     }
@@ -192,10 +192,10 @@ pub(super) fn file_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
 
 pub(super) fn dir_create_all<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<()> {
     if let Err(e) = fs::create_dir_all(path) {            
-        println!("Error occurred when creating {path:?}");
+        println!("{} error occurred when creating {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     } 
-    println!(":: Created dir {path:?}");
+    println!(":: Created dir {}", format!("{:?}", path).yellow());
     Ok(())
 }
 
@@ -203,7 +203,7 @@ pub(super) fn dir_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<
     match fs::read_dir(path) {
         Ok(dir) => Ok(dir),
         Err(e) => {            
-            println!("Error occurred when reading file {path:?}");
+            println!("{} error occurred when reading from {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
             Err(map_io_error(e))
         },
     }
@@ -212,7 +212,7 @@ pub(super) fn dir_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<
 pub(super) fn dir_create_file<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String, auto: Option<bool>) -> io::Result<()> {
     let path = path.as_ref();
     if path.exists() {
-        if ask(&(format!("File {path:?} already exists, do you wish to overwrite it?")), auto)? {
+        if ask(&(format!("File {} already exists, do you wish to overwrite it?", format!("{:?}", path).yellow())), auto)? {
             file_write(&path, content)
         } else {
             Ok(())
@@ -229,7 +229,7 @@ pub(super) fn write_to_file(path: &Path, content: String, extension: &str, auto:
     // else error
     if path.is_file() {
         if path.extension().is_some_and(|ext| ext == extension) {
-            if ask(&(format!("File {path:?} already exists, do you wish to overwrite it?")), auto)? {
+            if ask(&(format!("File {} already exists, do you wish to overwrite it?", format!("{:?}", path).yellow())), auto)? {
                 return file_write(path, content)
             }
             Ok(())
