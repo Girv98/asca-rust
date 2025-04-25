@@ -109,7 +109,7 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
 
         serde_json::to_string_pretty(&(AscaJson { into, from, words, rules }))?
     } else {
-        let words = get_words(&conf, &path, &None, seq, &mut std::collections::HashMap::new())?;
+        let words = get_words(&conf, &path, &vec![], seq, &mut std::collections::HashMap::new())?;
 
         let mut rules = vec![];
         for entry in &seq.entries {

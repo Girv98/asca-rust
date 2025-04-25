@@ -43,21 +43,6 @@ pub enum AscaCommand {
         #[arg(short, long, verbatim_doc_comment, value_hint=ValueHint::FilePath)]
         output: Option<PathBuf>,
     },
-    // Mult {
-    //     /// 
-    //     rules: Vec<PathBuf>,
-    //     /// Path to the wsca file containing the words to be changed
-    //     /// - If not provided, asca will look for a  file in the current directory
-    //     #[arg(short, long, verbatim_doc_comment)]
-    //     words: Option<PathBuf>,
-    //     /// Path of a wsca file to compare with the output 
-    //     #[arg(short, long, verbatim_doc_comment)]
-    //     compare: Option<PathBuf>,
-    //     /// Desired path of output file
-    //     /// - If a directory is provided, asca will create an out.wsca file in that directory
-    //     #[arg(short, long, verbatim_doc_comment)]
-    //     output: Option<PathBuf>,
-    // },
     /// Run an asca config.
     Seq {
         /// Path to a directory containing an asca config file.
@@ -69,10 +54,10 @@ pub enum AscaCommand {
         #[arg(short='t', long, verbatim_doc_comment, value_hint=clap::ValueHint::Other)]
         tag: Option<String>,
 
-        /// Path to a wsca file.
+        /// Paths to wsca files.
         /// - If provided, these will be used instead of the word files defined in the config.
         #[arg(short, long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
-        words: Option<PathBuf>,
+        words: Vec<MaybeStdin<PathBuf>>,
 
         /// Print intermediate steps in a sequence
         #[arg(short, long, action, verbatim_doc_comment)]

@@ -162,7 +162,7 @@ pub(super) fn get_orig_words(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &ASCAC
         for w_str in &conf.words {
             let mut w_path = dir.to_path_buf();
             w_path.push(w_str.as_ref());
-            w_path.set_extension(WORD_FILE_EXT);
+            // w_path.set_extension(WORD_FILE_EXT);
             let (mut w_file, _) = parse_wsca(&util::validate_or_get_path(Some(&w_path), &[WORD_FILE_EXT, "txt"], "word")?)?;
             if !words.is_empty() {
                 words.push("".to_string());
@@ -173,32 +173,37 @@ pub(super) fn get_orig_words(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &ASCAC
     }
 }
 
-/// Determine which word file to use, validate, and parse it into a vec of word strings
-pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Option<PathBuf>, conf: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Vec<String>> {
-    let mut words = if let Some(from_tag) = &conf.from {
+fn get_pipe(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, conf: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Vec<String>> {
+    if let Some(from_tag) = &conf.from {
+        // retrieve if cached
         if let Some(x) = seq_cache.get(from_tag) {
-            x.clone()
+            return Ok(x.clone())
         } else {
+            // retrieve tag config
             let Some(seq) = rule_seqs.iter().find(|c| c.tag == *from_tag) else {
                 let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
                 return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
             };
+            // run tag and cache output
             if let Some((t, _, _)) = run_sequence(rule_seqs, dir, words_path, seq, seq_cache)? {
                 let w = t.last().unwrap().clone();
                 seq_cache.insert(seq.tag.clone(), w.clone());
-                w
-            } else {
-                return Ok(vec![])
+                return Ok(w)
             }
         }
-    } else { 
-        vec![] 
-    };
+    }
+    Ok(vec![])
+    
+}
 
-    if let Some(wp) = words_path {
-        let (mut w, _) = parse_wsca(util::as_file(wp)?)?;
-        words.append(&mut w);
-    } else if !conf.words.is_empty() {
+/// Determine which word file to use, validate, and parse it into a vec of word strings
+pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, conf: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Vec<String>> {   
+    let mut words = Vec::new();
+
+    if words_path.is_empty() {
+        let pipe_words = get_pipe(rule_seqs, dir, words_path, conf, seq_cache)?;
+        words.extend_from_slice(&pipe_words);
+
         for ws in &conf.words {
             let mut wp = dir.to_path_buf();
             wp.push(ws.as_ref());
@@ -209,7 +214,12 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Optio
             }
             words.append(&mut w_file);
         }
-    } 
+    } else {
+        for wp in words_path {
+            let (mut w, _) = parse_wsca(util::as_file(wp)?)?;
+            words.append(&mut w);
+        }
+    }
 
     if words.is_empty() {
         return Err(io::Error::other(format!("{} No input words defined for config '{}'.\nYou can specify a word file at runtime with the -w option", "Config Error:".bright_red(), conf.tag)))
@@ -331,7 +341,7 @@ fn run_once(trace: &mut Vec<Vec<String>>, files: &mut Vec<PathBuf>, entry: &Entr
 }
 
 /// Pass a sequence to ASCA and return a trace and the name of each file that was used
-pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathBuf>, seq: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Option<(SeqTrace, Vec<PathBuf>, bool)>> {
+pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, seq: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Option<(SeqTrace, Vec<PathBuf>, bool)>> {
     let mut files = Vec::new();
     let mut trace = Vec::new();
 
@@ -373,7 +383,7 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Option<PathB
 }
 
 /// Run a given sequence, then deal with output if necessary
-fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<String>>, dir_path: &Path, words_path: &Option<PathBuf>, seq: &ASCAConfig, flags: &SeqFlags) -> io::Result<()> {   
+fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<String>>, dir_path: &Path, words_path: &Vec<PathBuf>, seq: &ASCAConfig, flags: &SeqFlags) -> io::Result<()> {   
     if let Some((trace, files, is_romanised)) = run_sequence(config, dir_path, words_path, seq, seq_cache)? {
         if trace.is_empty() {
             return Err(io::Error::other(format!("{} No words in input for tag '{}'", "Config Error:".bright_red(), seq.tag)))
@@ -388,7 +398,7 @@ fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<S
     Ok(())
 }
 
-pub(crate) fn run(maybe_dir_path: Option<PathBuf>, words_path: Option<PathBuf>, maybe_tag: Option<String>, output: bool, overwrite: Option<bool>, output_all: bool, all_steps: bool) -> io::Result<()> {
+pub(crate) fn run(maybe_dir_path: Option<PathBuf>, words_path: Vec<PathBuf>, maybe_tag: Option<String>, output: bool, overwrite: Option<bool>, output_all: bool, all_steps: bool) -> io::Result<()> {
     let (mut path, is_dir) = util::validate_file_or_dir(maybe_dir_path)?;
     assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", "UPDATE TO NEW CONFIG".bright_red());
     let config = get_old_config(&path, is_dir)?;
