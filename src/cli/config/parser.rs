@@ -3,6 +3,8 @@ use std::{collections::HashSet, io, path::{Path, PathBuf}, rc::Rc};
 use asca::rule::RuleGroup;
 use colored::Colorize;
 
+use crate::cli::parse::{parse_alias, parse_wsca};
+
 use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util};
 use super::lexer::{Position, Token, TokenKind};
 
@@ -101,7 +103,7 @@ impl<'a> Parser<'a> {
         loop {
             if let Some(colon) = self.eat_expect(TokenKind::Colon) {
                 if token_list.is_empty() {
-                    return Err(self.error(format!("Expected tag, but received ':' at '{:?}'", colon.position)))
+                    return Err(self.error(format!("Expected tag, but received ':' at line {}:{}", colon.position.s_line, colon.position.s_pos)))
                 }
                 break;
             }
@@ -120,16 +122,22 @@ impl<'a> Parser<'a> {
             }
 
             if token_list.is_empty() {
-                return Err(self.error(format!("Expected tag, but received '{}' at '{:?}'", self.curr_tkn.value, self.curr_tkn.position)))
+                return Err(self.error(format!("Expected tag, but received '{}' at line {}:{}", self.curr_tkn.value, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+            } else if self.curr_tkn.kind == TokenKind::Eof {
+                return Err(self.error(format!("Unexpected end of file at line {}:{}", self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
             } else {
-                return Err(self.error(format!("Unexpected token '{}' at '{:?}'", self.curr_tkn.value, self.curr_tkn.position)))
+                return Err(self.error(format!("Unexpected token '{}' at line {}:{}", self.curr_tkn.value, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
             }
         }
 
         if !has_arrow {
             match token_list.len().cmp(&1) {
                 std::cmp::Ordering::Equal => return Ok((vec![], token_list[0].clone())),
-                std::cmp::Ordering::Greater => return Err(self.error("Too many tags".to_string())),
+                std::cmp::Ordering::Greater => return Err(self.error(format!(
+                    "Too many tags at '{}:{}'", 
+                    self.token_list.last().unwrap().position.s_line,
+                    self.token_list.last().unwrap().position.s_pos
+                ))),
                 std::cmp::Ordering::Less => unreachable!(),
             }
         }
@@ -142,11 +150,11 @@ impl<'a> Parser<'a> {
 
         token_list.pop();
 
-        let words = token_list.into_iter().map(|tkn| {
+        let inputs = token_list.into_iter().map(|tkn| {
             tkn.value
         }).collect();
         
-        Ok((words, tag))
+        Ok((inputs, tag))
 
     }
 
@@ -231,7 +239,7 @@ impl<'a> Parser<'a> {
                 None => Ok(Some(Entry::from(file_path, verbatim, entry_rules))),
             }
         } else {
-            Err(self.error(format!("Cannot find {file_path:?}. {}:{}", rule.position.s_line, rule.position.s_pos)))
+            Err(self.error(format!("Cannot find {file_path:?} at line {}:{}", rule.position.s_line, rule.position.s_pos)))
         } 
     }
 
@@ -244,7 +252,7 @@ impl<'a> Parser<'a> {
                 match list.len().cmp(&1) {
                     std::cmp::Ordering::Greater => Ok(Some(RuleFilter::WithoutMult(list))),
                     std::cmp::Ordering::Equal => Ok(Some(RuleFilter::Without(list[0].clone()))),
-                    std::cmp::Ordering::Less => Err(self.error(format!("Empty filter list at {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Less => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
                 }
             },
             TokenKind::Tilde => {
@@ -254,7 +262,7 @@ impl<'a> Parser<'a> {
                 match list.len().cmp(&1) {
                     std::cmp::Ordering::Greater => Ok(Some(RuleFilter::OnlyMult(list))),
                     std::cmp::Ordering::Equal => Ok(Some(RuleFilter::Only(list[0].clone()))),
-                    std::cmp::Ordering::Less => Err(self.error(format!("Empty filter list at {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Less => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
                 }
             },
             _ => Ok(None)
@@ -287,14 +295,14 @@ impl<'a> Parser<'a> {
                         filters.push(x);
                         break;
                     } else {
-                        return Err(self.error(format!("Expected a rule name, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+                        return Err(self.error(format!("Expected a rule name, found {} at line {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
                     },
                 }
             }
         }
 
         if filters.is_empty() {
-            return Err(self.error(format!("Expected a rule name, found {} at {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+            return Err(self.error(format!("Expected a rule name, found {} at line {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
         }
         Ok(filters)
     }
@@ -329,7 +337,7 @@ impl<'a> Parser<'a> {
                 Ok(Entry::from(file_path, verbatim, entries))
             },
             RuleFilter::WithoutMult(mut filters) => {
-                // TODO: which rules was not found
+                // TODO: which rules were not found
                 filters = filters.iter().map(|f| f.to_lowercase()).collect();
                 let entries = entry_rules.iter().filter(|r| !filters.contains(&r.name.to_lowercase())).cloned().collect::<Vec<_>>();
                 if entries.len() == entry_rules.len() {
@@ -357,18 +365,80 @@ impl<'a> Parser<'a> {
         
         best_match.to_string()
     }
+    //                                                               from             alias          words
+    fn parse_inputs(&self, inputs: Vec<Rc<str>>, tag: &Rc<str>) -> io::Result<(Option<Rc<str>>, Option<Rc<str>>, Vec<Rc<str>>)> {
+        let mut from = None;
+        let mut alias = None;
+        let mut word_files = Vec::new();
 
-    fn get_seq(&mut self) -> io::Result<ASCAConfig> {
+        for item in inputs {
+            let mut file_path = self.path.to_path_buf();
+            let item_file = item.trim();
+            file_path.set_file_name(item_file);
+
+            if file_path.is_file() {
+                if let Some(ext) = file_path.extension() {
+                    match ext.to_str() {
+                        Some("wsca") => { word_files.push(item); continue;},
+                        Some("alias") => {
+                            if alias.is_some() {
+                                return Err(self.error("A sequence can only have one alias file".to_string()))
+                            }
+                            alias = Some(item);
+                            continue;
+                        },
+                        _ => {}
+                    }
+                } 
+                // determine if wsca or alias
+                let maybe_alias = parse_alias(&file_path);
+                let maybe_words = parse_wsca(&file_path);
+
+                if maybe_alias.is_ok() {
+                    if alias.is_some() {
+                        return Err(self.error(format!("A sequence can only have one alias file. seq \"{}\" @ \"{}\"", tag.yellow(), item.yellow())))
+                    }
+                    alias = Some(item);
+                    continue;
+                }
+
+                if maybe_words.is_ok() {
+                    word_files.push(item);
+                    continue;
+                }
+
+                eprintln!("{} could not confirm the nature of file \"{}\" as an input to the sequence \"{}\" due to one or more error:", "asca:".bright_red(), item_file.yellow(), tag.yellow());
+                
+                maybe_words?;
+
+            } else { // is from tag
+                if from.is_some() {
+                    return Err(self.error(format!("A sequence can only have one from tag. seq \"{}\" @ \"{}\"", tag.yellow(), item.yellow())))
+                }
+                from = Some(item)
+            } 
+        }
+
+        Ok((from, alias, word_files))
+    }
+
+    fn get_seq(&mut self) -> io::Result<Option<ASCAConfig>> {
         self.skip_comments();
 
         while self.eat_expect(TokenKind::Eol).is_some() { }
 
-        let (words, tag_token) = self.get_ident()?;
+        if self.curr_tkn.kind == TokenKind::Eof {
+            return Ok(None)
+        }
+
+        let (inputs, tag_token) = self.get_ident()?;
 
         let tag = tag_token.value;
+        let (from, alias, words) = self.parse_inputs(inputs, &tag)?;
+        
         let entries = self.get_entries()?;
 
-        Ok(ASCAConfig { tag, from: None, alias: None, words, entries })
+        Ok(Some(ASCAConfig { tag, from, alias, words, entries }))
     }
 
     pub(crate) fn parse(&mut self) -> io::Result<Vec<ASCAConfig>> {
@@ -376,7 +446,7 @@ impl<'a> Parser<'a> {
         let mut conf = Vec::new();
 
         while self.curr_tkn.kind != TokenKind::Eof {
-            let seq = self.get_seq()?;
+            let Some(seq ) = self.get_seq()? else { break };
 
             if !tag_set.insert(seq.tag.clone()) {
                 return Err(self.error(format!("tag '{}' declared more than once in config", seq.tag)))

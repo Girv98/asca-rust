@@ -265,20 +265,39 @@ pub(super) fn sanitise_str(str: &str) -> String {
     }).collect()
 }
 
+fn get_seq_input(seq: &ASCAConfig) -> String {
+    let mut input = String::new();
+    
+    if let Some(from) = &seq.from {
+        input.push_str(from);
+        input.push(' ');
+    }
+
+    if !seq.words.is_empty()  {
+        input.push_str(&seq.words.join(" "));
+        input.push(' ');
+    }
+
+    if let Some(alias) = &seq.alias {
+        input.push_str(alias);
+        input.push(' ');
+    }
+
+    if !input.is_empty() {
+        input.push_str("> ");
+    }
+
+    input
+}
+
 // TODO: To be updated when syntax is finalised
 pub(super) fn to_new_config_format(conf: Vec<ASCAConfig>) -> String {
     let mut result = String::new();
     for seq in conf {
 
-        let words = if seq.words.is_empty() {
-            "".to_string()
-        } else {
-            let mut x = seq.words.join(" ");
-            x.push_str(" > ");
-            x
-        };
+        let input = get_seq_input(&seq);
 
-        let indent = words + &seq.tag + ":\n";
+        let indent = input + &seq.tag + ":\n";
         result.push_str(&indent);
 
         for rule in seq.entries {
@@ -287,7 +306,6 @@ pub(super) fn to_new_config_format(conf: Vec<ASCAConfig>) -> String {
         result.push('\n');
     }
 
-    println!("{}", result);
     result
 }
 
