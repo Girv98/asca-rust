@@ -156,7 +156,7 @@ pub(super) fn file_open<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
     match fs::File::open(path) {
         Ok(file) => Ok(file),
         Err(e) => {
-            println!("{} error occured when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+            eprintln!("{} error occured when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
             Err(map_io_error(e))
         }
     }
@@ -164,7 +164,7 @@ pub(super) fn file_open<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
 
 pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String) -> io::Result<()> {
     if let Err (e) = fs::write(path, content) {
-        println!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+        eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     }
     println!(":: Wrote to file {:?}", path);
@@ -173,7 +173,7 @@ pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: Str
 
 pub(super) fn file_create_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String) -> io::Result<()> {
     if let Err (e) = fs::write(path, content) {
-        println!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+        eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     }
     println!(":: Created file {} in current directory", format!("{:?}", path).yellow());
@@ -184,7 +184,7 @@ pub(super) fn file_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
     match fs::read_to_string(path) {
         Ok(dir) => Ok(dir),
         Err(e) => {            
-            println!("{} error occurred when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+            eprintln!("{} error occurred when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
             Err(map_io_error(e))
         },
     }
@@ -192,7 +192,7 @@ pub(super) fn file_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
 
 pub(super) fn dir_create_all<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<()> {
     if let Err(e) = fs::create_dir_all(path) {            
-        println!("{} error occurred when creating {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+        eprintln!("{} error occurred when creating {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     } 
     println!(":: Created dir {}", format!("{:?}", path).yellow());
@@ -203,7 +203,7 @@ pub(super) fn dir_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<
     match fs::read_dir(path) {
         Ok(dir) => Ok(dir),
         Err(e) => {            
-            println!("{} error occurred when reading from {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+            eprintln!("{} error occurred when reading from {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
             Err(map_io_error(e))
         },
     }
@@ -389,11 +389,11 @@ pub(super) fn fix_combining_char_pad(string: &str) -> usize {
 
 pub(super) fn print_asca_errors(err: ASCAError, rules: &[RuleGroup], into: &[String], from: &[String]) {
     match err {
-        ASCAError::AliasSyn(e) => println!("{}", e.format(into, from)),
-        ASCAError::AliasRun(e) => println!("{}", e.format(into, from)),
-        ASCAError::WordSyn(e)  => println!("{}", e.format()),
-        ASCAError::RuleSyn(e)  => println!("{}", e.format(rules)),
-        ASCAError::RuleRun(e)  => println!("{}", e.format(rules)),
+        ASCAError::AliasSyn(e) => eprintln!("{}", e.format(into, from)),
+        ASCAError::AliasRun(e) => eprintln!("{}", e.format(into, from)),
+        ASCAError::WordSyn(e)  => eprintln!("{}", e.format()),
+        ASCAError::RuleSyn(e)  => eprintln!("{}", e.format(rules)),
+        ASCAError::RuleRun(e)  => eprintln!("{}", e.format(rules)),
     }
 }
 
