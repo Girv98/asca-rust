@@ -84,7 +84,13 @@ impl<'a> OldParser<'a> {
     }
 
     fn get_verbatim(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
-        let mut rule_str = rule.value.to_string();
+        let mut rule_path = PathBuf::from(&rule.value.to_string());
+
+        if rule_path.extension().is_none() {
+            rule_path.set_extension(RULE_FILE_EXT);
+        }
+
+        let mut rule_str = rule_path.to_str().expect("File string is valid UTF-8").to_string();
 
         if let Some(f) = filter {
             match f {
