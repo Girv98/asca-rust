@@ -1,6 +1,7 @@
 use std::{io, path::Path};
 
 use asca::rule::RuleGroup;
+use colored::Colorize;
 
 use super::util;
 
@@ -61,7 +62,7 @@ pub fn parse_alias(path: &Path) -> io::Result<(Vec<String>, Vec<String>)> {
     // Some(true) = into, Some(false) = from
     let mut state: Option<bool> = None;
 
-    for line in util::file_read(path)?.lines() {
+    for (ln, line) in util::file_read(path)?.lines().enumerate() {
         let line = line.trim();
 
         if line.starts_with("@into") {
@@ -83,8 +84,15 @@ pub fn parse_alias(path: &Path) -> io::Result<(Vec<String>, Vec<String>)> {
             } else {
                 from.push(line.to_string());
             },
-            None => {/* Skip, TODO: maybe err */},
+            None => return Err(io::Error::other(format!("{} Potentially unescaped comment at line {}", "Alias Parse Error:".bright_red(), ln+1))),
         }
+    }
+
+    if into.is_empty() && from.is_empty() {
+        return Err(io::Error::other(format!(
+            "{} Could not parse {} as an alias file:\n Could not find an {} or {}", 
+            "Alias Parse Error: ".bright_red(), format!("{:?}", path).yellow(), "@into".yellow(), "@from".yellow()
+    )))
     }
 
     Ok((into, from))
