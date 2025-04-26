@@ -746,14 +746,15 @@ impl Word {
                 StressKind::Unstressed =>  if i > 0 { buffer.push('.') },
             }
 
+            let mut strip_len = false;
+
             let mut j = 0;
             'outer: while j < syll.segments.len() {
-                if j != 0 && syll.segments[j] == syll.segments[j-1] {
-                    // TODO: Need to skip if we matched length last time
+                if j != 0 && syll.segments[j] == syll.segments[j-1] && !strip_len {
                     buffer.push('ː');
                     j+=1; continue;
                 }
-
+                strip_len = false;
                 for alias in aliases {
                     if let AliasParseElement::Segments(segments) = &alias.input.kind {
                         let back_pos = j;
@@ -799,14 +800,13 @@ impl Word {
                                     } 
                                     buffer.push_str(repl);
                                 },
-                                AliasParseElement::Empty => {},
+                                AliasParseElement::Empty => {strip_len = true;},
                                 _ => unreachable!()
                             }
                             continue 'outer; 
                         }
                         j = back_pos;
                     }
-
                 }
 
                 buffer.push_str(&syll.segments[j].get_as_grapheme().unwrap_or("�".to_owned()));
@@ -1048,6 +1048,22 @@ mod word_tests {
                 assert!(false);
             }
         }
+        let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"k > c".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
+        match Word::new(normalise("'ka:.ta"), &[]) {
+            Ok(w) => assert_eq!(w.render(&t), "ˈcaː.ta"),
+            Err(e) => {
+                println!("{}", e.format_word_error());
+                assert!(false);
+            }
+        }
+        let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"a > o".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
+        match Word::new(normalise("'ka::.ta"), &[]) {
+            Ok(w) => assert_eq!(w.render(&t), "ˈkoːː.to"),
+            Err(e) => {
+                println!("{}", e.format_word_error());
+                assert!(false);
+            }
+        }
     }
 
     #[test]
@@ -1138,9 +1154,8 @@ mod word_tests {
                 assert!(false);
             }
         }
-        // TODO: Should probably fix this
         match Word::new(normalise("sa:n.da"), &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "sːn.d"),
+            Ok(w) => assert_eq!(w.render(&t), "sn.d"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
