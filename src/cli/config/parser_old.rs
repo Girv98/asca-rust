@@ -3,7 +3,7 @@ use std::{collections::HashSet, io, path::{Path, PathBuf}, rc::Rc};
 use asca::rule::RuleGroup;
 use colored::Colorize;
 
-use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util::{self, RULE_FILE_EXT}};
+use super::super::{parse::parse_rsca, seq::{OldConfig, Entry, RuleFilter}, util::{self, RULE_FILE_EXT}};
 use super::lexer_old::{Position, Token, TokenKind};
 
 pub(crate) struct OldParser<'a> {
@@ -331,7 +331,7 @@ impl<'a> OldParser<'a> {
         }
     }
 
-    fn get_seq(&mut self) -> io::Result<ASCAConfig> {
+    fn get_seq(&mut self) -> io::Result<OldConfig> {
 
         self.skip_comments();
 
@@ -375,10 +375,10 @@ impl<'a> OldParser<'a> {
 
         let entries = self.get_entries()?;
 
-        Ok(ASCAConfig { tag, from, alias, words, entries })
+        Ok(OldConfig { tag, from, alias, words, entries })
     }
 
-    pub(crate) fn parse(&mut self) -> io::Result<Vec<ASCAConfig>> {
+    pub(crate) fn parse(&mut self) -> io::Result<Vec<OldConfig>> {
         let mut tag_set = HashSet::new();
         let mut conf = Vec::new();
 
@@ -412,7 +412,7 @@ impl<'a> OldParser<'a> {
         Ok(conf)
     }
 
-    fn detect_tag_loop(&self, conf: &[ASCAConfig], head: &ASCAConfig) -> bool {
+    fn detect_tag_loop(&self, conf: &[OldConfig], head: &OldConfig) -> bool {
         let mut set: HashSet<String> = HashSet::new();
         let mut head = head;
 

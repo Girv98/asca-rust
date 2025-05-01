@@ -10,7 +10,7 @@ use super  :: {
 
 
 #[derive(Debug, Clone)]
-pub struct ASCAConfig {
+pub struct OldConfig {
     pub tag: Rc<str>,
     pub from: Option<Rc<str>>,
     pub alias: Option<Rc<str>>,
@@ -18,10 +18,54 @@ pub struct ASCAConfig {
     pub entries: Vec<Entry>
 }
 
-impl ASCAConfig {
+impl OldConfig {
     #[allow(dead_code)]
     pub fn new() -> Self {
         Self { tag: Rc::default(), from: None, alias: None,  words: vec![], entries: Vec::new() }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum InputKind {
+    WordFile(Rc<str>),
+    FromTag(Rc<str>),
+}
+
+impl InputKind {
+    pub(crate) fn as_word_file(&self) -> Option<&Rc<str>> {
+        if let Self::WordFile(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct ASCAConfig {
+    pub tag: Rc<str>,
+    pub alias: Option<Rc<str>>,
+    pub input: Vec<InputKind>,
+    pub entries: Vec<Entry>
+}
+
+impl ASCAConfig {
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        Self { tag: Rc::default(), alias: None, input: vec![], entries: Vec::new() }
+    }
+
+    pub fn get_from_tags(&self) -> Vec<Rc<str>> {
+        let mut tags = Vec::new();
+
+        for input in &self.input {
+            if let InputKind::FromTag(f) = input {
+                tags.push(f.clone());
+            }
+        }
+
+        tags
     }
 }
 
@@ -100,9 +144,8 @@ pub(super) fn get_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>
     Parser::new(tokens, conf.as_path()).parse()
 }
 
-
 /// Read config file and return result
-pub(super) fn get_old_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>> {
+pub(super) fn get_old_config(dir: &Path, is_dir: bool) -> io::Result<Vec<OldConfig>> {
     let conf = confirm_config_path(dir, is_dir)?;
 
     let tokens = OldLexer::new(&util::file_read(conf.as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
@@ -111,86 +154,108 @@ pub(super) fn get_old_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCACon
 }
 
 pub(super) fn get_all_rules(rule_seqs: &[ASCAConfig], conf: &ASCAConfig) -> io::Result<Vec<RuleGroup>> {
-    if let Some(from_tag) = &conf.from {
-        let Some(seq) = rule_seqs.iter().find(|c| c.tag == *from_tag) else {
-            let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
-            return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
-        };
-        let mut rules = get_all_rules(rule_seqs, seq)?;
-        for entry in &conf.entries {
-            rules.extend_from_slice(&entry.rules);
-        }
-        Ok(rules)
 
-    } else {
+    let from_tags = conf.get_from_tags();
+
+    if from_tags.len() > 1 {
+        return Err(io::Error::other(format!("{} Not possible to recursively convert tags with multiple pipes", "Conversion Error:".bright_red())))
+    }
+
+    if from_tags.is_empty() {
         let mut rules = vec![];
         for entry in &conf.entries {
             rules.extend_from_slice(&entry.rules);
         }
-        Ok(rules)
+        return Ok(rules)
     }
+
+    let Some(seq) = rule_seqs.iter().find(|c| c.tag == from_tags[0]) else {
+        let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
+        return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tags[0].yellow(), possible_tags)))
+    };
+    
+    let mut rules = get_all_rules(rule_seqs, seq)?;
+    
+    for entry in &conf.entries {
+        rules.extend_from_slice(&entry.rules);
+    }
+
+    Ok(rules)
+
 }
 
 pub(super) fn get_orig_alias_into(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &ASCAConfig) -> io::Result<Vec<String>> {
-    if let Some(from_tag) = &conf.from {
-        let Some(seq) = rule_seqs.iter().find(|c| c.tag == *from_tag) else {
-            let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
-            return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
-        };
-        get_orig_alias_into(rule_seqs, dir,seq)
-    } else if let Some(al_path) = &conf.alias {
-        let mut path = dir.to_path_buf();
-        path.push(al_path.as_ref());
-        // path.set_extension(ALIAS_FILE_EXT);
-        let (into, _) = parse::parse_alias(util::as_file(&path)?)?;
-        Ok(into)           
-    } else {
-        Ok(Vec::new())
+
+    let from_tags = conf.get_from_tags();
+
+    if from_tags.len() > 1 {
+        return Err(io::Error::other(format!("{} Not possible to recursively convert tags with multiple pipes", "Conversion Error:".bright_red())))
     }
     
+    if from_tags.is_empty() {
+        if let Some(al_path) = &conf.alias {
+            let mut path = dir.to_path_buf();
+            path.push(al_path.as_ref());
+            let (into, _) = parse::parse_alias(util::as_file(&path)?)?;
+            return Ok(into)    
+        } else {
+            return Ok(Vec::new())
+        }
+    }
+
+    let Some(seq) = rule_seqs.iter().find(|c| c.tag == from_tags[0]) else {
+        let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
+        return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tags[0].yellow(), possible_tags)))
+    };
+
+    get_orig_alias_into(rule_seqs, dir,seq)
 }
 
-pub(super) fn get_orig_words(rule_seqs: &[ASCAConfig], dir: &Path,  conf: &ASCAConfig) -> io::Result<Vec<String>> {
-    if let Some(from_tag) = &conf.from {
-        let Some(seq) = rule_seqs.iter().find(|c| c.tag == *from_tag) else {
-            let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
-            return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
-        };
-        get_orig_words(rule_seqs, dir,seq)
-    } else {
+pub(super) fn get_orig_words(rule_seqs: &[ASCAConfig], dir: &Path, conf: &ASCAConfig) -> io::Result<Vec<String>> {
+
+    let from_tags = conf.get_from_tags();
+
+    if from_tags.len() > 1 {
+        return Err(io::Error::other(format!("{} Not possible to recursively convert tags with multiple pipes", "Conversion Error:".bright_red())))
+    }
+
+    if from_tags.is_empty() {
         let mut words = Vec::new();
-        for w_str in &conf.words {
+        for w_str in &conf.input {
             let mut w_path = dir.to_path_buf();
-            w_path.push(w_str.as_ref());
-            // w_path.set_extension(WORD_FILE_EXT);
+            w_path.push(w_str.as_word_file().expect("from_tags is empty").as_ref());
             let (mut w_file, _) = parse_wsca(&util::validate_or_get_path(Some(&w_path), &[WORD_FILE_EXT, "txt"], "word")?)?;
             if !words.is_empty() {
                 words.push("".to_string());
             }
             words.append(&mut w_file);
         }
-        Ok(words)
+        return Ok(words)
     }
+
+    let Some(seq) = rule_seqs.iter().find(|c| c.tag == from_tags[0]) else {
+        let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
+        return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tags[0].yellow(), possible_tags)))
+    };
+
+    get_orig_words(rule_seqs, dir,seq)
 }
 
-fn get_pipe(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, conf: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Vec<String>> {
-    if let Some(from_tag) = &conf.from {
-        // retrieve if cached
-        if let Some(x) = seq_cache.get(from_tag) {
-            return Ok(x.clone())
-        } else {
-            // retrieve tag config
-            let Some(seq) = rule_seqs.iter().find(|c| c.tag == *from_tag) else {
-                let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
-                return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
-            };
-            // run tag and cache output
-            if let Some((t, _, _)) = run_sequence(rule_seqs, dir, words_path, seq, seq_cache)? {
-                let w = t.last().unwrap().clone();
-                seq_cache.insert(seq.tag.clone(), w.clone());
-                return Ok(w)
-            }
-        }
+fn get_pipe(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, from_tag: &Rc<str>, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Vec<String>> {
+    // retrieve if cached
+    if let Some(x) = seq_cache.get(from_tag) {
+        return Ok(x.clone())
+    }
+    // else retrieve tag config
+    let Some(seq) = rule_seqs.iter().find(|c| c.tag == *from_tag) else {
+        let possible_tags = rule_seqs.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
+        return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), from_tag.yellow(), possible_tags)))
+    };
+    // run tag and cache output
+    if let Some((t, _, _)) = run_sequence(rule_seqs, dir, words_path, seq, seq_cache)? {
+        let w = t.last().unwrap().clone();
+        seq_cache.insert(seq.tag.clone(), w.clone());
+        return Ok(w)
     }
     Ok(vec![])
     
@@ -200,24 +265,32 @@ fn get_pipe(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, con
 pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>, conf: &ASCAConfig, seq_cache: &mut HashMap<Rc<str>, Vec<String>>) -> io::Result<Vec<String>> {   
     let mut words = Vec::new();
 
-    if words_path.is_empty() {
-        let pipe_words = get_pipe(rule_seqs, dir, words_path, conf, seq_cache)?;
-        words.extend_from_slice(&pipe_words);
-
-        for ws in &conf.words {
-            let mut wp = dir.to_path_buf();
-            wp.push(ws.as_ref());
-            // wp.set_extension(WORD_FILE_EXT);
-            let (mut w_file, _) = parse_wsca(util::as_file(&wp)?)?;
-            if !words.is_empty() {
-                words.push("".to_string());
-            }
-            words.append(&mut w_file);
-        }
-    } else {
+    if !words_path.is_empty() {
         for wp in words_path {
             let (mut w, _) = parse_wsca(util::as_file(wp)?)?;
             words.append(&mut w);
+        }
+    } else {
+        for input in &conf.input {
+            match input {
+                InputKind::WordFile(wf) => {
+                    let mut wp = dir.to_path_buf();
+                    wp.push(wf.as_ref());
+                    // wp.set_extension(WORD_FILE_EXT);
+                    let (mut w_file, _) = parse_wsca(util::as_file(&wp)?)?;
+                    if !words.is_empty() {
+                        words.push("".to_string());
+                    }
+                    words.append(&mut w_file);
+                },
+                InputKind::FromTag(ft) => {
+                    let pipe_words = get_pipe(rule_seqs, dir, words_path, ft, seq_cache)?;
+                    if !pipe_words.is_empty() {
+                        words.push("".to_string());
+                    }
+                    words.extend_from_slice(&pipe_words);
+                },
+            }
         }
     }
 
@@ -400,8 +473,7 @@ fn handle_sequence(config: &[ASCAConfig], seq_cache: &mut HashMap<Rc<str>, Vec<S
 
 pub(crate) fn run(maybe_dir_path: Option<PathBuf>, words_path: Vec<PathBuf>, maybe_tag: Option<String>, output: bool, overwrite: Option<bool>, output_all: bool, all_steps: bool) -> io::Result<()> {
     let (mut path, is_dir) = util::validate_file_or_dir(maybe_dir_path)?;
-    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", "UPDATE TO NEW CONFIG".bright_red());
-    let config = get_old_config(&path, is_dir)?;
+    let config = get_config(&path, is_dir)?;
 
     if !is_dir {
         path.pop();

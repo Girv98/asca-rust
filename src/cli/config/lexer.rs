@@ -110,6 +110,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    #[allow(unused)]
     fn next_char(&self) -> char {
         if self.source.len() > 1 {
             self.source[1]
@@ -161,7 +162,7 @@ impl<'a> Lexer<'a> {
         Ok(Some(Token::new(TokenKind::Comment, &buffer, start_line, start, end_line, end)))
     }
 
-
+    #[allow(unused)]
     fn is_line_terminator(x: &char) -> bool {
         // newline | line-separator | paragraph separator
         *x == '\n' || *x == '\u{2028}' || *x == '\u{2029}'

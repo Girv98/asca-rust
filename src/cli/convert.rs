@@ -2,7 +2,10 @@ use std::{io, path::PathBuf};
 
 use colored::Colorize;
 
-use super::{parse, seq::{get_all_rules, get_old_config, get_orig_alias_into, get_orig_words, get_words}, util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, JSON_FILE_EXT, RULE_FILE_EXT, WORD_FILE_EXT}, AscaJson};
+use super::AscaJson;
+use super::parse;
+use super::seq::{get_all_rules, get_config, get_old_config, get_orig_alias_into, get_orig_words, get_words};
+use super::util::{self, ALIAS_FILE_EXT, CONF_FILE_EXT, JSON_FILE_EXT, RULE_FILE_EXT, WORD_FILE_EXT};
 
 /// Convert rsca/wsca/alias files into an asca-web json file
 pub fn from_asca(words: Option<PathBuf>, rules: Option<PathBuf>, alias: Option<PathBuf>, output: Option<PathBuf>) -> io::Result<()> {
@@ -78,20 +81,16 @@ pub fn update_conf_format(config_dir: Option<PathBuf>) -> io::Result<()> {
 /// Convert a tag within a config file to an asca-web json file
 pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf>, recurse: bool) -> io::Result<()> {
     let (mut path, is_dir) = util::validate_file_or_dir(config_dir)?;
-    assert_eq!(env!("CARGO_PKG_VERSION"), "0.6.1", "{}", "UPDATE TO NEW CONFIG".bright_red());
-    let conf = get_old_config(&path, is_dir)?;
+    let conf = get_config(&path, is_dir)?;
 
-    if !is_dir {
-        path.pop();
-    }
+    if !is_dir { path.pop(); }
 
     let Some(seq) = conf.iter().find(|c| c.tag.as_ref() == tag) else {
         let possible_tags = conf.iter().map(|c| c.tag.clone()).collect::<Vec<_>>().join("\n- ");
         return Err(io::Error::other(format!("{} Could not find tag '{}' in config.\nAvailable tags are:\n- {}", "Config Error:".bright_red(), tag.yellow(), possible_tags)))
     };
 
-    // TODO: replace with if-let chain when stable
-    let json = if seq.from.is_some() && recurse {
+    let json = if !seq.get_from_tags().is_empty() && recurse {
         // get original words list and entire rule history
         let words = get_orig_words(&conf, &path, seq)?;
         let rules = get_all_rules(&conf, seq)?;

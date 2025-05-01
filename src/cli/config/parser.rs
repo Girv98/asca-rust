@@ -3,9 +3,9 @@ use std::{collections::HashSet, io, path::{Path, PathBuf}, rc::Rc};
 use asca::rule::RuleGroup;
 use colored::Colorize;
 
-use crate::cli::parse::{parse_alias, parse_wsca};
-
-use super::super::{parse::parse_rsca, seq::{ASCAConfig, Entry, RuleFilter}, util};
+use super::super::util;
+use super::super::seq::{ASCAConfig, Entry, InputKind, RuleFilter};
+use super::super::parse::{parse_alias, parse_rsca, parse_wsca};
 use super::lexer::{Position, Token, TokenKind};
 
 pub(crate) struct Parser<'a> {
@@ -365,11 +365,10 @@ impl<'a> Parser<'a> {
         
         best_match.to_string()
     }
-    //                                                               from             alias          words
-    fn parse_inputs(&self, inputs: Vec<Rc<str>>, tag: &Rc<str>) -> io::Result<(Option<Rc<str>>, Option<Rc<str>>, Vec<Rc<str>>)> {
-        let mut from = None;
+
+    fn parse_inputs(&self, inputs: &[Rc<str>], tag: &Rc<str>) -> io::Result<(Option<Rc<str>>, Vec<InputKind>)> {
         let mut alias = None;
-        let mut word_files = Vec::new();
+        let mut parsed_input = Vec::new();
 
         for item in inputs {
             let mut file_path = self.path.to_path_buf();
@@ -379,47 +378,46 @@ impl<'a> Parser<'a> {
             if file_path.is_file() {
                 if let Some(ext) = file_path.extension() {
                     match ext.to_str() {
-                        Some("wsca") => { word_files.push(item); continue;},
+                        Some("wsca") => { parsed_input.push(InputKind::WordFile(item.clone())); continue; },
                         Some("alias") => {
                             if alias.is_some() {
-                                return Err(self.error("A sequence can only have one alias file".to_string()))
+                                return Err(self.error(format!("A sequence can only have one alias file. seq '{}' @ '{}'", tag.yellow(), item.yellow())))
                             }
-                            alias = Some(item);
+                            alias = Some(item.clone());
                             continue;
                         },
                         _ => {}
                     }
                 } 
-                // determine if wsca or alias
+                // determine if wsca or alias by trying to parse as both
+                // TODO: atm, it is possible for a none word file to parse without erroring, but yield no correct input
+                // we are also throwing away the parsed result which isn't ideal
                 let maybe_alias = parse_alias(&file_path);
-                let maybe_words = parse_wsca(&file_path);
-
+                
                 if maybe_alias.is_ok() {
                     if alias.is_some() {
-                        return Err(self.error(format!("A sequence can only have one alias file. seq \"{}\" @ \"{}\"", tag.yellow(), item.yellow())))
+                        return Err(self.error(format!("A sequence can only have one alias file. seq '{}' @ '{}'", tag.yellow(), item.yellow())))
                     }
-                    alias = Some(item);
+                    alias = Some(item.clone());
                     continue;
                 }
 
-                if maybe_words.is_ok() {
-                    word_files.push(item);
-                    continue;
+                match parse_wsca(&file_path) {
+                    Ok(_) => parsed_input.push(InputKind::WordFile(item.clone())),
+                    Err(e) => {
+                        eprintln!("{} could not confirm that '{}' as an input to the sequence '{}' was to be a word or alias file due to one or more errors while parsing:", "asca:".bright_red(), item_file.yellow(), tag.yellow());
+                        return Err(e)
+                    },
                 }
-
-                eprintln!("{} could not confirm the nature of file \"{}\" as an input to the sequence \"{}\" due to one or more error:", "asca:".bright_red(), item_file.yellow(), tag.yellow());
-                
-                maybe_words?;
-
-            } else { // is from tag
-                if from.is_some() {
-                    return Err(self.error(format!("A sequence can only have one from tag. seq \"{}\" @ \"{}\"", tag.yellow(), item.yellow())))
-                }
-                from = Some(item)
+            } else if file_path.extension().is_some() {
+                return Err(self.error(format!("File {} could not be found. seq '{}' @ '{}'", format!("{:?}", file_path).yellow(), tag.yellow(), item.yellow())))
+            } else {
+                // assume it is a piped tag
+                parsed_input.push(InputKind::FromTag(item.clone()));
             } 
         }
 
-        Ok((from, alias, word_files))
+        Ok((alias, parsed_input))
     }
 
     fn get_seq(&mut self) -> io::Result<Option<ASCAConfig>> {
@@ -431,14 +429,14 @@ impl<'a> Parser<'a> {
             return Ok(None)
         }
 
-        let (inputs, tag_token) = self.get_ident()?;
+        let (input, tag_token) = self.get_ident()?;
 
         let tag = tag_token.value;
-        let (from, alias, words) = self.parse_inputs(inputs, &tag)?;
+        let (alias, input) = self.parse_inputs(&input, &tag)?;
         
         let entries = self.get_entries()?;
 
-        Ok(Some(ASCAConfig { tag, from, alias, words, entries }))
+        Ok(Some(ASCAConfig { tag, alias, input, entries }))
     }
 
     pub(crate) fn parse(&mut self) -> io::Result<Vec<ASCAConfig>> {
@@ -459,14 +457,14 @@ impl<'a> Parser<'a> {
 
         // Check all pipeline tags exist
         for c in &conf {
-            if let Some(from_tag) = &c.from {
-                if !tag_set.contains(from_tag) {
-                    return Err(self.error(format!("tag '{}' does not exist", from_tag)))
+            for from in c.get_from_tags() {
+                if !tag_set.contains(&from) {
+                    return Err(self.error(format!("piped tag '{}' found in sequence '{}' does not exist", from.yellow(), c.tag.yellow())))
                 }
             }
         }
         // Check for loops
-        for pipe in conf.iter().filter(|c| c.from.is_some()).collect::<Vec<_>>() {
+        for pipe in conf.iter().filter(|c| !c.get_from_tags().is_empty()).collect::<Vec<_>>() {
             if self.detect_tag_loop(&conf, pipe) {
                 return Err(self.error(format!("infinite pipeline loop detected in tag '{}'", pipe.tag)))
             }
@@ -475,15 +473,29 @@ impl<'a> Parser<'a> {
         Ok(conf)
     }
 
-    fn detect_tag_loop(&self, conf: &[ASCAConfig], head: &ASCAConfig) -> bool {
-        let mut set: HashSet<String> = HashSet::new();
-        let mut head = head;
+    // Inefficient but works
+    fn has_loop_rec(conf: &[ASCAConfig], set: HashSet<Rc<str>>, from: Rc<str>) -> bool {
+        let mut set = set;
+        let head = conf.iter().find(|c| c.tag == from).unwrap();
 
-        while let Some(from) = &head.from {
-            if !set.insert(from.to_string()) {
+        if !set.insert(from.clone()) {
+            return true
+        }
+
+        for from in head.get_from_tags() {
+            if from == head.tag || Self::has_loop_rec(conf, set.clone(), from.clone()) {
                 return true
             }
-            head = conf.iter().find(|c| c.tag == *from).unwrap()
+        }
+
+        false
+    }
+
+    fn detect_tag_loop(&self, conf: &[ASCAConfig], head: &ASCAConfig) -> bool {
+        for from in head.get_from_tags() {
+            if from == head.tag || Self::has_loop_rec(conf, HashSet::new(), from.clone()) {
+                return true
+            }
         }
         false
     }
@@ -507,9 +519,39 @@ mod parser_tests {
     }
 
     #[test]
+    fn test_tag_loop() {
+        let test_input= String::from(
+            "beta > alpha:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca
+
+            alpha > beta:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
+            );
+        let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+        // println!("{:?}", maybe_result);
+        assert!(maybe_result.is_err());
+    }
+
+    #[test]
+    fn test_from_tag_does_not_exist() {
+        let test_input= String::from(
+            "beta > alpha:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca
+
+            gamma > beta:\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
+            );
+        let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+        // println!("{:?}", maybe_result);
+        assert!(maybe_result.is_err());
+    }
+
+    #[test]
     fn test_with_words() {
         let test_input= String::from(
-            "foo.wsca bar.wsca > beta:\n \
+            "examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
                 examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
                 examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law"
             );
@@ -520,9 +562,11 @@ mod parser_tests {
         let result = maybe_result.unwrap();
 
         assert_eq!(result[0].tag, "beta".into());
-        assert_eq!(result[0].from, None);
         assert_eq!(result[0].alias, None);
-        assert_eq!(result[0].words, ["foo.wsca".into(), "bar.wsca".into()]);
+        assert_eq!(result[0].input, [
+            InputKind::WordFile("examples/indo-european/pie-uvular-common.wsca".into()), 
+            InputKind::WordFile("examples/indo-european/pie-pronouns.wsca".into())
+        ]);
         assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
     }
@@ -541,9 +585,8 @@ mod parser_tests {
         let result = maybe_result.unwrap();
 
         assert_eq!(result[0].tag, "beta".into());
-        assert_eq!(result[0].from, None);
         assert_eq!(result[0].alias, None);
-        assert_eq!(result[0].words, []);
+        assert_eq!(result[0].input, []);
         assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
 
@@ -556,7 +599,7 @@ mod parser_tests {
                 examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
                 examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law
 
-            foo.wsca bar.wsca > beta:\n \
+            examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
                 examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
                 examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
             );
@@ -567,16 +610,17 @@ mod parser_tests {
         let result = maybe_result.unwrap();
 
         assert_eq!(result[0].tag, "alpha".into());
-        assert_eq!(result[0].from, None);
         assert_eq!(result[0].alias, None);
-        assert_eq!(result[0].words, []);
+        assert_eq!(result[0].input, []);
         assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
 
         assert_eq!(result[1].tag, "beta".into());
-        assert_eq!(result[1].from, None);
         assert_eq!(result[1].alias, None);
-        assert_eq!(result[1].words, ["foo.wsca".into(), "bar.wsca".into()]);
+        assert_eq!(result[1].input, [
+            InputKind::WordFile("examples/indo-european/pie-uvular-common.wsca".into()), 
+            InputKind::WordFile("examples/indo-european/pie-pronouns.wsca".into())
+        ]);
         assert_eq!(result[1].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
         assert_eq!(result[1].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_only_cowgills-law"));
     }

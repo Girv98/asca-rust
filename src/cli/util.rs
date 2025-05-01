@@ -3,7 +3,7 @@ use std::{ffi::OsStr, fmt::Debug, fs, io::{self, Write}, path::{Path, PathBuf}};
 use colored::Colorize;
 use asca::{error::ASCAError, rule::RuleGroup};
 
-use super::seq::ASCAConfig;
+use super::seq::OldConfig;
 
 #[cfg(windows)]
 pub const LINE_ENDING: &str = "\r\n";
@@ -97,6 +97,7 @@ pub(super) fn validate_file_or_dir(maybe_path: Option<PathBuf>) -> io::Result<(P
     }
 }
 
+#[allow(unused)]
 pub(super) fn validate_directory(maybe_path: Option<PathBuf>) -> io::Result<PathBuf> {
     match maybe_path {
         Some(path) => {
@@ -265,7 +266,7 @@ pub(super) fn sanitise_str(str: &str) -> String {
     }).collect()
 }
 
-fn get_seq_input(seq: &ASCAConfig) -> String {
+fn get_seq_input(seq: &OldConfig) -> String {
     let mut input = String::new();
     
     if let Some(from) = &seq.from {
@@ -291,7 +292,7 @@ fn get_seq_input(seq: &ASCAConfig) -> String {
 }
 
 // TODO: To be updated when syntax is finalised
-pub(super) fn to_new_config_format(conf: Vec<ASCAConfig>) -> String {
+pub(super) fn to_new_config_format(conf: Vec<OldConfig>) -> String {
     let mut result = String::new();
     for seq in conf {
 
