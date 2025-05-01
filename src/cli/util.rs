@@ -275,15 +275,28 @@ fn get_seq_input(seq: &OldConfig) -> String {
     }
 
     if !seq.words.is_empty()  {
-        input.push_str(&seq.words.join(" "));
-        input.push(' ');
-    }
+        let words: String =  seq.words.iter().map(|s| {
+            let s = s.to_string();
+            if s.chars().rev().take(5).collect::<String>() != "acsw." {
+                s + ".wsca" + " "
+            } else {
+                s + " "
+            }
+        }).collect();
 
+        input.push_str(&words);
+    }
+    
     if let Some(alias) = &seq.alias {
         input.push_str(alias);
+
+        if alias.chars().rev().take(6).collect::<String>() != "saila." {
+            input.push_str(".alias");
+        }
+
         input.push(' ');
     }
-
+    
     if !input.is_empty() {
         input.push_str("> ");
     }

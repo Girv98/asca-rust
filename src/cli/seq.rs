@@ -285,7 +285,7 @@ pub(super) fn get_words(rule_seqs: &[ASCAConfig], dir: &Path, words_path: &Vec<P
                 },
                 InputKind::FromTag(ft) => {
                     let pipe_words = get_pipe(rule_seqs, dir, words_path, ft, seq_cache)?;
-                    if !pipe_words.is_empty() {
+                    if !words.is_empty() {
                         words.push("".to_string());
                     }
                     words.extend_from_slice(&pipe_words);
