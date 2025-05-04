@@ -130,6 +130,9 @@ impl<'a> Parser<'a> {
             }
         }
 
+        self.skip_comments();
+        while self.eat_expect(TokenKind::Eol).is_some() { }
+
         if !has_arrow {
             match token_list.len().cmp(&1) {
                 std::cmp::Ordering::Equal => return Ok((vec![], token_list[0].clone())),
@@ -158,17 +161,14 @@ impl<'a> Parser<'a> {
             tkn.value
         }).collect();
 
-        self.skip_comments();
-        while self.eat_expect(TokenKind::Eol).is_some() { }
-        
         Ok((inputs, tag))
 
     }
 
-    fn get_entries(&mut self) -> io::Result<Vec<Entry>>  {
+    fn get_entries(&mut self, tag: Rc<str>) -> io::Result<Vec<Entry>>  {
         let mut entries = Vec::new();
 
-        if let Some(e) =  self.get_entry()? {
+        if let Some(e) = self.get_entry()? {
             entries.push(e);
 
             while self.has_more_tokens() {
@@ -177,6 +177,10 @@ impl<'a> Parser<'a> {
                     None =>  break,
                 }
             }
+        }
+        
+        if entries.is_empty() {
+            return Err(self.error(format!("No rule entries found for sequence '{}'", tag)))
         }
 
         Ok(entries)
@@ -393,7 +397,7 @@ impl<'a> Parser<'a> {
         let tag = tag_token.value;
         let (alias, input) = self.parse_inputs(&input, &tag)?;
         
-        let entries = self.get_entries()?;
+        let entries = self.get_entries(tag.clone())?;
 
         Ok(Some(ASCAConfig { tag, alias, input, entries }))
     }
@@ -484,8 +488,8 @@ mod parser_tests {
                 examples/indo-european/germanic/pgmc/pre.rsca
 
             alpha > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\""
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
         // println!("{:?}", maybe_result);
@@ -499,8 +503,8 @@ mod parser_tests {
                 examples/indo-european/germanic/pgmc/pre.rsca
 
             gamma > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\""
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
         // println!("{:?}", maybe_result);
@@ -511,8 +515,8 @@ mod parser_tests {
     fn test_with_words() {
         let test_input= String::from(
             "examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law"
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\""
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
 
@@ -534,8 +538,8 @@ mod parser_tests {
     fn test_without_words() {
         let test_input= String::from(
             "beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law"
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\""
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
 
@@ -555,12 +559,12 @@ mod parser_tests {
     fn test_mult() {
         let test_input= String::from(
             "alpha:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ Dental Cluster Simplification, Cowgill's Law
-
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\"\
+            \n\
             examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! Laryngeal colouring\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ Cowgill's Law"
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\""
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
 
