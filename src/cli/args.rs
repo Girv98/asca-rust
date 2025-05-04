@@ -45,7 +45,7 @@ pub enum AscaCommand {
     },
     /// Run an asca config.
     Seq {
-        /// Path to a directory containing an asca config file.
+        /// Path to the config file or the directory it is within.
         #[arg(value_hint=clap::ValueHint::DirPath)]
         path: Option<PathBuf>,
         
@@ -59,7 +59,7 @@ pub enum AscaCommand {
         #[arg(short, long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
         words: Vec<MaybeStdin<PathBuf>>,
 
-        /// Print intermediate steps in a sequence
+        /// Print all intermediate steps in a sequence.
         #[arg(short, long, action, verbatim_doc_comment)]
         all_steps: bool,
 
@@ -77,12 +77,12 @@ pub enum AscaCommand {
         #[arg(short='n', long, action, requires="output", conflicts_with="overwrite", verbatim_doc_comment)]
         no_overwrite: bool,
 
-        /// Save all intermediate steps
+        /// Output all intermediate steps in a sequence.
         /// - Requires --output
         #[arg(short='i', long, action, requires="output", verbatim_doc_comment)]
         output_all: bool,
     },
-    /// Convert between an asca-web json file and the wsca/rsca format.
+    /// Convert between different formats, such as the asca-web json file and the cli wsca/rsca format.
     #[clap(subcommand)]
     Conv(Conv),
     // /// Enter tui.
@@ -130,15 +130,16 @@ pub enum Conv {
     },
     /// Convert a tag within a config file into an asca-web json file
     Tag {
-        /// Path to the config file or the directory it is within
+        /// Path to the config file or the directory it is within.
         /// - If not provided, asca will look for a config in the current directory.
         #[arg(short, long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
         path: Option<PathBuf>,
-        /// The tag within the config file to be converted
+        /// The tag within the config file to be converted.
         #[arg(verbatim_doc_comment, value_hint=clap::ValueHint::Other)]
         tag: String,
-        /// Follow a pipeline back to its root tag and generate a full rule history
+        /// Follow a pipeline back to its root tag and generate a full linear rule history
         /// - Additional words added after the start of the pipeline will not be included
+        /// - Note: Tags cannot have multiple piped inputs as there would be a split history.
         #[arg(short, long, action, verbatim_doc_comment)]
         recurse: bool,
         /// The desired path of the output rule file.
@@ -148,7 +149,7 @@ pub enum Conv {
     },
     /// Convert an old config file into the new format
     Config {
-        /// Path to the config file or the directory it is within
+        /// Path to the config file or the directory it is within.
         /// - If not provided, asca will look for a config in the current directory.
         #[clap(verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
         path: Option<PathBuf>
