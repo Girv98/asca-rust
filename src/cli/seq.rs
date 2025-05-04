@@ -15,7 +15,7 @@ pub struct OldConfig {
     pub from: Option<Rc<str>>,
     pub alias: Option<Rc<str>>,
     pub words: Vec<Rc<str>>,
-    pub entries: Vec<Entry>
+    pub entries: Vec<OldEntry>
 }
 
 impl OldConfig {
@@ -72,13 +72,23 @@ impl ASCAConfig {
 #[derive(Debug, Clone)]
 pub struct Entry {
     pub name: PathBuf,
-    pub verbatim: String, 
     pub rules: Vec<RuleGroup>,
 }
 
 impl Entry {
-    pub fn from(name: PathBuf, verbatim: String, rules: Vec<RuleGroup>) -> Self {
-        Self { name, verbatim, rules }
+    pub fn from(name: PathBuf, rules: Vec<RuleGroup>) -> Self {
+        Self { name, rules }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OldEntry {
+    pub verbatim: String, 
+}
+
+impl OldEntry {
+    pub fn from(verbatim: String) -> Self {
+        Self { verbatim }
     }
 }
 
@@ -150,7 +160,7 @@ pub(super) fn get_old_config(dir: &Path, is_dir: bool) -> io::Result<Vec<OldConf
 
     let tokens = OldLexer::new(&util::file_read(conf.as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
 
-    OldParser::new(tokens, conf.as_path()).parse()
+    OldParser::new(tokens).parse()
 }
 
 pub(super) fn get_all_rules(rule_seqs: &[ASCAConfig], conf: &ASCAConfig) -> io::Result<Vec<RuleGroup>> {
@@ -444,11 +454,10 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>
     // TODO: What to do with the this in output
     if !from.is_empty() {
         let name = seq.entries[last_step].name.clone();
-        let verbatim = seq.entries[last_step].verbatim.clone();
         // y.set_extension("");
         // let x = y.file_name().unwrap().to_str().unwrap().to_owned() + "-romanised";
         // y.set_file_name(x);
-        let empty_entry = Entry { name, verbatim, rules: Vec::new() };
+        let empty_entry = Entry { name, rules: Vec::new() };
         let _ = run_once(&mut trace, &mut files, &empty_entry, num_steps, &[], &from).is_none();
     }
     

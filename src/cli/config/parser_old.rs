@@ -1,25 +1,24 @@
-use std::{collections::HashSet, io, path::{Path, PathBuf}, rc::Rc};
+use std::{collections::HashSet, io, path::PathBuf, rc::Rc};
 
-use asca::rule::RuleGroup;
 use colored::Colorize;
 
-use super::super::{parse::parse_rsca, seq::{OldConfig, Entry, RuleFilter}, util::{self, RULE_FILE_EXT}};
+use super::super::{seq::{OldConfig, OldEntry, RuleFilter}, util::RULE_FILE_EXT};
 use super::lexer_old::{Position, Token, TokenKind};
 
-pub(crate) struct OldParser<'a> {
+// Note: Used only to parse and then convert the old style config to the new syntax
+
+pub(crate) struct OldParser {
     token_list: Vec<Token>,
     pos: usize,
     curr_tkn: Token,
-    path: &'a Path
 }
 
-impl<'a> OldParser<'a> {
-    pub(crate) fn new(lst: Vec<Token>, path: &'a Path) -> Self {
+impl OldParser{
+    pub(crate) fn new(lst: Vec<Token>) -> Self {
         let mut s = Self { 
             token_list: lst, 
             pos: 0, 
             curr_tkn: Token { kind: TokenKind::EoF, value: Rc::default(), position: Position::new(0, 0, 0, 1 ) },
-            path,
         };
         s.curr_tkn = s.token_list[s.pos].clone();
 
@@ -96,30 +95,36 @@ impl<'a> OldParser<'a> {
             match f {
                 // ~
                 RuleFilter::Only(s) => {
-                    rule_str.push_str(" ~ ");
+                    rule_str.push_str(" ~ \"");
                     rule_str.push_str(s);
+                    rule_str.push('\"');
                 },
                 RuleFilter::OnlyMult(items) => {
-                    rule_str.push_str(" ~ ");
+                    rule_str.push_str(" ~ \"");
                     rule_str.push_str(&items[0]);
+                    rule_str.push('\"');
 
                     for s in items.iter().skip(1) {
-                        rule_str.push_str(", ");
+                        rule_str.push_str(", \"");
                         rule_str.push_str(s);
+                        rule_str.push('\"');
                     }
                 },
                 // !
                 RuleFilter::Without(s) => {
-                    rule_str.push_str(" ! ");
+                    rule_str.push_str(" ! \"");
                     rule_str.push_str(s);
+                    rule_str.push('\"');
                 },
                 RuleFilter::WithoutMult(items) => {
-                    rule_str.push_str(" ! ");
+                    rule_str.push_str(" ! \"");
                     rule_str.push_str(&items[0]);
+                    rule_str.push('\"');
 
                     for s in items.iter().skip(1) {
-                        rule_str.push_str(", ");
+                        rule_str.push_str(", \"");
                         rule_str.push_str(s);
+                        rule_str.push('\"');
                     }
                 },
             }
@@ -188,90 +193,19 @@ impl<'a> OldParser<'a> {
         }
     }
 
-    fn lev(&self, entry_rules: Vec<RuleGroup>, filter: &str) -> String {
-        let mut best_lev = usize::MAX;
-        let mut best_match= "";
-        let names = entry_rules.iter().map(|e| &e.name);
-
-        for name in names {
-            let len = util::lev(name, filter);
-            if len < best_lev {
-                best_match = name;
-                best_lev = len;
-            }
-        }
-        
-        best_match.to_string()
-    }
-
-    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, verbatim: String, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
-        let mut file_path = file_path.clone();
-        let file_stem = rule_file.file_stem().expect("Caller insures file exists").to_str().unwrap();
-        file_path.set_file_name(format!("{}{}", file_stem, filter.as_file_string()));
-
-        match filter {
-            RuleFilter::Only(rule_str) => {
-                match entry_rules.iter().find(|r| r.name.to_lowercase() == rule_str.to_lowercase()).cloned() {
-                    Some(rule) => Ok(Entry::from(file_path, verbatim, vec![rule])),
-                    None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
-                }
-            },
-            RuleFilter::Without(rule_str) => {
-                let entries = entry_rules.iter().filter(|r| r.name.to_lowercase() != rule_str.to_lowercase()).cloned().collect::<Vec<_>>();
-                if entries.len() == entry_rules.len() {
-                    return Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
-                }
-                Ok(Entry::from(file_path, verbatim, entries))
-            },
-            RuleFilter::OnlyMult(filters) => {
-                let entries = filters.iter().map(|filter| {
-                    match entry_rules.iter().find(|r| r.name.to_lowercase() == filter.to_lowercase()) {
-                        Some(entry) => Ok(entry.clone()),
-                        None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", filter, rule_file.to_str().unwrap(), self.lev(entry_rules.clone(), filter).yellow())))
-                    }
-                }).collect::<io::Result<Vec<RuleGroup>>>()?;
-
-                Ok(Entry::from(file_path, verbatim, entries))
-            },
-            RuleFilter::WithoutMult(mut filters) => {
-                // TODO: which rules was not found
-                filters = filters.iter().map(|f| f.to_lowercase()).collect();
-                let entries = entry_rules.iter().filter(|r| !filters.contains(&r.name.to_lowercase())).cloned().collect::<Vec<_>>();
-                if entries.len() == entry_rules.len() {
-                    return Err(self.error(format!("Could not find any of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file.to_str().unwrap())))
-                } else if entries.len() != entry_rules.len() - filters.len() {
-                    return Err(self.error(format!("Could not find one or more of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file.to_str().unwrap())))
-                }
-                Ok(Entry::from(file_path, verbatim, entries))
-            },
-        }
-    }
-
-    fn get_entry(&mut self) -> io::Result<Option<Entry>> {
+    fn get_entry(&mut self) -> io::Result<Option<OldEntry>> {
         let Some(rule) = self.eat_expect(TokenKind::String) else {
             return Ok(None)
         };
 
-        let rule_file = rule.value.trim();
-        let mut file_path = self.path.to_path_buf();
-        file_path.set_file_name(rule_file);
-        file_path.set_extension(RULE_FILE_EXT);
         let filter = self.get_filter()?;
 
         let verbatim = self.get_verbatim(&rule, &filter);
 
-        if file_path.is_file(){
-            let entry_rules = parse_rsca(&file_path)?;
-            match filter {
-                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, verbatim, file_path, PathBuf::from(rule_file))?)),
-                None => Ok(Some(Entry::from(file_path, verbatim, entry_rules))),
-            }
-        } else {
-            Err(self.error(format!("Cannot find {file_path:?}. {}:{}", rule.position.s_line, rule.position.s_pos)))
-        }    
+        Ok(Some(OldEntry::from(verbatim))) 
     }
 
-    fn get_entries(&mut self) -> io::Result<Vec<Entry>> {
+    fn get_entries(&mut self) -> io::Result<Vec<OldEntry>> {
         let mut entries = Vec::new();
 
         if let Some(e) =  self.get_entry()? {

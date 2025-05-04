@@ -85,7 +85,7 @@ impl<'a> Parser<'a> {
 
     fn line_lookahead(&self, knd: TokenKind) -> bool {
         let mut pos = self.pos;
-        while pos < self.token_list.len() && self.token_list[pos].kind != TokenKind::Eol && self.token_list[pos].kind != TokenKind::Eof {
+        while pos < self.token_list.len() && self.token_list[pos].kind != TokenKind::Eol && self.token_list[pos].kind != TokenKind::Eof && self.token_list[pos].kind != TokenKind::Comment {
             if self.token_list[pos].kind == knd {
                 return true
             }
@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
             } else if self.curr_tkn.kind == TokenKind::Eof {
                 return Err(self.error(format!("Unexpected end of file at line {}:{}", self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
             } else {
-                return Err(self.error(format!("Unexpected token '{}' at line {}:{}", self.curr_tkn.value, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+                return Err(self.error(format!("Unexpected token '{}' at line {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
             }
         }
 
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
             match token_list.len().cmp(&1) {
                 std::cmp::Ordering::Equal => return Ok((vec![], token_list[0].clone())),
                 std::cmp::Ordering::Greater => return Err(self.error(format!(
-                    "Too many tags at '{}:{}'", 
+                    "More than one tag found on line '{}:{}'", 
                     self.token_list.last().unwrap().position.s_line,
                     self.token_list.last().unwrap().position.s_pos
                 ))),
@@ -143,7 +143,11 @@ impl<'a> Parser<'a> {
         }
 
         if token_list.len() > len + 1 {
-            return Err(self.error("Too many tags".to_string()))
+            return Err(self.error(format!(
+                "More than one tag found on line '{}:{}'", 
+                self.token_list.last().unwrap().position.s_line,
+                self.token_list.last().unwrap().position.s_pos
+            )))
         }
 
         let tag = token_list[len].clone();
@@ -153,6 +157,9 @@ impl<'a> Parser<'a> {
         let inputs = token_list.into_iter().map(|tkn| {
             tkn.value
         }).collect();
+
+        self.skip_comments();
+        while self.eat_expect(TokenKind::Eol).is_some() { }
         
         Ok((inputs, tag))
 
@@ -175,48 +182,7 @@ impl<'a> Parser<'a> {
         Ok(entries)
     }
 
-    fn get_verbatim(&self, rule: &Token, filter: &Option<RuleFilter>) -> String {
-        let mut rule_str = rule.value.to_string();
-
-        if let Some(f) = filter {
-            match f {
-                // ~
-                RuleFilter::Only(s) => {
-                    rule_str.push_str(" ~ ");
-                    rule_str.push_str(s);
-                },
-                RuleFilter::OnlyMult(items) => {
-                    rule_str.push_str(" ~ ");
-                    rule_str.push_str(&items[0]);
-
-                    for s in items.iter().skip(1) {
-                        rule_str.push_str(", ");
-                        rule_str.push_str(s);
-                    }
-                },
-                // !
-                RuleFilter::Without(s) => {
-                    rule_str.push_str(" ! ");
-                    rule_str.push_str(s);
-                },
-                RuleFilter::WithoutMult(items) => {
-                    rule_str.push_str(" ! ");
-                    rule_str.push_str(&items[0]);
-
-                    for s in items.iter().skip(1) {
-                        rule_str.push_str(", ");
-                        rule_str.push_str(s);
-                    }
-                },
-            }
-        }
-        rule_str
-    }
-
     fn get_entry(&mut self) -> io::Result<Option<Entry>> {
-        if !self.expect(TokenKind::Eol) {
-            return Ok(None)
-        }
         if self.line_lookahead(TokenKind::Colon) {
             return Ok(None)
         }
@@ -226,7 +192,8 @@ impl<'a> Parser<'a> {
 
         let filter = self.get_filter()?;
 
-        let verbatim = self.get_verbatim(&rule, &filter);
+        self.skip_comments();
+        while self.eat_expect(TokenKind::Eol).is_some() { }
 
         let mut file_path = self.path.to_path_buf();
         let rule_file = rule.value.trim();
@@ -235,8 +202,8 @@ impl<'a> Parser<'a> {
         if file_path.is_file(){
             let entry_rules = parse_rsca(&file_path)?;
             match filter {
-                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, verbatim, file_path, PathBuf::from(rule_file))?)),
-                None => Ok(Some(Entry::from(file_path, verbatim, entry_rules))),
+                Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, file_path, PathBuf::from(rule_file))?)),
+                None => Ok(Some(Entry::from(file_path, entry_rules))),
             }
         } else {
             Err(self.error(format!("Cannot find {file_path:?} at line {}:{}", rule.position.s_line, rule.position.s_pos)))
@@ -271,28 +238,20 @@ impl<'a> Parser<'a> {
 
     fn get_filter_list(&mut self) -> io::Result<Vec<String>>{
         let mut filters = Vec::new();
-        let mut phrase = Vec::new();
 
-        if let Some(f) =  self.eat_expect(TokenKind::Literal) {
-            phrase.push(f.value.to_string());
+        if let Some(f) =  self.eat_expect(TokenKind::String) {
+            filters.push(f.value.to_string());
 
             loop {
-                if self.peek(TokenKind::Eol) {
-                    let x = phrase.join(" ");
-                    filters.push(x);
-                    break;
-                }
-                if self.expect(TokenKind::Comma) {
-                    let x = phrase.join(" ");
-                    filters.push(x);
-                    phrase.clear();
+                if self.peek(TokenKind::Eol) || self.peek(TokenKind::Eof) { break; }
+                if !self.expect(TokenKind::Comma) {
+                    let pos = self.curr_tkn.position;
+                    return Err(self.error(format!("Expected comma, found {} at {}:{}", self.curr_tkn.kind, pos.s_line, pos.s_pos)))
                 }
 
-                match self.eat_expect(TokenKind::Literal) {
-                    Some(f) => phrase.push(f.value.to_string()),
+                match self.eat_expect(TokenKind::String) {
+                    Some(f) => filters.push(f.value.to_string()),
                     None => if self.peek(TokenKind::Eol) || self.peek(TokenKind::Eof) { 
-                        let x = phrase.join(" ");
-                        filters.push(x);
                         break;
                     } else {
                         return Err(self.error(format!("Expected a rule name, found {} at line {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
@@ -307,7 +266,7 @@ impl<'a> Parser<'a> {
         Ok(filters)
     }
 
-    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, verbatim: String, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
+    fn parse_entry(&mut self, entry_rules: Vec<RuleGroup>, filter: RuleFilter, file_path: PathBuf, rule_file: PathBuf) -> io::Result<Entry> {
         let mut file_path = file_path.clone();
         let file_stem = rule_file.file_stem().expect("Caller insures file exists").to_str().unwrap();
         file_path.set_file_name(format!("{}{}", file_stem, filter.as_file_string()));
@@ -315,7 +274,7 @@ impl<'a> Parser<'a> {
         match filter {
             RuleFilter::Only(rule_str) => {
                 match entry_rules.iter().find(|r| r.name.to_lowercase() == rule_str.to_lowercase()).cloned() {
-                    Some(rule) => Ok(Entry::from(file_path, verbatim, vec![rule])),
+                    Some(rule) => Ok(Entry::from(file_path, vec![rule])),
                     None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
                 }
             },
@@ -324,7 +283,7 @@ impl<'a> Parser<'a> {
                 if entries.len() == entry_rules.len() {
                     return Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
                 }
-                Ok(Entry::from(file_path, verbatim, entries))
+                Ok(Entry::from(file_path, entries))
             },
             RuleFilter::OnlyMult(filters) => {
                 let entries = filters.iter().map(|filter| {
@@ -334,7 +293,7 @@ impl<'a> Parser<'a> {
                     }
                 }).collect::<io::Result<Vec<RuleGroup>>>()?;
 
-                Ok(Entry::from(file_path, verbatim, entries))
+                Ok(Entry::from(file_path, entries))
             },
             RuleFilter::WithoutMult(mut filters) => {
                 // TODO: which rules were not found
@@ -345,7 +304,7 @@ impl<'a> Parser<'a> {
                 } else if entries.len() != entry_rules.len() - filters.len() {
                     return Err(self.error(format!("Could not find one or more of the excluded rules in '{}'.\nMake sure the rule names match exactly!", rule_file.to_str().unwrap())))
                 }
-                Ok(Entry::from(file_path, verbatim, entries))
+                Ok(Entry::from(file_path, entries))
             },
         }
     }
