@@ -315,7 +315,7 @@ pub(super) fn to_new_config_format(conf: Vec<OldConfig>) -> String {
         result.push_str(&indent);
 
         for rule in seq.entries {
-            result.push_str(&format!("    {}\n", rule.verbatim));
+            result.push_str(&format!("    {};\n", rule.verbatim));
         }
         result.push('\n');
     }

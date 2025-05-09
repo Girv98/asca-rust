@@ -8,11 +8,11 @@ pub(super) enum TokenKind {
     Bang,       // !
     Tilde,      // !
     Colon,      // : 
+    Semi,       // ;
     Arrow,      // >
     Literal,   
     String, 
     Comment,    // '#'.* '\n'
-    Eol,        // ('\r')'\n'
     Eof,        // End of file
 }
 
@@ -23,11 +23,11 @@ impl fmt::Display for TokenKind {
             TokenKind::Bang     => write!(f, "!"),
             TokenKind::Tilde    => write!(f, "~"),
             TokenKind::Colon    => write!(f, ":"),
+            TokenKind::Semi     => write!(f, ";"),
             TokenKind::Arrow    => write!(f, ">"),
             TokenKind::Literal  => write!(f, "a literal"),
             TokenKind::String   => write!(f, "a string"),
             TokenKind::Comment  => write!(f, "a comment"),
-            TokenKind::Eol      => write!(f, "end of line"),
             TokenKind::Eof      => write!(f, "end of file"),
         }
     }
@@ -75,7 +75,7 @@ impl<'a> Lexer<'a> {
     fn has_more_chars(&self) -> bool { !self.source.is_empty() }
 
     fn trim_whitespace(&mut self) {
-        while self.has_more_chars() && self.source[0].is_whitespace() && self.source[0] != '\n'{
+        while self.has_more_chars() && self.source[0].is_whitespace() {
             self.advance();
         }
     }
@@ -111,7 +111,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    #[allow(unused)]
     fn next_char(&self) -> char {
         if self.source.len() > 1 {
             self.source[1]
@@ -121,8 +120,18 @@ impl<'a> Lexer<'a> {
     }
 
     fn advance(&mut self) {
-        self.source = &self.source[1..];
-        self.l_pos += 1;
+        if self.curr_char() == '\r' && Self::is_line_terminator(&&self.next_char()) {
+            self.source = &self.source[2..];
+            self.l_num += 1;
+            self.l_pos = 0;
+        } else if Self::is_line_terminator(&self.curr_char()) {
+            self.source = &self.source[1..];
+            self.l_num += 1;
+            self.l_pos = 0;
+        } else {
+            self.source = &self.source[1..];
+            self.l_pos += 1;
+        }
     }
 
     fn get_special(&mut self) -> Result<Option<Token>, io::Error> {
@@ -136,6 +145,7 @@ impl<'a> Lexer<'a> {
             ':' => { tokenkind = TokenKind::Colon;  self.chop(1) },
             '~' => { tokenkind = TokenKind::Tilde;  self.chop(1) },
             '!' => { tokenkind = TokenKind::Bang;   self.chop(1) },
+            ';' => { tokenkind = TokenKind::Semi;   self.chop(1) },
              _  => return Ok(None)
         };
 
@@ -147,7 +157,7 @@ impl<'a> Lexer<'a> {
 
         let start_line = self.l_num;
         let start = self.l_pos;
-        let mut buffer = self.chop_while(|x| *x != '\n');
+        let mut buffer = self.chop_while(|x| !Self::is_line_terminator(x));
         if buffer.ends_with('\r') {
             buffer.pop();
         }
@@ -157,35 +167,14 @@ impl<'a> Lexer<'a> {
 
         if self.has_more_chars() {
             self.advance();
-            self.l_num += 1;
-            self.l_pos = 0;
         }
 
         Ok(Some(Token::new(TokenKind::Comment, &buffer, start_line, start, end_line, end)))
     }
 
-    #[allow(unused)]
     fn is_line_terminator(x: &char) -> bool {
         // newline | line-separator | paragraph separator
         *x == '\n' || *x == '\u{2028}' || *x == '\u{2029}'
-    }
-
-    fn get_eol(&mut self) -> Result<Option<Token>, io::Error> {
-        if self.curr_char() != '\n' { return Ok(None) }
-
-        let start_line = self.l_num;
-        let start = self.l_pos;
-
-        let buffer = self.chop(1);
-
-        let end_line = self.l_num;
-        let end = self.l_pos;
-
-        self.l_num += 1;
-        self.l_pos = 0;
-
-        Ok(Some(Token::new(TokenKind::Eol, &buffer, start_line, start, end_line, end)))
-
     }
 
     fn get_string(&mut self) -> Result<Option<Token>, io::Error> {
@@ -194,7 +183,7 @@ impl<'a> Lexer<'a> {
 
         let s_line = self.l_num;
         let start = self.l_pos;
-        let buffer = self.chop_while(|x| *x != '"' && *x != '\n');
+        let buffer = self.chop_while(|x| *x != '"' && !Self::is_line_terminator(x));
 
         match self.curr_char() {
             '"' => self.advance(),
@@ -209,7 +198,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn is_reserved_char(x: &char) -> bool {
-        matches!(x, '>' | '!' | '~' | ',' | '#' | ':')
+        matches!(x, '>' | '!' | '~' | ',' | '#' | ':' | ';' | '"')
     }
 
     fn is_literal_char(x: &char) -> bool {
@@ -232,9 +221,8 @@ impl<'a> Lexer<'a> {
 
         if !self.has_more_chars() { return Ok(Token::new(TokenKind::Eof, "", self.l_num, self.l_pos, self.l_num,self.l_pos+1)) }
 
-        if let Some(com) = self.get_eol()?     { return Ok(com) }
-        if let Some(com) = self.get_comment()? { return Ok(com) }
         if let Some(spc) = self.get_special()? { return Ok(spc) }
+        if let Some(com) = self.get_comment()? { return Ok(com) }
         if let Some(str) = self.get_string()?  { return Ok(str) }
         if let Some(lit) = self.get_literal()? { return Ok(lit) }
 
@@ -273,19 +261,19 @@ mod lexer_tests {
     fn test_end_line_comments_mult() {
         let test_input= String::from(
             "foo.wsca bar.wsca > beta: # test\n\
-                rules1.rsca ! \"Glottal Deletion\"# test\n\
-                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"# test\n\
+                rules1.rsca ! \"Glottal Deletion\"; # test\n\
+                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"; # test\n\
             \n\
             foo.wsca bar.wsca > beta: # test\n\
-                rules1.rsca ! \"Glottal Deletion\"# test\n\
-                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"# test\n\
+                rules1.rsca ! \"Glottal Deletion\"; # test\n\
+                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"; # test\n\
             # test\n\
             foo.wsca bar.wsca > beta: # test\n\
-                rules1.rsca ! \"Glottal Deletion\"# test\n\
-                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"# test\n\
+                rules1.rsca ! \"Glottal Deletion\"; # test\n\
+                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"; # test\n\
             foo.wsca bar.wsca > beta: # test\n\
-                rules1.rsca ! \"Glottal Deletion\"# test\n\
-                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"# test"
+                rules1.rsca ! \"Glottal Deletion\"; # test\n\
+                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"; # test"
         );
 
         let expected_result = vec![
@@ -299,16 +287,16 @@ mod lexer_tests {
             Token::new(TokenKind::Literal,            "rules1.rsca", 2,  0, 2, 11),
             Token::new(TokenKind::Bang,                         "!", 2, 12, 2, 13),
             Token::new(TokenKind::String,        "Glottal Deletion", 2, 15, 2, 32),
-            Token::new(TokenKind::Comment,                 "# test", 2, 32, 2, 38),
+            Token::new(TokenKind::Semi,                         ";", 2, 32, 2, 33),
+            Token::new(TokenKind::Comment,                 "# test", 2, 34, 2, 40),
             
             Token::new(TokenKind::Literal,            "rules2.rsca", 3,  0, 3, 11),
             Token::new(TokenKind::Tilde,                        "~", 3, 12, 3, 13),
             Token::new(TokenKind::String,  "Cluster Simplification", 3, 15, 3, 38),
             Token::new(TokenKind::Comma,                        ",", 3, 38, 3, 39),
             Token::new(TokenKind::String,             "Hap(lo)logy", 3, 41, 3, 53),
-            Token::new(TokenKind::Comment,                 "# test", 3, 53, 3, 59),
-
-            Token::new(TokenKind::Eol,                         "\n", 4, 0,  4,  1),
+            Token::new(TokenKind::Semi,                         ";", 3, 53, 3, 54),
+            Token::new(TokenKind::Comment,                 "# test", 3, 55, 3, 61),
 
             Token::new(TokenKind::Literal,               "foo.wsca", 5, 0,  5,  8),
             Token::new(TokenKind::Literal,               "bar.wsca", 5, 9,  5, 17),
@@ -320,14 +308,16 @@ mod lexer_tests {
             Token::new(TokenKind::Literal,            "rules1.rsca", 6,  0, 6, 11),
             Token::new(TokenKind::Bang,                         "!", 6, 12, 6, 13),
             Token::new(TokenKind::String,        "Glottal Deletion", 6, 15, 6, 32),
-            Token::new(TokenKind::Comment,                 "# test", 6, 32, 6, 38),
+            Token::new(TokenKind::Semi,                         ";", 6, 32, 6, 33),
+            Token::new(TokenKind::Comment,                 "# test", 6, 34, 6, 40),
             
             Token::new(TokenKind::Literal,            "rules2.rsca", 7,  0, 7, 11),
             Token::new(TokenKind::Tilde,                        "~", 7, 12, 7, 13),
             Token::new(TokenKind::String,  "Cluster Simplification", 7, 15, 7, 38),
             Token::new(TokenKind::Comma,                        ",", 7, 38, 7, 39),
             Token::new(TokenKind::String,             "Hap(lo)logy", 7, 41, 7, 53),
-            Token::new(TokenKind::Comment,                 "# test", 7, 53, 7, 59),
+            Token::new(TokenKind::Semi,                         ";", 7, 53, 7, 54),
+            Token::new(TokenKind::Comment,                 "# test", 7, 55, 7, 61),
 
             Token::new(TokenKind::Comment,                 "# test", 8, 0,  8,  6),
 
@@ -338,45 +328,56 @@ mod lexer_tests {
             Token::new(TokenKind::Colon,                        ":", 9, 24, 9, 25),
             Token::new(TokenKind::Comment,                 "# test", 9, 26, 9, 32),
             
-            Token::new(TokenKind::Literal,           "rules1.rsca", 10,  0, 10, 11),
-            Token::new(TokenKind::Bang,                        "!", 10, 12, 10, 13),
-            Token::new(TokenKind::String,       "Glottal Deletion", 10, 15, 10, 32),
-            Token::new(TokenKind::Comment,                "# test", 10, 32, 10, 38),
+            Token::new(TokenKind::Literal,            "rules1.rsca", 10,  0, 10, 11),
+            Token::new(TokenKind::Bang,                         "!", 10, 12, 10, 13),
+            Token::new(TokenKind::String,        "Glottal Deletion", 10, 15, 10, 32),
+            Token::new(TokenKind::Semi,                         ";", 10, 32, 10, 33),
+            Token::new(TokenKind::Comment,                 "# test", 10, 34, 10, 40),
             
-            Token::new(TokenKind::Literal,           "rules2.rsca", 11,  0, 11, 11),
-            Token::new(TokenKind::Tilde,                       "~", 11, 12, 11, 13),
-            Token::new(TokenKind::String, "Cluster Simplification", 11, 15, 11, 38),
-            Token::new(TokenKind::Comma,                       ",", 11, 38, 11, 39),
-            Token::new(TokenKind::String,            "Hap(lo)logy", 11, 41, 11, 53),
-            Token::new(TokenKind::Comment,                "# test", 11, 53, 11, 59),
+            Token::new(TokenKind::Literal,            "rules2.rsca", 11,  0, 11, 11),
+            Token::new(TokenKind::Tilde,                        "~", 11, 12, 11, 13),
+            Token::new(TokenKind::String,  "Cluster Simplification", 11, 15, 11, 38),
+            Token::new(TokenKind::Comma,                        ",", 11, 38, 11, 39),
+            Token::new(TokenKind::String,             "Hap(lo)logy", 11, 41, 11, 53),
+            Token::new(TokenKind::Semi,                         ";", 11, 53, 11, 54),
+            Token::new(TokenKind::Comment,                 "# test", 11, 55, 11, 61),
 
-            Token::new(TokenKind::Literal,              "foo.wsca", 12, 0,  12,  8),
-            Token::new(TokenKind::Literal,              "bar.wsca", 12, 9,  12, 17),
-            Token::new(TokenKind::Arrow,                       ">", 12, 18, 12, 19),
-            Token::new(TokenKind::Literal,                  "beta", 12, 20, 12, 24),
-            Token::new(TokenKind::Colon,                       ":", 12, 24, 12, 25),
-            Token::new(TokenKind::Comment,                "# test", 12, 26, 12, 32),
+            Token::new(TokenKind::Literal,               "foo.wsca", 12, 0,  12,  8),
+            Token::new(TokenKind::Literal,               "bar.wsca", 12, 9,  12, 17),
+            Token::new(TokenKind::Arrow,                        ">", 12, 18, 12, 19),
+            Token::new(TokenKind::Literal,                   "beta", 12, 20, 12, 24),
+            Token::new(TokenKind::Colon,                        ":", 12, 24, 12, 25),
+            Token::new(TokenKind::Comment,                 "# test", 12, 26, 12, 32),
             
-            Token::new(TokenKind::Literal,           "rules1.rsca", 13,  0, 13, 11),
-            Token::new(TokenKind::Bang,                        "!", 13, 12, 13, 13),
-            Token::new(TokenKind::String,       "Glottal Deletion", 13, 15, 13, 32),
-            Token::new(TokenKind::Comment,                "# test", 13, 32, 13, 38),
+            Token::new(TokenKind::Literal,            "rules1.rsca", 13,  0, 13, 11),
+            Token::new(TokenKind::Bang,                         "!", 13, 12, 13, 13),
+            Token::new(TokenKind::String,        "Glottal Deletion", 13, 15, 13, 32),
+            Token::new(TokenKind::Semi,                         ";", 13, 32, 13, 33),
+            Token::new(TokenKind::Comment,                 "# test", 13, 34, 13, 40),
             
-            Token::new(TokenKind::Literal,           "rules2.rsca", 14,  0, 14, 11),
-            Token::new(TokenKind::Tilde,                       "~", 14, 12, 14, 13),
-            Token::new(TokenKind::String, "Cluster Simplification", 14, 15, 14, 38),
-            Token::new(TokenKind::Comma,                       ",", 14, 38, 14, 39),
-            Token::new(TokenKind::String,            "Hap(lo)logy", 14, 41, 14, 53),
-            Token::new(TokenKind::Comment,                "# test", 14, 53, 14, 59),
+            Token::new(TokenKind::Literal,            "rules2.rsca", 14,  0, 14, 11),
+            Token::new(TokenKind::Tilde,                        "~", 14, 12, 14, 13),
+            Token::new(TokenKind::String,  "Cluster Simplification", 14, 15, 14, 38),
+            Token::new(TokenKind::Comma,                        ",", 14, 38, 14, 39),
+            Token::new(TokenKind::String,             "Hap(lo)logy", 14, 41, 14, 53),
+            Token::new(TokenKind::Semi,                         ";", 14, 53, 14, 54),
+            Token::new(TokenKind::Comment,                 "# test", 14, 55, 14, 61),
 
-            Token::new(TokenKind::Eof,                          "", 14, 59, 14, 60),
+            Token::new(TokenKind::Eof,                           "", 14, 61, 14, 62),
         ];
             
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise().unwrap();        
+        let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
         
-        // assert_eq!(result.len(), expected_result.len());
+        let result = match &maybe_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+                unreachable!()
+            },
+        };
 
-        println!("{:#?}", result);
+        assert_eq!(result.len(), expected_result.len());
         
         for i in 0..expected_result.len() {
             assert_eq!(result[i], expected_result[i]);
@@ -386,9 +387,9 @@ mod lexer_tests {
     #[test]
     fn test_end_line_comments() {
         let test_input= String::from(
-            "foo.wsca bar.wsca > beta: # test\n \
-                rules1.rsca ! \"Glottal Deletion\"# test\n \
-                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"# test"
+            "foo.wsca bar.wsca > beta: # test\n\
+                rules1.rsca ! \"Glottal Deletion\"; # test\n\
+                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\"; # test"
         );
 
         let expected_result = vec![
@@ -399,26 +400,36 @@ mod lexer_tests {
             Token::new(TokenKind::Colon,                       ":", 1, 24, 1, 25),
             Token::new(TokenKind::Comment,                "# test", 1, 26, 1, 32),
             
-            Token::new(TokenKind::Literal,           "rules1.rsca", 2,  1, 2, 12),
-            Token::new(TokenKind::Bang,                        "!", 2, 13, 2, 14),
-            Token::new(TokenKind::String,       "Glottal Deletion", 2, 16, 2, 33),
-            Token::new(TokenKind::Comment,                "# test", 2, 33, 2, 39),
+            Token::new(TokenKind::Literal,           "rules1.rsca", 2,  0, 2, 11),
+            Token::new(TokenKind::Bang,                        "!", 2, 12, 2, 13),
+            Token::new(TokenKind::String,       "Glottal Deletion", 2, 15, 2, 32),
+            Token::new(TokenKind::Semi,                        ";", 2, 32, 2, 33),
+            Token::new(TokenKind::Comment,                "# test", 2, 34, 2, 40),
             
-            Token::new(TokenKind::Literal,           "rules2.rsca", 3,  1, 3, 12),
-            Token::new(TokenKind::Tilde,                       "~", 3, 13, 3, 14),
-            Token::new(TokenKind::String, "Cluster Simplification", 3, 16, 3, 39),
-            Token::new(TokenKind::Comma,                       ",", 3, 39, 3, 40),
-            Token::new(TokenKind::String,            "Hap(lo)logy", 3, 42, 3, 54),
-            Token::new(TokenKind::Comment,                "# test", 3, 54, 3, 60),
-            Token::new(TokenKind::Eof,                          "", 3, 60, 3, 61),
+            Token::new(TokenKind::Literal,           "rules2.rsca", 3,  0, 3, 11),
+            Token::new(TokenKind::Tilde,                       "~", 3, 12, 3, 13),
+            Token::new(TokenKind::String, "Cluster Simplification", 3, 15, 3, 38),
+            Token::new(TokenKind::Comma,                       ",", 3, 38, 3, 39),
+            Token::new(TokenKind::String,            "Hap(lo)logy", 3, 41, 3, 53),
+            Token::new(TokenKind::Semi,                        ";", 3, 53, 3, 54),
+            Token::new(TokenKind::Comment,                "# test", 3, 55, 3, 61),
+
+            Token::new(TokenKind::Eof,                          "", 3, 61, 3, 62),
         ];
             
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise().unwrap();        
+        let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
         
-        assert_eq!(result.len(), expected_result.len());
+        let result = match &maybe_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+                unreachable!()
+            },
+        };
 
-        println!("{:#?}", result);
-        
+        assert_eq!(result.len(), expected_result.len());
+  
         for i in 0..expected_result.len() {
             assert_eq!(result[i], expected_result[i]);
         }
@@ -428,9 +439,9 @@ mod lexer_tests {
     fn test_1() {
         
         let test_input= String::from(
-            "foo.wsca bar.wsca > beta:\n \
-                rules1.rsca ! \"Glottal Deletion\"\n \
-                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\""
+            "foo.wsca bar.wsca > beta:\n\
+                rules1.rsca ! \"Glottal Deletion\";\n\
+                rules2.rsca ~ \"Cluster Simplification\", \"Hap(lo)logy\";"
         );
 
         let expected_result = vec![
@@ -439,27 +450,69 @@ mod lexer_tests {
             Token::new(TokenKind::Arrow,                       ">", 1, 18, 1, 19),
             Token::new(TokenKind::Literal,                  "beta", 1, 20, 1, 24),
             Token::new(TokenKind::Colon,                       ":", 1, 24, 1, 25),
-            Token::new(TokenKind::Eol,                        "\n", 1, 25, 1, 26),
+            
+            Token::new(TokenKind::Literal,           "rules1.rsca", 2,  0, 2, 11),
+            Token::new(TokenKind::Bang,                        "!", 2, 12, 2, 13),
+            Token::new(TokenKind::String,       "Glottal Deletion", 2, 15, 2, 32),
+            Token::new(TokenKind::Semi,                        ";", 2, 32, 2, 33),
+            
+            Token::new(TokenKind::Literal,           "rules2.rsca", 3,  0, 3, 11),
+            Token::new(TokenKind::Tilde,                       "~", 3, 12, 3, 13),
+            Token::new(TokenKind::String, "Cluster Simplification", 3, 15, 3, 38),
+            Token::new(TokenKind::Comma,                       ",", 3, 38, 3, 39),
+            Token::new(TokenKind::String,            "Hap(lo)logy", 3, 41, 3, 53),
+            Token::new(TokenKind::Semi,                        ";", 3, 53, 3, 54),
 
-            Token::new(TokenKind::Literal,           "rules1.rsca", 2,  1, 2, 12),
-            Token::new(TokenKind::Bang,                        "!", 2, 13, 2, 14),
-            Token::new(TokenKind::String,       "Glottal Deletion", 2, 16, 2, 33),
-            Token::new(TokenKind::Eol,                        "\n", 2, 33, 2, 34),
-   
-            Token::new(TokenKind::Literal,           "rules2.rsca", 3,  1, 3, 12),
-            Token::new(TokenKind::Tilde,                       "~", 3, 13, 3, 14),
-            Token::new(TokenKind::String, "Cluster Simplification", 3, 16, 3, 39),
-            Token::new(TokenKind::Comma,                       ",", 3, 39, 3, 40),
-            Token::new(TokenKind::String,            "Hap(lo)logy", 3, 42, 3, 54),
             Token::new(TokenKind::Eof,                          "", 3, 54, 3, 55),
         ];
             
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise().unwrap();        
+        let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
         
+        let result = match &maybe_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+                unreachable!()
+            },
+        };
+
         assert_eq!(result.len(), expected_result.len());
 
-        // println!("{:#?}", result);
+        for i in 0..expected_result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn test_simple() {
+        let test_input= String::from(
+            "beta: rules1.rsca; rules2.rsca;"
+        );
+
+        let expected_result = vec![
+            Token::new(TokenKind::Literal,                  "beta", 1,  0, 1,  4),
+            Token::new(TokenKind::Colon,                       ":", 1,  4, 1,  5),
+            Token::new(TokenKind::Literal,           "rules1.rsca", 1,  6, 1, 17),
+            Token::new(TokenKind::Semi,                        ";", 1, 17, 1, 18),
+            Token::new(TokenKind::Literal,           "rules2.rsca", 1, 19, 1, 30),
+            Token::new(TokenKind::Semi,                        ";", 1, 30, 1, 31),
+            Token::new(TokenKind::Eof,                          "", 1, 31, 1, 32),
+        ];
+            
+        let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
         
+        let result = match &maybe_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+                unreachable!()
+            },
+        };
+
+        assert_eq!(result.len(), expected_result.len());
+
         for i in 0..expected_result.len() {
             assert_eq!(result[i], expected_result[i]);
         }

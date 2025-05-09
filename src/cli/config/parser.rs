@@ -85,7 +85,8 @@ impl<'a> Parser<'a> {
 
     fn line_lookahead(&self, knd: TokenKind) -> bool {
         let mut pos = self.pos;
-        while pos < self.token_list.len() && self.token_list[pos].kind != TokenKind::Eol && self.token_list[pos].kind != TokenKind::Eof && self.token_list[pos].kind != TokenKind::Comment {
+        let line_num = self.curr_tkn.position.s_line;
+        while pos < self.token_list.len() && self.token_list[pos].position.s_line == line_num && self.token_list[pos].kind != TokenKind::Eof && self.token_list[pos].kind != TokenKind::Comment {
             if self.token_list[pos].kind == knd {
                 return true
             }
@@ -131,7 +132,6 @@ impl<'a> Parser<'a> {
         }
 
         self.skip_comments();
-        while self.eat_expect(TokenKind::Eol).is_some() { }
 
         if !has_arrow {
             match token_list.len().cmp(&1) {
@@ -196,8 +196,11 @@ impl<'a> Parser<'a> {
 
         let filter = self.get_filter()?;
 
+        if !self.expect(TokenKind::Semi) {
+            return Err(self.error(format!("Expected semicolon, received {} at line {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
+        }
+
         self.skip_comments();
-        while self.eat_expect(TokenKind::Eol).is_some() { }
 
         let mut file_path = self.path.to_path_buf();
         let rule_file = rule.value.trim();
@@ -247,7 +250,7 @@ impl<'a> Parser<'a> {
             filters.push(f.value.to_string());
 
             loop {
-                if self.peek(TokenKind::Eol) || self.peek(TokenKind::Eof) { break; }
+                if self.peek(TokenKind::Semi) || self.peek(TokenKind::Eof) { break; }
                 if !self.expect(TokenKind::Comma) {
                     let pos = self.curr_tkn.position;
                     return Err(self.error(format!("Expected comma, found {} at {}:{}", self.curr_tkn.kind, pos.s_line, pos.s_pos)))
@@ -255,7 +258,7 @@ impl<'a> Parser<'a> {
 
                 match self.eat_expect(TokenKind::String) {
                     Some(f) => filters.push(f.value.to_string()),
-                    None => if self.peek(TokenKind::Eol) || self.peek(TokenKind::Eof) { 
+                    None => if self.peek(TokenKind::Semi) || self.peek(TokenKind::Eof) { 
                         break;
                     } else {
                         return Err(self.error(format!("Expected a rule name, found {} at line {}:{}", self.curr_tkn.kind, self.curr_tkn.position.s_line, self.curr_tkn.position.s_pos)))
@@ -386,8 +389,6 @@ impl<'a> Parser<'a> {
     fn get_seq(&mut self) -> io::Result<Option<ASCAConfig>> {
         self.skip_comments();
 
-        while self.eat_expect(TokenKind::Eol).is_some() { }
-
         if self.curr_tkn.kind == TokenKind::Eof {
             return Ok(None)
         }
@@ -482,41 +483,53 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_tag_loop() {
+    fn test_simple_tag_loop() {
         let test_input= String::from(
-            "beta > alpha:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca
+            "beta > alpha:\n\
+                examples/indo-european/germanic/pgmc/pre.rsca;
 
-            alpha > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\""
+            alpha > beta:\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\";"
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
-        // println!("{:?}", maybe_result);
+
         assert!(maybe_result.is_err());
+
+        if let Err(e) = maybe_result {
+            assert_eq!(e.to_string(), "\u{1b}[91mConfig Parse Error\u{1b}[0m: infinite pipeline loop detected in tag 'alpha'")
+        } else {
+            assert!(false)
+        }
     }
 
     #[test]
-    fn test_from_tag_does_not_exist() {
+    fn test_pipe_does_not_exist() {
         let test_input= String::from(
-            "beta > alpha:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca
+            "beta > alpha:\n\
+                examples/indo-european/germanic/pgmc/pre.rsca;
 
-            gamma > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\""
+            gamma > beta:\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\";"
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
-        // println!("{:?}", maybe_result);
+
         assert!(maybe_result.is_err());
+
+        if let Err(e) = maybe_result {
+            assert_eq!(e.to_string(), "\u{1b}[91mConfig Parse Error\u{1b}[0m: piped tag '\u{1b}[33mgamma\u{1b}[0m' found in sequence '\u{1b}[33mbeta\u{1b}[0m' does not exist")
+        } else {
+            assert!(false)
+        }
     }
 
     #[test]
     fn test_with_words() {
         let test_input= String::from(
             "examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\""
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\";"
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
 
@@ -537,11 +550,14 @@ mod parser_tests {
     #[test]
     fn test_without_words() {
         let test_input= String::from(
-            "beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\""
-            );
+            "beta: # test\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\";"
+        );
+
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+        
+        println!("{:?}", maybe_result);
 
         assert!(maybe_result.is_ok());
 
@@ -558,13 +574,13 @@ mod parser_tests {
     #[test]
     fn test_mult() {
         let test_input= String::from(
-            "alpha:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\"\
+            "alpha:\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\";\n\
             \n\
-            examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"\n \
-                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\""
+            examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ~ \"Cowgill's Law\";"
             );
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
 

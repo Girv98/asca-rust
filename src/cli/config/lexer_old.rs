@@ -131,8 +131,7 @@ impl<'a> OldLexer<'a> {
 
     fn advance(&mut self) {
         if self.curr_char() == '\r' && self.next_char() == '\n' {
-            self.source = &self.source[1..];
-            self.source = &self.source[1..];
+            self.source = &self.source[2..];
             self.l_num += 1;
             self.l_pos = 0;
         } else if self.curr_char() == '\n' {
