@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
     }
 
     fn error(&self, message: String) -> io::Error {
-        io::Error::other(format!("{}: {}", "Config Parse Error".bright_red(), message))
+        io::Error::other(format!("{} {}", "Config Parse Error:".bright_red(), message))
     }
 
     fn line_lookahead(&self, knd: TokenKind) -> bool {
@@ -497,7 +497,7 @@ mod parser_tests {
         assert!(maybe_result.is_err());
 
         if let Err(e) = maybe_result {
-            assert_eq!(e.to_string(), "\u{1b}[91mConfig Parse Error\u{1b}[0m: infinite pipeline loop detected in tag 'alpha'")
+            assert_eq!(e.to_string(), io::Error::other(format!("{} infinite pipeline loop detected in tag 'alpha'", "Config Parse Error:".bright_red())).to_string())
         } else {
             assert!(false)
         }
@@ -518,7 +518,8 @@ mod parser_tests {
         assert!(maybe_result.is_err());
 
         if let Err(e) = maybe_result {
-            assert_eq!(e.to_string(), "\u{1b}[91mConfig Parse Error\u{1b}[0m: piped tag '\u{1b}[33mgamma\u{1b}[0m' found in sequence '\u{1b}[33mbeta\u{1b}[0m' does not exist")
+            assert_eq!(e.to_string(), io::Error::other(format!("{} piped tag '{}' found in sequence '{}' does not exist", 
+            "Config Parse Error:".bright_red(), "gamma".yellow(), "beta".yellow())).to_string())
         } else {
             assert!(false)
         }
