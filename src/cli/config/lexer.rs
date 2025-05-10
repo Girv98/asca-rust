@@ -120,7 +120,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn advance(&mut self) {
-        if self.curr_char() == '\r' && Self::is_line_terminator(&&self.next_char()) {
+        if self.curr_char() == '\r' && Self::is_line_terminator(&self.next_char()) {
             self.source = &self.source[2..];
             self.l_num += 1;
             self.l_pos = 0;
