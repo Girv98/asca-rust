@@ -545,21 +545,19 @@ mod parser_tests {
             InputKind::WordFile("examples/indo-european/pie-pronouns.wsca".into())
         ]);
         assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
-        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dcs-cl"));
     }
 
     #[test]
     fn test_without_words() {
         let test_input= String::from(
             "beta: # test\n\
-                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
+                examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"; # test\n\
                 examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\";"
         );
 
         let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
         
-        println!("{:?}", maybe_result);
-
         assert!(maybe_result.is_ok());
 
         let result = maybe_result.unwrap();
@@ -568,8 +566,24 @@ mod parser_tests {
         assert_eq!(result[0].alias, None);
         assert_eq!(result[0].input, []);
         assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
-        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dcs-cl"));
 
+
+        let test_input= String::from(
+            "beta: examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"; examples/indo-european/germanic/pgmc/pre.rsca ~ \"Dental Cluster Simplification\", \"Cowgill's Law\";"
+        );
+
+        let maybe_result = Parser:: new(setup(&test_input), Path::new("")).parse();
+        
+        assert!(maybe_result.is_ok());
+
+        let result = maybe_result.unwrap();
+
+        assert_eq!(result[0].tag, "beta".into());
+        assert_eq!(result[0].alias, None);
+        assert_eq!(result[0].input, []);
+        assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dcs-cl"));
     }
 
     #[test]
@@ -593,7 +607,7 @@ mod parser_tests {
         assert_eq!(result[0].alias, None);
         assert_eq!(result[0].input, []);
         assert_eq!(result[0].entries[0].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_excl_laryngeal-colouring"));
-        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dc"));
+        assert_eq!(result[0].entries[1].name, PathBuf::from("examples/indo-european/germanic/pgmc/pre_om_dcs-cl"));
 
         assert_eq!(result[1].tag, "beta".into());
         assert_eq!(result[1].alias, None);

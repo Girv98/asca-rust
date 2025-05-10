@@ -109,11 +109,11 @@ impl RuleFilter {
                 format!("_excl_{}", util::sanitise_str(rule_str))
             },
             RuleFilter::OnlyMult(filters) => {
-                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
+                let abv_filt =  filters.iter().map(|s| s.split(" ").filter_map(|x| x.chars().next()).collect::<String>()).collect::<Vec<String>>().join("-");
                 format!("_om_{}", util::sanitise_str(&abv_filt))
             },
             RuleFilter::WithoutMult(filters) => {
-                let abv_filt = filters.iter().filter_map(|s| s.chars().next()).collect::<String>();
+                let abv_filt =  filters.iter().map(|s| s.split(" ").filter_map(|x| x.chars().next()).collect::<String>()).collect::<Vec<String>>().join("-");
                 format!("_xm_{}", util::sanitise_str(&abv_filt))
                 
             },
