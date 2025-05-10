@@ -1,5 +1,9 @@
 # ASCA Documentation and User Guide
 
+This is documentation for the core principles of defining words and sound changes with ASCA. For platform specific documentation, see:
+
+[Web](./doc-web.md) | [Cli](./doc-cli.md)
+
 ### Contents
 * [Defining Words](#defining-words)
     * [IPA Characters](#ipa-characters)
@@ -34,7 +38,6 @@
 * [Syllable Structure Matching](#syllable-structure-matching)
 * [Propagation](#propagation)
 * [Considerations](#considerations) 
-* [Web Interface](#web-interface)
 
 ## Defining Words
 
@@ -318,7 +321,7 @@ a > e / _ _     (this is invalid)
 ```
 
 ### Single Line Comments
-ASCA supports single line comments delimited by two semi-colons `;;`.
+ASCA supports single line comments delimited by two semi-colons `;;`. These comments can appear at the end of a line or take up the full line.
 
 ``` wasm
 ;; This is a comment!
@@ -945,35 +948,3 @@ a:[Along] > e:[Along]   ([Along, Aoverlong] if you have overlong vowels)
 hat  > het
 ha:t > he:t
 ```
-
-## Web Interface
-
-ASCA organises rules such that you can optionally document your sound changes in situ. In the future, this could lead to the ability to automatically generate a sound change document from your work in ASCA. This also allows you to group a multi-stage sound change (such as a chain shift) together, and clearly demarcate them from the potentially long list of sound changes you may have. These rule blocks can then be collapsed so that you can forget about them once completed.
-
-### Drag and Drop Reordering
-This structure allows for the ability to easily reorder rules to test certain orderings without accidentally reordering dependant rules. In ASCA, this is achieved through dragging and dropping the rules into the desired order. This feature currently does not work on mobile, but is as priority for the future.
-
-### Saving and Loading Files
-
-Input words and rules can be saved to desktop and loaded into asca using JSON format:
-
-``` JSON
-{
-    "into" : ["deromanisation rules here"],
-    "from" : ["romanisation rules here"],
-    "words": ["words", "go", "here"],
-    "rules": [
-        {
-            "name": "Rule 1",
-            "rule": ["First subrule", "Second subrule"],
-            "description": "Does something"
-        },
-        {
-            "name": "Rule 2",
-            "rule": ["First subrule", "Second subrule"],
-            "description": "Does something"
-        }
-    ]
-}
-```
-On each run, the current words and rules are saved to local storage. This affords you the ability to quit out and not lose progess.

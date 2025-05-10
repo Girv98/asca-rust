@@ -1,9 +1,6 @@
 # This config assumes PIE 'uvular theory' and that {h₁, h₂, h₃} are {h, x, ɣʷ}
 
 # indo-iranian specific changes to certain words in the input lexicon
-@setup $../pie ["../pie-uvular-common", "../pie-pronouns", "ii-lex"]:
-    "setup"
+../pie-uvular-common.wsca ../pie-pronouns.wsca ii-lex.wsca ../pie.alias > setup: setup.rsca;
 
-@proto-indo-iranian %setup:
-    "pre-pii",
-    "to-pii"
+setup > proto-indo-iranian: pre-pii.rsca; to-pii.rsca;

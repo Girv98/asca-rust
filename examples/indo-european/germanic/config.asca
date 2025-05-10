@@ -1,54 +1,14 @@
-
 # This config assumes PIE 'uvular theory' and that {h₁, h₂, h₃} are {h, x, ɣʷ}
 
 # germanic specific changes to certain words in the input lexicon
-@setup $../pie ["../pie-uvular-common", "../pie-pronouns"]: "setup"
+../pie-uvular-common.wsca ../pie-pronouns.wsca ../pie.alias > setup:
+    setup.rsca;
 
-@proto-germanic %setup:
-    "pgmc/pre",
-    "pgmc/early",
-    "pgmc/late",
+setup > proto-germanic:
+    pgmc/pre.rsca;
+    pgmc/early.rsca;
+    pgmc/late.rsca;
 
+proto-germanic > proto-nw-germanic: nwg/asdf.rsca;
 
-################# NorthWest Germanic ##################
-
-@proto-nw-germanic %proto-germanic: "./nwg/asdf"
-
-#################### West Germanic ####################
-
-@proto-west-germanic %proto-nw-germanic: "./wg/asdf"
-
-########## North Sea Germanic ##########
-
-# @ingvaeonic %proto-west-germanic: TODO
-    # @anglo-frisian %ingvaeonic: TODO
-        # @old-frisian %anglo-frisian: TODO
-        # @old-english %anglo-frisian: TODO
-    # @old-saxon %ingvaeonic: TODO
-        # @old-low-german %old-saxon: TODO
-
-########## Elbe Germanic ##########
-
-# @irminonic %proto-west-germanic: TODO
-    # @old-high-german %irminonic: TODO
-
-########## Weser–Rhine Germanic ##########
-
-# @istvaeonic %proto-west-germanic
-    # @low-franconian %istvaeonic: TODO
-    # @old-mid-german %istvaeonic: TODO
-
-#################### North Germanic ####################
-
-# @proto-norse %proto-nw-germanic: TODO
-    # @old-norse %proto-norse: TODO
-        # old-east-norse %old-norse: TODO
-        # old-west-norse %old-norse: TODO
-
-
-
-
-#################### East Germanic ####################
-
-# @proto-east-germanic %proto-germanic: TODO
-    # @gothic %proto-east-germanic: TODO
+proto-nw-germanic > proto-west-germanic: wg/asdf.rsca;

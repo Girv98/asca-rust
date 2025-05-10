@@ -3,31 +3,39 @@
 ### Quick Links
 * [File Formats](#file-formats)
 * [Sequences](#sequences)
+    * [The Config File](#the-config-file)
+    * [Filters](#filters)
+    * [Pipelines](#pipelines)
+    * [Using Alias Files](#using-alias-files)
 * [Usage](#usage)
+    * [Run](#run-command)
+    * [Seq](#seq-command)
+    * [Conv](#conv-command)
 * [Shell Completions](#shell-completions)
 
 ## File Formats
-Asca-cli differs from the web implementation by using three file formats to each define a set of input words, a set of rules, and a set of romanisations.
+Asca-cli differs from the web implementation by using three file formats that define a set of input words, a set of rules, and a set of romanisations.
 An existing web json file can be converted into these formats (and vice-versa) using the [conv command](#conv-command).
 
 ### Word file (.wsca)
 Words are defined similarly as to the input field on [asca-web](doc.md). That is, each word is declared on a new line in ipa form.
-Unlike the current web format, wsca files allow for comments marked by `#`.
+Unlike the current web format, wsca files allow for comments marked by `#`. These comments do not appear in the output.
 
 See [pie-uvular](../examples/indo-european/pie-uvular-common.wsca) for an example.
 
 ### Rule file (.rsca)
 
+The rule file mimics the structure of rules in the web implementation.
 Each rule group is defined as follows:
 
 - A rule title, preceded by `@`.
-- A list of sub rules.
+- A newline delimited list of sub rules.
     - Can be indented for clarity
     - Empty lines are allowed
 - A rule description, preceded by `#`
     - Can be multiple lines, with each line starting with `#`.
 
-Example from a [germanic](../examples/indo-european/germanic/pgmc/early.rsca) implementation.
+Example from a [proto-germanic](../examples/indo-european/germanic/pgmc/early.rsca) implementation.
 ``` diff
 @ Grimms Law 
     [+cons, -son, -cont, -voice] > [+cont]
@@ -49,7 +57,7 @@ Example from a [germanic](../examples/indo-european/germanic/pgmc/early.rsca) im
 ### Romanisation file (.alias)
 An alias file has two sections, `into` and `from`. These describe deromanisation and romanisation, respectively.
 
-Each section is introduced with a tag preceded by '@', then followed by a new line delimited list of alias rules (similiar to a rule file).
+Each section is introduced with a tag preceded by `@`, then followed by a newline delimited list of alias rules (similiar to a rule file).
 
 Example:
 ```
@@ -63,93 +71,110 @@ Example:
     $ > *
 ```
 
-### Config file (.asca)
-See the [sequences section](#the-config-file) for more info.
-
 ## Sequences
-The seq command allows you to run language family projects, defined within a `.asca` file. 
-This lets you create a pipeline from parent to daughter languages, generating an output lexicon at each stage.
+The seq command allows you to run language family projects, defined within a `.asca` file, letting you create a pipeline from parent to daughter languages and optionally generating output lexicons at each stage.
 
 For an example project, see the indo-european example folder [here](../examples/indo-european/germanic).
 
 ### The Config File
+***This is the updated syntax as of version 0.7.0. Automatic conversion of old configs can be done through `asca conv config` ([see usage](#conv-command))***
 
-Each transformation is called a sequence.
+Each unit is called a sequence. 
+A simple sequence consists of a sequence tag followed by a semicolon separated list of paths to rule files which describe the sequence. 
+(Note: All paths used in a sequence are relative to the config file. 
+Files also do not need an asca specified file extension e.g. "rules.txt" will also be valid as long as it parses correctly)
 
-A sequence tag is defined with `@`. 
-A single specified tag can be run with `seq -t <tagname>`. 
-On output, the results will be stored in the directory `./out/<tagname>/*`.
-
-After a tag, paths to multiple wsca files can be specified between square brackets. 
-These word files will be appended together and used as input. 
-The path is relative to the directory containing the config file, an extension is not necessary.
-The word file list is optional, but they then must be passed by the user with `seq -w <path>`.
-
-This is followed by a colon, after which follows a comma-delimited list of paths to rsca files. 
-Again, the path is relative to the config file and the extension does not need to be specified.
 ``` diff
 # This is a comment
-# The following sequence has been one-lined, but they can be span multiple lines as well
+alpha:
+    rules1.rsca;
+    rules2.rsca;
 
-@alpha ["foo", "bar"]: "rules1", "rules2"
+# This is also valid
+alpha: rules1.rsca; rules2.rsca;
+```
+
+A given tag can be run with `seq -t <tagname>`. 
+With `--output | -o`, the result will be stored in the directory `./out/<tagname>/*`.
+
+Word files can be specified for each sequence by listing them before the tag, followed by `>`.
+These word files will be appended together and used as input. 
+The word file list is optional, but they then must be passed on the command line with `seq -w <path>...`.
+
+``` diff
+foo.wsca bar.wsca > alpha: 
+    rules1.rsca;
+    rules2.rsca;
 
 # This means "With the name 'alpha',
-# Apply the sound changes within ./rules1.rsca and then ./rules2.rsca
-# on the words within ./foo.wsca and ./bar.wsca"
+# Apply the sound changes within './rules1.rsca' and then './rules2.rsca'
+# on the words within './foo.wsca' and './bar.wsca'
 ```
 
 #### Filters
-A filter can be placed after each rule file to select rules within them. 
-Filters are case insensitive, but they must elsewise be identical in name to a rule defined within the file. 
-Multiple filters can be specified, separated by commas, and between curly brackets. 
+A filter can be placed after each rule file to select specific rules within them. 
+Filters are case insensitive, but they must elsewise be identical in name to a rule defined within the file (apostrophes and such). 
+Multiple rules for each filter can be specified, separated by commas. 
 
 `!` means to exclude the following rules from the sequence. 
 
 `~` means to select only the following rules from the sequence (NOTE: They will be applied in the order they appear in the filter, not as they are within the rule file). 
-This is useful for defining commonly used sound changes within a 'global' sound change file and selecting them when needed. 
+This is useful for defining commonly used sound changes within a 'global' sound change file and reusing them when needed. 
 
 ```diff
-@beta ["foo", "bar"]:
-    "rules1" ! {"Glottal Deletion"},
-    "rules2" ~ {"Cluster Simplification", "Hap(lo)logy"},
+foo.wsca bar.wsca > beta:
+    rules1.rsca ! "Glottal Deletion";
+    rules2.rsca ~ "Cluster Simplification", "Hap(lo)logy";
 
-# The above sequence tagged "beta" means:
-# - Using the words defined in ./foo.wsca and ./bar.wsca,
-# - Apply ./rules1.wsca WITHOUT "Glottal Deletion",
-# - Apply ONLY "Cluster Simplification" and "Hap(lo)logy", in that order, from ./rules2.wsca.
+# The above sequence tagged 'beta' means:
+# - Using the words defined in './foo.wsca' and './bar.wsca',
+# - Apply ./rules1.wsca WITHOUT 'Glottal Deletion'.
+# - Then, apply ONLY 'Cluster Simplification' and 'Hap(lo)logy', in that order, from './rules2.wsca'.
 ```
 
 #### Pipelines
 
-Instead of a word list, another defined sequence can be referenced with `%`. This will run the referenced sequence and use the resulting words as input. 
-This is useful for defining daughter languages or branches.
+Instead of word files, another defined sequence can be referenced with its tag. This will run the referenced sequence and use the resulting words as input. 
+This is useful for defining daughter languages or branches. ASCA will assume an input element is a tag when there is no file extension and (in the case of extension-less files) there is no file of that name in the config directory. 
 
 ``` diff
-@latin ["example-lex"]:
-    "foo", "bar"
+example-lex.wsca > latin:
+    foo.rsca;
+    bar.rsca;
 
-@old-spanish %latin:
-    "foo", "bar", "baz",
+# Sequences do not need to be defined in the order of pipeline use.
+old-spanish > spanish:
+    baz.rsca;
+    foo.rsca;
 
-@spanish %old-spanish:
-    "baz", "bar", "foo"
+latin > old-spanish:
+    foo.rsca; bar.rsca; baz.rsca;
 ```
 
-A word list can be optionally added after a pipeline tag, with its contents being appended to tag's input. 
+A sequence can have multiple piped inputs if so needed. Word files can also be used alongside piped tags. 
+This has the same effect as using multiple word files, with the contents being appended together.
 This allows for you to add forms at an intermediate sequence (i.e. loanwords or neologisms).
 
-```
-@gamma %alpha ["baz"]:
-    "rules1" ~ {"Low Vowel Reduction"},
+``` diff
+alpha beta foo.wsca > gamma:
+    rules.rsca;
+
+# With the tag 'gamma'
+# Using the outputs of 'alpha' and 'beta' followed by './foo.wsca'
+# Apply './rules.rsca'
 ```
 
 #### Using Alias Files
 
-A romanisation file can be added to a sequence similarly to a pipeline by using `$`.
+A romanisation file is added to a sequence in the same way as a word file or piped tag. The only difference is that a sequence can only have one alias file in its direct input.
 
-```
-@delta %gamma $romanisation:
-    "rules3"
+``` diff
+gamma aliases.alias > delta:
+    rules.rsca;
+
+# Order does not matter, as long as there is only one
+aliases.alias gamma > delta:
+    rules.rsca;
 ```
 
 ## Usage
@@ -159,23 +184,21 @@ Usage: asca [-v | --version] [-h | --help] <command>
 Commands:
     run     Run basic cli
     seq     Run an asca config
-    conv    Convert between an asca-web json file and the wsca/rsca format
-    tui     (Coming Soon)
+    conv    Convert between different formats, such as the asca-web json file and the cli wsca/rsca format.
 ```
 ### Run command
 ```
-usage: asca run ([-j | --from-json <path>] | [-r | --rules <path>]) [-w | --words <path>] 
-                 [-c | --compare <path>]     [-o | --output <path>] [-l | --alias <path>]
-                 [-h | --help]
+usage: asca run [WORDS]... ([-j | --from-json <path>] | [-r | --rules <path>]) [-c | --compare <path>]
+                            [-o | --output <path>]      [-l | --alias <path>]  [-h | --help]
+Arguments:
+    [WORDS]...  Paths to wsca files containing the input words.
+                If -j is provided, these words with be used instead of the words listed in the json file
+
 Options:
-    -j  <path>  Path to an asca-web json file.
-                - Mutually exclusive with -r.
+    -j  <path>  Path to an asca-web json file, mutually exclusive with -r.
                 - If -w is supplied, those words will be used instead of those defined in the json.
-    -r  <path>  Path to a rsca file containing the rules to be applied.
-                - Mutually exclusive with -j.
-                - If neither -j nor -r is provided, asca will look for a file in the current directory.
-    -w  <path>  Path to a wsca file containing the input words
-                - If this and -j are not provided, asca will look for a file in the current directory
+    -r  <path>  Path to a rsca file containing the rules to be applied, mutually exclusive with -j.
+                - If neither -j nor -r are provided, asca will look for a file in the current directory.
     -l  <path>  Path to an alias file containing romanisations to and from.
     -c  <path>  Path of a wsca file to compare with the result
     -o  <path>  Desired path of the output file
@@ -189,17 +212,17 @@ usage: asca seq [PATH] [-t | --tag <tag>]  [-w | --words <path>] [-a | --all-ste
                        [-y | --overwrite]  [-n | --no-overwrite] [-o | --output]   
                        [-i | --output-all] [-h | --help]
 Arguments:
-    [PATH]  Path to a directory containing an asca config file.
+    [PATH]  Path to the config file or the directory it is within.
 Options:
     -t  <tag>   Run a given tag in the config file.
                 - If not provided, all tags in the config will be run.
-    -w  <path>  Path to a wsca file.
+    -w  <path>  Paths to wsca files.
                 - If provided, these will be used instead of the word files defined in the config.
-    -a          Print all intermediate steps.
-    -o          When given, asca will create an out folder within the path directory.
+    -a          Print all intermediate steps in a sequence.
+    -o          When given, asca will create an out folder within the [PATH] directory.
     -y          Accept cases where an output file would be overwritten.
     -n          Reject cases where an output file would be overwritten.
-    -i          Save all intermediate steps.
+    -i          Output all intermediate steps in a sequence.
     -h          Print help
 ```
 ### Conv command
@@ -210,6 +233,7 @@ Commands:
     asca    Convert a word file and rule file into an asca-web json file
     json    Convert a json file into separate word and rule files
     tag     Convert a tag within a config file into an asca-web json file
+    config  Convert an old config file into the new format
 
 
 usage: asca conv asca [-w | --words <path>] [-r | --rules <path>] 
@@ -244,15 +268,25 @@ Options:
 Usage: asca conv tag [TAG]  [-p | --path <path>] [-o | --output <path>] [-r | --recurse]
                             [-h | --help]
 Arguments:
-    [TAG]  The tag within the config file to be converted
+    [TAG]   The tag within the config file to be converted.
 Options:
-    -p  <path>  Path to the config file or the directory it is within
+    -p  <path>  Path to the config file or the directory it is within.
                 - If not provided, asca will look for a config in the current directory.
     -o  <path>  The desired path of the output rule file.
                 - If not provided, asca will create a file in the current directory.
-    -r          Follow a pipeline back to its root tag and generate a full rule history
+    -r          Follow a pipeline back to its root tag and generate a full linear rule history
                 - Additional words added after the start of the pipeline will not be included
+                - Note: Tags cannot have multiple piped inputs as there would be a split history.
     -h          Print help
+
+
+Usage asca conv config [PATH] [-h | --help]
+
+Arguments:
+    [PATH]  Path to the config file or the directory it is within.
+            - If not provided, asca will look for a config in the current directory.
+Options:
+    -h      Print help
 ```
 
 ## Shell Completions

@@ -1,25 +1,30 @@
-```peg
+```
+conf = spacing seq+ eof
+seq = ident rules
 
-CONF    ← SEQ+
+ident = pipe? tag COLON
+pipe = inputlist ARROW
+inputlist =  literal (" " literal)*
+tag = literal
 
-SEQ     ← TAG FROM? ALIAS? W_PATHS? ':' R_PATHS
+rules = entry+
+entry = literal filter? SEMIC
 
-TAG     ← '@' [ALPHANUMERIC]+
+filter = filtertype filterlist
+filtertype = "!" | "~"
+filterlist = string (COMMA string)* COMMA?
 
-FROM    ← '%' [ALPHANUMERIC]+
+string = "\"" !((eol | eof) .)+ "\"" spacing
+literal = (!(reserved | <whitespace> | eol | eof) .)+ spacing
 
-ALIAS   ← '$' [ALPHANUMERIC]+
+COLON = ":" spacing
+SEMIC = ";" spacing
+ARROW = ">" spacing
+COMMA = "," spacing
 
-W_PATHS ← '[' STRING (',' STRING)* ','? ']'
-
-R_PATHS ← ENTRY (',' ENTRY) ','?
-ENTRY   ← STRING FILTER? 
-
-FILTER  ← ('!' | '~') F_LIST
-F_LIST  ← '{' STRING (',' STRING)* ','? '}'
-
-COMMENT ← '#' CHAR* '\n'
-
-STRING  ← '"' CHAR+ '"'
-CHAR    ← <Valid Unicode Character>
+reserved = ">" | "!" | "~" | "," | "#" | ":" | ";" | "\""
+spacing = (<whitespace> | comment | eol)*
+comment = '#' (! ( eol | eof) .)* eol
+eol = "\u{000A}" | "\u{2028}" | "\u{2029}"
+eof = !.
 ```
