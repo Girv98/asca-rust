@@ -361,7 +361,7 @@ impl Parser {
     }
 
     fn get_except_block(&mut self) -> Result<Vec<ParseItem>, RuleSyntaxError> {
-        if !self.expect(TokenKind::Pipe) && !self.expect(TokenKind::DubSlash) {
+        if !self.expect(TokenKind::Pipe) {
             return Ok(Vec::new())
         }
         self.get_env()
@@ -1001,9 +1001,8 @@ impl Parser {
         if self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
             return Ok(Rule::new(input, output, Vec::new(), Vec::new()))
         }
-        match self.curr_tkn.kind {
-            TokenKind::Slash | TokenKind::DubSlash | TokenKind::Pipe => {},
-            _ => return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
+        if let TokenKind::Slash | TokenKind::Pipe = self.curr_tkn.kind {} else {
+            return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
         }
         // ('/' ENV)
         let context = self.get_context()?;
