@@ -987,19 +987,22 @@ impl Parser {
     }
 
     fn rule(&mut self) -> Result<Rule, RuleSyntaxError> {
-        // returns RULE ← INP ARR OUT ('/' ENV)? (PIPE ENV)? EOL
+        // returns RULE ← INP (ARR/REV) OUT ('/' ENV)? (PIPE ENV)? EOL
         
         // INP
         let input = self.get_input()?;
-        // ARR
-        if !self.expect(TokenKind::Arrow) && !self.expect(TokenKind::GreaterThan) {
-            return Err(RuleSyntaxError::ExpectedArrow(self.curr_tkn.clone()))
-        }
+        // ARR/REV
+        let prov_rev = match self.curr_tkn.kind {
+            TokenKind::Reverse => true,
+            TokenKind::Arrow | TokenKind::GreaterThan => false,
+            _ => return Err(RuleSyntaxError::ExpectedArrow(self.curr_tkn.clone()))
+        };
+        self.advance();
         // OUT
         let output = self.get_output()?;
 
         if self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
-            return Ok(Rule::new(input, output, Vec::new(), Vec::new()))
+            return Ok(Rule::new(input, output, Vec::new(), Vec::new(), prov_rev))
         }
         if let TokenKind::Slash | TokenKind::Pipe = self.curr_tkn.kind {} else {
             return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
@@ -1013,7 +1016,7 @@ impl Parser {
             return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
         }
         
-        Ok(Rule::new(input, output, context, except))
+        Ok(Rule::new(input, output, context, except, prov_rev))
 
     }
     

@@ -48,7 +48,8 @@ pub(crate) struct SubRule {
     pub(crate) except   : Option<ParseItem>,
     pub(crate) rule_type: RuleType,
     pub(crate) variables: RefCell<HashMap<usize, VarKind>>,
-    pub(crate) alphas   : RefCell<HashMap<char, Alpha>>
+    pub(crate) alphas   : RefCell<HashMap<char, Alpha>>,
+    pub(crate) prop_rev : bool,
 }
 
 impl SubRule {
