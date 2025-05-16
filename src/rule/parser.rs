@@ -1001,8 +1001,9 @@ impl Parser {
         if self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
             return Ok(Rule::new(input, output, Vec::new(), Vec::new()))
         }
-        if !self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) {
-            return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
+        match self.curr_tkn.kind {
+            TokenKind::Slash | TokenKind::DubSlash | TokenKind::Pipe => {},
+            _ => return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
         }
         // ('/' ENV)
         let context = self.get_context()?;
