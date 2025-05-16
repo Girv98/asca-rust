@@ -959,7 +959,7 @@ For now, it is best to think of any ipa character in the output as being inheren
 The 'fix' for this is to use alpha notation:
 
 ```
-a:[Along] > e:[Along]   ([Along, Aoverlong] if you have overlong vowels)
+a:[Along] > e:[Along]   ([Along, Boverlong] if you have overlong vowels)
 hat  > het
 ha:t > he:t
 ```
