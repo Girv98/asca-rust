@@ -35,7 +35,6 @@ pub(crate) enum TokenKind {
     Group,            // Primitive Category i.e. C for Cons, V for Vowel
     Number,           // Number
     Slash,            // /
-    DubSlash,         // //
     Pipe,             // | 
     Cardinal,         // IPA character
     Diacritic(u8),    // IPA Diacritic
@@ -85,7 +84,6 @@ impl Display for TokenKind {
             TokenKind::Group         => write!(f, "Prim"),
             TokenKind::Number        => write!(f, "Num"),
             TokenKind::Slash         => write!(f, "Slash"),
-            TokenKind::DubSlash      => write!(f, "DoubleSlash"),
             TokenKind::Pipe          => write!(f, "Pipe"),
             TokenKind::Cardinal      => write!(f, "Cardinal"),
             TokenKind::Diacritic(_)  => write!(f, "Diacritic"),
@@ -356,7 +354,7 @@ impl<'a> Lexer<'a> {
             },
             '|' => { tokenkind = TokenKind::Pipe;         self.chop(1) },
             '/' => match self.next_char() {
-                '/' => { tokenkind = TokenKind::DubSlash; self.chop(2) },
+                '/' => { tokenkind = TokenKind::Pipe;     self.chop(2) },
                  _  => { tokenkind = TokenKind::Slash;    self.chop(1) }
             },
             '=' => match self.next_char() { 
@@ -849,7 +847,7 @@ mod lexer_tests {
             Token::new(TokenKind::Slash,       "/", 0, 0, 14, 15),
             Token::new(TokenKind::Underline,   "_", 0, 0, 16, 17),
             Token::new(TokenKind::Group,       "C", 0, 0, 17, 18),
-            Token::new(TokenKind::DubSlash,   "//", 0, 0, 19, 21),
+            Token::new(TokenKind::Pipe,       "//", 0, 0, 19, 21),
             Token::new(TokenKind::Underline, "___", 0, 0, 22, 25),
             Token::new(TokenKind::Eol,          "", 0, 0, 25, 26),
         ];
