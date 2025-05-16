@@ -21,11 +21,11 @@ pub(crate) enum TokenKind {
     RightBracket,     // )
     LeftColCurly,     // :{
     RightColCurly,    // }:
-    // LessThan,         // <
     GreaterThan,      // >
     Equals,           // =
     Underline,        // _
     Arrow,            // -> or =>
+    Reverse,          // ~ or ~>
     Comma,            // ,
     Colon,            // :
     WordBoundary,     // #
@@ -75,6 +75,7 @@ impl Display for TokenKind {
             TokenKind::Equals        => write!(f, "Eq"),
             TokenKind::Underline     => write!(f, "UL"),
             TokenKind::Arrow         => write!(f, "Arrow"),
+            TokenKind::Reverse       => write!(f, "Reverse"),
             TokenKind::Comma         => write!(f, "Comma"),
             TokenKind::Colon         => write!(f, "Colon"),
             TokenKind::WordBoundary  => write!(f, "WBound"),
@@ -366,6 +367,10 @@ impl<'a> Lexer<'a> {
                 '>' => { tokenkind = TokenKind::Arrow;    self.chop(2) },
                  _  => return Err(RuleSyntaxError::ExpectedCharArrow(self.next_char(), self.group, self.line, self.pos))
             },
+            '~' => match self.next_char() { 
+                '>' => { tokenkind = TokenKind::Reverse;  self.chop(2) },
+                 _  => { tokenkind = TokenKind::Reverse;  self.chop(1) },
+             },
             '…' | '⋯' => { tokenkind = TokenKind::Ellipsis; self.chop(1) },
             '.' => match self.next_char() {
                 '.' => { tokenkind = TokenKind::Ellipsis; self.chop_while(|x| *x == '.') },
