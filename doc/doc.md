@@ -874,7 +874,7 @@ V > [α front, β back] > V:[α front, β back]C_ (Vowels assimilate in backness
 /sinotehu/ becomes /sinøtehy/, not /sinøtɤhy/
 ```
 
-To achieve right-to-left propagation, we can use a fixed harmonic trigger (this also works for left-to-right propagation) in this case, the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
+Dedicated syntax for right-to-left propagation is in development. To achieve this currently, we can use a fixed harmonic trigger (this also works for left-to-right propagation) which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
 ```
 V > [α front, β back] / _CV:[α front, β back]
