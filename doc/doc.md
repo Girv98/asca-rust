@@ -839,7 +839,7 @@ Example: Latin Stress Rule using Structures
 ⟨...V[+long]⟩, ⟨...VC⟩ > [+stress] / _%#
 ```
 
-Structures can also be used to insert whole syllables
+Structures can also be used to insert whole syllables:
 ```
 Example: Expletive infixation
 
@@ -852,6 +852,15 @@ Example: Conditional Reduplication
 * > 1:[-stress] / <CV>:[+stress]=1 _ (A stressed CV syllable is reduplicated)
 
 /'to.ka/ => /'to.to.ka/, /'ton.ka/ => /'ton.ka/
+```
+
+This is also useful for inserting copy vowels at the beginning of a word:
+```
+Example: Word Initial Copy Vowel Insertion
+
+* > <1> / #_CV=1
+
+/'de.no/ => /e'de.no/
 ```
 
 ## Propagation 
@@ -917,9 +926,15 @@ Take this copy vowel insertion rule:
 * > 1$ / #_CV=1
 ('de.no > 'e.de.no NOT e'de.no)
 ```
-To fix this, we can use a syllable instead of a boundary and alpha notation to 'save' the stress.
+To fix this, we can either use a syllable instead of a boundary and alpha notation to 'save' the stress:
 ```
 * > 1:[-str]%:[Astr] / #_CV:[Astr]=1
+(e'de.no as expected)
+```
+Or insert with a [structure](#syllable-structure-matching)
+```
+* > <1> / #_CV=1
+(e'de.no as expected)
 ```
 ### Substituting Long IPA
 
