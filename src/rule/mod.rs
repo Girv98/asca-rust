@@ -86,11 +86,12 @@ pub struct Rule {
     pub(crate) output:  Vec<Vec<ParseItem>>, // these need to be Vec<Vec<Item>>
     pub(crate) context: Vec<ParseItem>,
     pub(crate) except:  Vec<ParseItem>,
+    pub(crate) prop_rev: bool,
 }
 
 impl Rule {
-    pub(crate) fn new(i: Vec<Vec<ParseItem>>, o: Vec<Vec<ParseItem>>, c :Vec<ParseItem>, e :Vec<ParseItem>) -> Self {
-        Self { input: i, output: o, context: c, except: e }
+    pub(crate) fn new(i: Vec<Vec<ParseItem>>, o: Vec<Vec<ParseItem>>, context: Vec<ParseItem>, except: Vec<ParseItem>, prop_rev: bool) -> Self {
+        Self { input: i, output: o, context, except, prop_rev}
     }
 
     pub(crate) fn split_into_subrules(&self) -> Result<Vec<SubRule>, RuleSyntaxError> {
@@ -131,6 +132,7 @@ impl Rule {
                     rule_type, 
                     variables: RefCell::new(HashMap::new()), 
                     alphas: RefCell::new(HashMap::new()), 
+                    prop_rev: self.prop_rev,
                 }
             );
         }
