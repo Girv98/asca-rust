@@ -776,8 +776,8 @@ impl SubRule {
                     self.variables.borrow_mut().clear();
                     match self.insertion_match(&res_word, pos)? {
                         Some(ins) => {                                    
-                            if self.insertion_match_exceptions(word, ins)? {
-                                pos.increment(word);
+                            if self.insertion_match_exceptions(&res_word, ins)? {
+                                pos.increment(&res_word);
                                 continue;
                             }
                             let (res, next_pos) = self.insert(&res_word, ins, is_context_after)?;
