@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 /// Represents place of articulation
@@ -16,6 +18,40 @@ use serde::{Deserialize, Serialize};
 /// * `Pharyngeal` - `[atr, rtr]`
 #[derive(Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Place(Option<u16>);
+
+impl fmt::Debug for Place {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn u8_to_str(f: &mut fmt::Formatter<'_>, num: u8, len: u8) -> fmt::Result {
+            for i in (0..len).rev() {
+                match num & (1 << i) != 0 {
+                    true => write!(f, "+", )?,
+                    false => write!(f, "-", )?,
+                }
+            }
+            Ok(())
+        }
+
+        match self.get_labial() {
+            Some(lab) => u8_to_str(f, lab, 2)?,
+            None => write!(f, "00")?
+        }
+        write!(f, "|")?;
+        match self.get_coronal() {
+            Some(cor) => u8_to_str(f, cor, 2)?,
+            None => write!(f, "00")?
+        }
+        write!(f, "|")?;
+        match self.get_dorsal() {
+            Some(dor) => u8_to_str(f, dor, 6)?,
+            None => write!(f, "000000")?
+        }
+        write!(f, "|")?;
+        match self.get_pharyngeal() {
+            Some(phr) => u8_to_str(f, phr, 2),
+            None => write!(f, "00"),
+        }
+    }
+}
 
 impl std::ops::Deref for Place {
     type Target = Option<u16>;

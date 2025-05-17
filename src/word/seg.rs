@@ -24,9 +24,30 @@ pub struct Segment {
     pub place: Place,
 }
  
-impl fmt::Debug for Segment {
+impl fmt::Display for Segment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.get_as_grapheme().unwrap_or("�".to_owned()))
+    }
+}
+
+impl fmt::Debug for Segment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn u8_to_str(f: &mut fmt::Formatter<'_>, num: u8, len: u8) -> fmt::Result {
+            for i in (0..len).rev() {
+                match num & (1 << i) != 0 {
+                    true => write!(f, "+", )?,
+                    false => write!(f, "-", )?,
+                }
+            }
+            Ok(())
+        }
+        u8_to_str(f, self.root, 3)?;
+        write!(f, "|")?;
+        u8_to_str(f, self.manner, 8)?;
+        write!(f, "|")?;
+        u8_to_str(f, self.laryngeal, 3)?;
+        write!(f, "|")?;
+        write!(f, "{:?}", self.place)
     }
 }
 
@@ -530,4 +551,17 @@ impl Segment {
         }
         Ok(())
     } 
+}
+
+#[cfg(test)]
+mod seg_tests {
+    use super::super::*;
+
+    #[test]
+    fn test_debug_print() {
+        let seg = Word::new("n".to_owned(), &[]).unwrap().syllables[0].segments[0];
+        let n = format!("{:?}", seg);
+        println!("{n}");
+        assert_eq!(n, "++-|---+----|+--|00|+-|000000|00");
+    }
 }
