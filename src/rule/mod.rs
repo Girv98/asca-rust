@@ -108,10 +108,10 @@ impl Rule {
         // populate subrules, if one's length == 1 then it's value is duplicated to rest of subrules
         let mut sub_vec = Vec::new();
         for i in 0..max {
-            let input   = if  self.input.len() == 1 {  self.input[0].clone() } else {  self.input[i].clone() };
-            let output  = if self.output.len() == 1 { self.output[0].clone() } else { self.output[i].clone() };
-            let context = if self.context.is_empty() { None } else if self.context.len() == 1 { Some(self.context[0].clone()) } else { Some(self.context[i].clone()) };
-            let except  = if  self.except.is_empty() { None } else if  self.except.len() == 1 { Some( self.except[0].clone()) } else { Some( self.except[i].clone()) };
+            let mut input   = if  self.input.len() == 1 {  self.input[0].clone() } else {  self.input[i].clone() };
+            let mut output  = if self.output.len() == 1 { self.output[0].clone() } else { self.output[i].clone() };
+            let mut context = if self.context.is_empty() { None } else if self.context.len() == 1 { Some(self.context[0].clone()) } else { Some(self.context[i].clone()) };
+            let mut except  = if  self.except.is_empty() { None } else if  self.except.len() == 1 { Some( self.except[0].clone()) } else { Some( self.except[i].clone()) };
             let rule_type = {
                 match (&input[0].kind, &output[0].kind) {
                     (ParseElement::EmptySet, ParseElement::EmptySet) => return Err(RuleSyntaxError::InsertDelete(input[0].position.group, input[0].position.line, input[0].position.start, output[0].position.start)),
@@ -123,6 +123,15 @@ impl Rule {
                 }
             };
 
+            if self.prop_rev {
+                for i in &mut input  { i.reverse(); }
+                input.reverse();
+                for o in &mut output { o.reverse(); }
+                output.reverse();
+                if let Some(cont) = &mut context { cont.reverse(); }
+                if let Some(expt) = &mut except  { expt.reverse(); }
+            }
+            
             sub_vec.push(
                 SubRule {
                     input, 
@@ -132,7 +141,7 @@ impl Rule {
                     rule_type, 
                     variables: RefCell::new(HashMap::new()), 
                     alphas: RefCell::new(HashMap::new()), 
-                    prop_rev: self.prop_rev,
+                    is_rev: self.prop_rev,
                 }
             );
         }

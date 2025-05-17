@@ -49,7 +49,7 @@ pub(crate) struct SubRule {
     pub(crate) rule_type: RuleType,
     pub(crate) variables: RefCell<HashMap<usize, VarKind>>,
     pub(crate) alphas   : RefCell<HashMap<char, Alpha>>,
-    pub(crate) prop_rev : bool,
+    pub(crate) is_rev   : bool,
 }
 
 impl SubRule {
@@ -81,10 +81,26 @@ impl SubRule {
         // RuleType::Deletion      => {/* skip calc output */},
         // RuleType::Insertion     => {/* skip match input */},
 
-        if self.rule_type == RuleType::Insertion {
-            return self.transform(&word, vec![], &mut None)
-        } 
-        
+        if word.syllables.is_empty() {
+            return Ok(word)
+        }
+
+        let word = if self.is_rev { word.reverse() } else { word };
+
+        let res = if self.rule_type == RuleType::Insertion {
+            self.transform(&word, vec![], &mut None)
+        } else {
+            self.apply_other(word)
+        }?;
+
+        if self.is_rev { 
+            Ok(res.reverse())
+        } else { 
+            Ok(res) 
+        }
+    }
+
+    fn apply_other(&self, word: Word) -> Result<Word, RuleRuntimeError> {
         let mut word = word;
         let mut cur_index = SegPos::new(0, 0);
         // TODO(girv): `$ > *` or any broad deletion rule without context/exception should  give a warning to the user

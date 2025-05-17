@@ -17,6 +17,18 @@ pub(crate) struct Env {
     pub(crate) position: Position
 }
 
+impl Env {
+    fn reverse(&mut self) {
+        for b in &mut self.before { b.reverse(); }
+        for e in &mut self.after { e.reverse(); }
+        self.before.reverse();
+        self.after.reverse();
+        let temp = self.before.clone();
+        self.before = self.after.clone();
+        self.after = temp;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ParseElement {
     EmptySet    ,
@@ -40,6 +52,19 @@ impl ParseElement {
             Some(v)
         } else {
             None
+        }
+    }
+
+    fn reverse(&mut self) {
+        match self {
+            ParseElement::EmptySet   | ParseElement::WordBound    | ParseElement::SyllBound | 
+            ParseElement::Ellipsis   | ParseElement::Metathesis   | ParseElement::Ipa(..)   | 
+            ParseElement::Matrix(..) | ParseElement::Variable(..) | ParseElement::Syllable(..) => {},
+            
+            ParseElement::Optional(items, ..) | ParseElement::Structure(items, ..) | 
+            ParseElement::Set(items) => for i in items { i.reverse(); },
+
+            ParseElement::Environment(envs) => for env in envs { env.reverse(); },
         }
     }
 }
@@ -126,6 +151,10 @@ pub struct ParseItem {
 impl ParseItem {
     pub(crate) fn new(k: ParseElement, p: Position) -> Self {
         Self { kind: k, position: p }
+    }
+
+    pub(crate) fn reverse(&mut self) {
+        self.kind.reverse();
     }
 }
 
@@ -908,7 +937,7 @@ impl Parser {
             // Insertion
             if let Some(empty) = self.get_empty() {
                 inputs.push(vec![empty]);
-                if !self.expect(TokenKind::Comma) && (!self.peek_expect(TokenKind::Arrow) && !self.peek_expect(TokenKind::GreaterThan)) {
+                if !self.expect(TokenKind::Comma) && (!self.peek_expect(TokenKind::Arrow) && !self.peek_expect(TokenKind::GreaterThan)) && !self.peek_expect(TokenKind::Reverse) {
                     return Err(RuleSyntaxError::InsertErr(self.curr_tkn.clone()))
                 }
                 continue;
