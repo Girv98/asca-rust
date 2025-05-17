@@ -136,7 +136,7 @@ impl RuleRuntimeError {
             Self::MetathSyllSegment       (a, b) |
             Self::UnevenSet               (a, b) => (
                    " ".repeat(a.start) + &"^".repeat(a.end - a.start) 
-                + &" ".repeat(b.start) + &"^".repeat(b.end - b.start) + "\n",
+                + &" ".repeat(b.start - a.end) + &"^".repeat(b.end - b.start) + "\n",
                 a.group,
                 a.line
             ),
