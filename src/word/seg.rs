@@ -15,7 +15,6 @@ use super  :: { DiaMods, FeatKind, NodeKind };
 /// * `manner` - All bits used: `[continuent, approx., lateral, nasal, del.rel., strident, rhotic, click]`
 /// * `laryngeal` - Only lower three bits used: `[voice, s.g., c.g.]`
 /// * `place` - See [Place]
-
 #[derive(Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Segment {
     pub root      : u8,
@@ -79,6 +78,17 @@ impl Segment {
         // equal distance candidates are randomly ordered
         candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
         candidates[0].1.to_string()
+    }
+
+    /// Returns the segment as a string in IPA form
+    /// 
+    /// Returns `Err`, if the segment value cannot be converted, 
+    /// containing a string representation of the segment's values 
+    pub fn try_as_grapheme(&self) -> Result<String, String> {
+        match self.get_as_grapheme() {
+            Some(grapheme) => Ok(grapheme),
+            None => Err(format!("{:?}", self)),
+        }
     }
 
     /// Returns the segment as a string in IPA form

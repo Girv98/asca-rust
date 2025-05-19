@@ -158,12 +158,21 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>
     Ok(changes)
 }
 
-fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> Vec<String> {
-    phrases.iter().map(|phrase| 
-        phrase.iter().fold(String::new(), |acc, word| 
-                acc + &word.render(&alias_from) + " " 
-            ).trim_end().to_owned()
-    ).collect()
+fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (Vec<String>, Vec<String>) {
+    let mut res = Vec::with_capacity(phrases.len());
+    let mut unknowns = Vec::new();
+
+    for phrase in phrases {
+        let mut phr_res = String::new();
+        for word in phrase.iter() {
+            let (w, u) = word.render(&alias_from);
+            phr_res.push_str(&w);
+            unknowns.extend(u);
+        }
+        res.push(phr_res);
+    }
+
+    (res, unknowns)
 }
 
 fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, ASCAError> {
@@ -195,18 +204,49 @@ pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], a
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rule_groups(&rules, &phrases)?;
 
-    Ok(phrases_to_string(res, alias::parse_from(alias_from)?))
+    let (res, _) = phrases_to_string(res, alias::parse_from(alias_from)?);
+
+    Ok(res)
 }
 
-// Functions for interop with WebASCA
+pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<(Vec<String>, Vec<String>), ASCAError> {
+    let phrases = parse_phrases(unparsed_phrases, &alias::parse_into(alias_into)?)?;
+    let rules = parse_rule_groups(unparsed_rules)?;
+    let res = apply_rule_groups(&rules, &phrases)?;
+
+    let (res, unknowns) = phrases_to_string(res, alias::parse_from(alias_from)?);
+
+    Ok((res, unknowns))
+}
+
+// For interop with WebASCA
+
+#[doc(hidden)]
+#[wasm_bindgen]
+pub struct WasmResult {
+    output: Vec<String>,
+    unknowns: Vec<String>
+}
 
 #[wasm_bindgen]
-pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<String>, unparsed_from: Vec<String>, trace: Option<usize>) -> Vec<String> {
+impl WasmResult {
+    pub fn get_output(&self) -> Vec<String> {
+        self.output.clone()
+    }
+
+    pub fn get_unknowns(&self) -> Vec<String> {
+        self.unknowns.clone()
+    }
+}
+
+
+#[wasm_bindgen]
+pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<String>, unparsed_from: Vec<String>, trace: Option<usize>) -> WasmResult {
     let unparsed_rules: Vec<RuleGroup> = serde_wasm_bindgen::from_value(val).expect("Rules are in valid JSObject format");
     
     match trace {
         Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_from, t), &unparsed_rules, &unparsed_into, &unparsed_from),
-        None => parse_result_web(run_unparsed(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_into, &unparsed_from),
+        None => parse_result_web(run_unparsed_debug(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_into, &unparsed_from),
     }
 }
 
@@ -217,30 +257,30 @@ fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[String], trace_in
     }
 }
 
-fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<Vec<String>, ASCAError> {
+fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<(Vec<String>, Vec<String>), ASCAError> {
     let phrase = get_trace_phrase(unparsed_phrase, alias_into, trace_index)?.unwrap_or_default();
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rules_trace(&rules, &phrase)?;
 
-    Ok(rule::trace::to_string(&phrase, res, unparsed_rules))
+    Ok(rule::trace::to_string_wasm(&phrase, res, unparsed_rules))
 }
 
-fn parse_result_web(unparsed_result: Result<Vec<String>, ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String]) -> Vec<String> {
-    let mut res = Vec::new();
+fn parse_result_web(unparsed_result: Result<(Vec<String>, Vec<String>), ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String]) -> WasmResult {
+    let mut output = Vec::new();
+    let mut unknowns = Vec::new();
     match unparsed_result {
-        Ok(output) => {
-            for o in output {
-                res.push(o);
-            }
+        Ok((vals, unk)) => {
+            for v in vals { output.push(v); }
+            for u in unk { unknowns.push(u); }
         },
         Err(err) => match err {
-            ASCAError::WordSyn(e) => res.push(e.format()),
-            ASCAError::AliasSyn(e) => res.push(e.format(unparsed_into, unparsed_from)),
-            ASCAError::AliasRun(e) => res.push(e.format(unparsed_into, unparsed_from)),
-            ASCAError::RuleSyn(e) => res.push(e.format(rules)),
-            ASCAError::RuleRun(e) => res.push(e.format(rules)),
+            ASCAError::WordSyn(e) => output.push(e.format()),
+            ASCAError::AliasSyn(e) => output.push(e.format(unparsed_into, unparsed_from)),
+            ASCAError::AliasRun(e) => output.push(e.format(unparsed_into, unparsed_from)),
+            ASCAError::RuleSyn(e) => output.push(e.format(rules)),
+            ASCAError::RuleRun(e) => output.push(e.format(rules)),
         },
     }
 
-    res
+    WasmResult { output, unknowns }
 }
