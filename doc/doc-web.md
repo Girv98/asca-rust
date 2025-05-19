@@ -7,7 +7,10 @@
     * [Reordering Rules](#reordering-rules)
     * [Cloning Rules](#cloning-rules)
     * [Temporarily Disabling Rules](#temporarily-disabling-rules)
-* [Word Tracing](#word-tracing)
+
+* [Debugging](#debugging)
+    * [Word Tracing](#word-tracing)
+    * [Unknown Segments](#unknown-segments)
 * [Aliasing/Romanisation](#aliasingromanisation)
 * [Saving and Loading](#saving-and-loading)
 * [Hotkeys and Keyboard Navigation](#hotkeys-and-keyboard-navigation)
@@ -41,9 +44,15 @@ A rule block can be disabled using the toggle switch widget present on each bloc
 will not be appied to the input.
 Blocks can be globally toggled on and off with the `Disable/Enable All` button.
 
-## Word Tracing
+## Debugging
+### Word Tracing
 The evolution of a certain input word can be shown using the trace dropdown above the input box. This outputs each rule that is applied to 
 the word and how the word changes due to it.
+
+### Unknown Segments
+When ASCA is unable to represent a given segment, `�` will be printed in its place. If this occurs, a table of each unique unknown segment and its 
+value will be shown at the end of the output. You can use this to cross reference with the values spreadsheet to diagnose the issue. Each unique 
+unknown is color-coded (and hoverable) so that you can easily discern each value.
 
 ## Aliasing/Romanisation
 Aliases can be defined through the `aliases` button, which will bring up a modal containing the 
