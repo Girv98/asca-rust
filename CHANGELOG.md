@@ -1,3 +1,18 @@
+0.7.2 (Unreleased)
+==================
+* Lib: Right-to-left propagation with tilde `~ | ~>` operator for easy regressive assimilation
+
+0.7.1
+==================
+
+Features:
+* Lib: Debug representation of `Segment` values and `try_as_grapheme` function
+
+Fixes:
+* Lib: 
+    * Double slash `//` for exception block no longer errors in certain cases
+    * Fixed formatting of errors that have two underlines
+
 0.7.0
 ==================
 Breaking:
