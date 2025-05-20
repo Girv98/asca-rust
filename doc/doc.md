@@ -10,7 +10,7 @@ This is documentation for the core principles of defining words and sound change
     * [Suprasegmentals](#suprasegmentals)
     * [Inbuilt Aliases](#inbuilt-aliases)
     * [(De)Romanisation](#custom-aliasing--deromanisation)
-* [Defining Sound Changes](#defining-sound-changes)
+* [Defining Basic Sound Changes](#defining-basic-sound-changes)
     * [The Basics](#the-basics)
     * [Single Line Comments](#single-line-comments)
     * [Special Characters](#special-characters)
@@ -37,6 +37,8 @@ This is documentation for the core principles of defining words and sound change
 * [Variables](#variables)
 * [Syllable Structure Matching](#syllable-structure-matching)
 * [Propagation](#propagation)
+    * [Faux Right-to-left Propagation](#faux-right-to-left-propagation)
+    * [True Right-to-left Propagation](#true-right-to-left-propagation)
 * [Considerations](#considerations) 
 
 ## Defining Words
@@ -294,10 +296,10 @@ Inserting syllable boundaries:
 ```
 
 
-## Defining Sound Changes
+## Defining Basic Sound Changes
 
 ### The Basics
-ASCA tries to stick to commonly used [notation](https://en.wikipedia.org/wiki/Phonological_rule) wherever possible. Though, it may differ from other appliers.
+ASCA tries to stick to commonly used [notation](https://en.wikipedia.org/wiki/Phonological_rule) wherever possible. Though, it may differ from other sound change appliers.
 In general, a rule is made of 4 parts:
 ```
 input     -> the content to be transformed
@@ -307,10 +309,12 @@ exception -> the exclusivity of the surrounding environment
 ```
 These blocks are divided by specific separators so that a given rule looks like this:
 ```
-input (=)> output / context (| or //) exception
+input (=/-)> output / context (| or //) exception
 
 e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
 ```
+
+The 'arrow' can be `=>`, `->`, or just `>`. The exception block can be introduced by either `|` or `//`.
 
 An environment can only contain one underline `_` or a series of joined underlines. An empty environment can be omitted:
 ```
@@ -330,13 +334,13 @@ a > e ;; This is also a comment!
 
 ### Special Characters
 
-`%` represents a syllable.
+`%` represents a whole syllable.
 
 `$` represents a syllable boundary.
 
 `#` represents a word boundary.
 
-Word boundaries may only be used in environments, and must only be used once on either periphery.
+Word boundaries `#` may only be used in environments, and must only be used once on either periphery.
 
 ```
  a > e / #_#    ;; valid
@@ -357,10 +361,14 @@ e > * / _#      ;; Apocope: /e/ elides at the end of a word
 * > e / #_      ;; Prothesis: /e/ is inserted at the beginning of a word
 * > e / _#      ;; Paragoge: /e/ is inserted at the end of a word
 ```
-You may use the empty set character `∅` instead.
+You may use the empty set character `∅` instead:
+
+```
+e > ∅ / #_
+```
 
 ### Metathesis Rules
-The ampersand operator ```&``` states that the order of the matched input is reversed. So that, for example, a sequence of matched segments `ABC` becomes `CBA`. The operator can be used to flip an arbitrary number of segments.
+The ampersand operator `&` states that the order of the matched input is reversed; Such that, for example, a sequence of matched segments `ABC` becomes `CBA`. The operator can be used to flip an arbitrary number of segments or syllables.
 Like deletion, the output of a metathesis rule must contain *only* `&` and nothing else. 
 
 ```
@@ -400,7 +408,7 @@ can be condensed into:
 ```
 e > * / #_, _#
 ```
-It is important to remember that the rules are still applied sequentially and not at the same time.
+It is important to remember that the rules are still applied sequentially and not at the same time (see [environment sets](#environment-sets) for this).
 
 ### Special Environment
 
@@ -411,7 +419,7 @@ e > * / #_, _#
 (becomes)
 e > * / _,#
 ```
-The before case is always comes first.
+The before case always comes first.
 Any elements past the comma are mirrored such that:
 ```
 _,ABC => ABC_ , _CBA
@@ -429,8 +437,6 @@ $C > & / _# (the consonant is moved into the preceding syllable, with the now em
 or
 $ > * / _C# (the two syllables are merged by deleting the boundary between them)
 ```
-
-
 
 ## Distinctive Features
 ASCA allows for 26 segmental features.  
@@ -539,7 +545,7 @@ In the output block, these features can be used to add or remove a place of arti
 ```
 Rule Example: Plosive Debuccalisation
 
-[+cons, -son, -voi] > [-cons, +c.g., -place] ( {p,t,k} > ʔ)
+[+cons, -son, -voi] > [-cons, +c.g., -place] ( {p,t,k} > ʔ )
 ```
 When adding a node, all features within the node are set to `-`.
 
@@ -569,24 +575,22 @@ Stress can be used on a whole syllable or on a segment. This allows you to chang
 ```
 Rule Example: Latin Stress
 
-% > [+str] / #_#          (If there is only one syllable, it is stressed)
-V:[+long] > [+str] / _%#  (A penult syll ending with a long vowel becomes stressed)
-V > [+str] / _C%#         (A penult syll ending with a consonant or glide becomes stressed)
-% > [+str] / _%:[-str]%#  (If the penult is unstressed, the antepenult becomes stressed)
+% > [+str] / #_#            ;; If there is only one syllable, it is stressed
+V:[+long] > [+str] / _%#    ;; A penult syll ending with a long vowel becomes stressed
+V > [+str] / _C%#           ;; A penult syll ending with a consonant or glide becomes stressed
+% > [+str] / _%:[-str]%#    ;; If the penult is unstressed, the antepenult becomes stressed
 
 (Rules 2 and 3 could be condensed into one by matching to the consonant instead of the vowel in rule 3)
-V > [+str] / _C%#
-(becomes)
-C > [+str] / _%#
+V > [+str] / _C%# (becomes) C > [+str] / _%#
 (therefore)
-V:[+long], C > [+str] / _%# (A penult syll ending with either a long vowel or a consonant/glide becomes stressed)
+V:[+long], C > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed)
 ```
 
 ```
 Rule Example: Germanic Inital Stress Shift
 
-%:[+stress] > [-stress] (All stressed syllables become unstressed)
-% > [+stress] / #_      (The syllable at the beginning of the word becomes stressed)
+%:[+stress] > [-stress]     ;; All stressed syllables become unstressed
+% > [+stress] / #_          ;; The syllable at the beginning of the word becomes stressed
 ```
 
 ### Length
@@ -607,8 +611,8 @@ Length also has a 3-way distinction; allowing for the overlong vowels of languag
 ```
 Rule Example: Compensatory Lengthening
 
-V > [+long] / _C#   (A vowel becomes long before a consonant at the end of a word)
-C > * / V:[+long]_# (A consonant at the end of a word before the long vowel elides)
+V > [+long] / _C#       ;; A vowel becomes long before a consonant at the end of a word
+C > * / V:[+long]_#     ;; A consonant at the end of a word before a long vowel elides
 
 (or by using variable substitution)
 
@@ -616,8 +620,8 @@ V=1 C > 1:[+long] / _#
 ```
 
 ### Tone
-Tone has a unique syntax within matrices. That is, `[tone: X]`, where `X` are the tone numbers.  
-As of yet, tone cannot be used with alpha notation; nor can it be negated.
+Tone has a unique syntax within matrices. That is, `[tone: X]`, where `X` is the tone numbers.  
+As of yet, tone cannot be used with alpha notation; nor can it be 'negated'.
 
 ```
 Rule Example: Mandarin 3rd Tone Sandhi
@@ -667,7 +671,7 @@ A set in the input or output cannot contain word boundaries.
 ## Environment Sets
 
 It can be necessary to check for multiple environmental matches in a single pass.
-This is especially true of exception clauses or in some cases, propagation. 
+This is especially true of exception clauses and, in some cases, propagation. 
 For example, in the English 'Great Vowel Shift', /uː/ does not shift if it is followed by a labial consonant, or preceded by /j/.
 Representing this normally would be rather tricky as, in this case, consecutive environments would override each other:
 
@@ -688,10 +692,8 @@ duːt => dəwt (doubt)
 suːp => suːp (soup)
 juːθ => juːθ (youth)
 ```
-
 These sets can be used as part of condensed rules, and are valid in substitution, deletion, and metathesis rules.
 They are currently not allowed in insertion rules, however this will change in further updates.
-
 
 ## Gemination
 Syllable final consonant gemination is as simple as making a vowel long.
@@ -710,7 +712,7 @@ Insertion with a Variable (see below)
 ```
 
 ```
-Insertion with Structure Matching
+Insertion with Structure Matching (see below)
 
 * > 1 / ⟨..V:[-long]⟩:[+str] _ ⟨C=1...⟩ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
 ```
@@ -789,7 +791,7 @@ It would be nice if we were able to join them into one rule. To accomplish this,
 O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid] / _#
 (pat, pas > paʔ, pah)
 ```
-When matching an obstruent that is `[-cont]`, the output becomes `[-s.g., +c.g.]`. While when the obstruent is `[+cont]`, the output is `[+s.g., -c.g.]`
+The above means that when matching an obstruent that is `[-cont]` the output becomes `[-s.g., +c.g.]`, while when the obstruent is `[+cont]`, the output is `[+s.g., -c.g.]`
 
 This can be used with nodes for conditional clustering:
 ```
@@ -812,7 +814,7 @@ It can also be used to define a simple haplology rule.
 ```
 %=1 > * / 1_ (A syllable is deleted if preceded by an identical syllable)
 ```
-Despite the name, variables cannot be reassigned. However, they can be modified with a feature matrix.
+Despite the name, variables cannot be reassigned. However, they can be modified with a feature matrix as if they were a segment or syllable.
 
 ## Syllable Structure Matching
 
@@ -833,8 +835,7 @@ Example: Latin Stress Rule using Structures
 ⟨...VC⟩ > [+stress] / _%#       (A penult syllable ending with a consonant becomes stressed)
 % > [+stress] / _ %:[-str]%#    (If the penult is unstressed, the antepenult becomes stressed)
 
-(Like the previous Latin stress example, rules 2 and 3 can be condensed)
-(But slightly differently)
+(Like the previous Latin stress example, rules 2 and 3 can be condensed, but slightly differently)
 
 ⟨...V[+long]⟩, ⟨...VC⟩ > [+stress] / _%#
 ```
@@ -871,27 +872,27 @@ Example: Left-to-Right Vowel Backness Harmony
 
 V > [α front, β back] > V:[α front, β back]C_ (Vowels assimilate in backness to that of the preceding vowel) 
 
-/sinotehu/ becomes /sinøtehy/, not /sinøtɤhy/
+/ki.to.le.nu/ becomes /ki.tø.le.ny/, not /ki.tø.lɤ.ny/
 ```
 
 Dedicated syntax for right-to-left propagation is in development. To achieve this currently, we can use a fixed harmonic trigger (this also works for left-to-right propagation) which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
 ```
 V > [α front, β back] / _CV:[α front, β back]
-/sinotehu/ becomes /sɯnøtɤhu/, no propagation
+/ki.to.le.nu/ becomes /kɯ.tø.lɤ.nu/, no propagation
 
 V > [α front, β back] / _...V:[α front, β back]#
-/sinotehu/ becomes /sɯnotɤhu/, as expected
+/ki.to.le.nu/ becomes /kɯ.to.lɤ.nu/, as expected
 ```
 
 This works for the above example, where there is at least one non-matching segment between the trigger and the last matching segment. However, if the /h/ were not present, the /e/ would not assimilate. This is because `...` matches *at least* one segment. Using the special zero-or-more [optional](#optional-segments) `([],0)` in its place, we can match in the case of zero intermediate segments as well.
 
 ```
 V > [α front, β back] / _...V:[α front, β back]#
-/sinoteu/ becomes /sɯnoteu/
+/ki.to.leu/ becomes /kɯ.to.leu/
 
 V > [α front, β back] / _ ([],0) V:[α front, β back]#
-/sinoteu/ becomes /sɯnotɤu/
+/ki.to.leu/ becomes /kɯ.to.lɤu/
 ```
 
 ### Blocking
@@ -901,7 +902,7 @@ We can modify the above rule with an exception clause to state that plosives blo
 ```
 V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) P ([],0) V:[α front, β back]#
 
-/sinotehu/ becomes /sinotɤhu/
+/ki.to.le.nu/ becomes /ki.to.lɤ.nu/
 ```
 
 Blocking can also be achieved in non-explicit ways:
