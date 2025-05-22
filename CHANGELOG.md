@@ -1,6 +1,10 @@
 0.7.2 (Unreleased)
 ==================
+Features:
 * Lib: Right-to-left propagation with tilde `~ | ~>` operator for easy regressive assimilation
+
+Fixes:
+* Lib/Web: Aliases now work as expected when tracing
 
 0.7.1
 ==================
