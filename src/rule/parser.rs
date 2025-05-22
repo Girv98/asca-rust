@@ -62,7 +62,10 @@ impl ParseElement {
             ParseElement::Matrix(..) | ParseElement::Variable(..) | ParseElement::Syllable(..) => {},
             
             ParseElement::Optional(items, ..) | ParseElement::Structure(items, ..) | 
-            ParseElement::Set(items) => for i in items { i.reverse(); },
+            ParseElement::Set(items) => {
+                items.reverse();
+                for i in items { i.reverse(); }
+            },
 
             ParseElement::Environment(envs) => for env in envs { env.reverse(); },
         }
