@@ -342,6 +342,7 @@ pub enum AliasSyntaxError {
     OutsideBrackets     (AliasKind, LineIndex, PosIndex),
     NestedBrackets      (AliasKind, LineIndex, PosIndex),
     WrongModTone        (AliasKind, LineIndex, PosIndex),
+    EmptyOutput         (AliasKind, LineIndex, PosIndex),
     EmptyInput          (AliasKind, LineIndex, PosIndex),
     UnknownEnbyFeature  (String, AliasPosition),
     UnknownFeature      (String, AliasPosition),
@@ -381,6 +382,7 @@ impl fmt::Display for AliasSyntaxError {
             Self::OutsideBrackets     (..) => write!(f, "Features must be inside square brackets"),
             Self::NestedBrackets      (..) => write!(f, "Cannot have nested brackets of the same type"),
             Self::WrongModTone        (..) => write!(f, "Tones cannot be ±; they can only be used with numeric values."),
+            Self::EmptyOutput         (..) => write!(f, "Alias output cannot be empty."),
             Self::EmptyInput          (..) => write!(f, "Alias input cannot be empty."),
             Self::UnknownEnbyFeature  (feat, pos) => write!(f, "Feature '{feat}' has no modifier @ {}.", pos),
             Self::UnknownFeature      (feat, pos) => write!(f, "Unknown feature '{feat}' @ {}'. Did you mean {}? ", pos, get_feat_closest(feat)),
@@ -421,6 +423,7 @@ impl AliasSyntaxError {
             Self::OutsideBrackets        (kind, line, pos) |
             Self::NestedBrackets         (kind, line, pos) |
             Self::WrongModTone           (kind, line, pos) |
+            Self::EmptyOutput            (kind, line, pos) |
             Self::EmptyInput             (kind, line, pos) => (
                 " ".repeat(*pos) + "^" + "\n", 
                 *kind,

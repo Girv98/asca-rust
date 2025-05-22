@@ -114,8 +114,8 @@ impl AliasParser {
 
     fn get_replacement_term(&mut self) -> Option<AliasItem> {
         // RPL_TRM ← EMP / [Alphabetic-Unicode-Char]+
-        let emp = self.get_empty();
-        if emp.is_some() { return emp }
+
+        if let Some(emp) = self.get_empty() { return Some(emp) }
 
         let plus = self.expect(AliasTokenKind::Plus);
 
@@ -411,8 +411,9 @@ impl AliasParser {
 
     fn get_input_term(&mut self) -> Result<Option<AliasItem>, AliasSyntaxError> {
         
-        let s_bound = self.get_syll_bound();
-        if s_bound.is_some() { return Ok(s_bound) }
+        if let Some(s_bound) = self.get_syll_bound() {
+            return Ok(Some(s_bound))
+        }
 
         self.get_segment()
     } 
@@ -441,17 +442,55 @@ impl AliasParser {
         Ok(inputs)
     }
 
+    fn get_output_term(&mut self) -> Result<Option<AliasItem>, AliasSyntaxError> {
+
+        if let Some(empty) = self.get_empty() {
+            return Ok(Some(empty))
+        }
+
+        if let Some(s_bound) = self.get_syll_bound() {
+            return Ok(Some(s_bound))
+        }
+
+        self.get_segment()
+    } 
+
+    fn get_output(&mut self) -> Result<Vec<AliasItem>, AliasSyntaxError> {
+        let mut outputs = Vec::new();
+
+        if let Some(trm) = self.get_output_term()? {
+            outputs.push(trm);
+            loop {
+                if !self.expect(AliasTokenKind::Comma) { 
+                    break;
+                }
+                match self.get_output_term()? {
+                    Some(trm) => outputs.push(trm),
+                    None => break
+                }
+            }
+        }
+
+        if outputs.is_empty() {
+            return Err(AliasSyntaxError::EmptyOutput(self.kind, self.line, self.token_list[self.pos].position.start))
+        }
+
+        Ok(outputs)
+
+    }
+
     // INTO
     fn get_deromaniser(&mut self) -> Result<Vec<Transformation>, AliasSyntaxError> {
-        // returns INTO ← RPL_STR ARR SEG+ EOL
+        // returns INTO ← REPLACE ARR OUTPUT EOL
 
+        // REPLACE
         let input_terms =  self.get_replacements()?;
         // ARR
         if !self.expect(AliasTokenKind::Arrow) && !self.expect(AliasTokenKind::GreaterThan) {
             return Err(AliasSyntaxError::ExpectedArrow(self.curr_tkn.clone()))
         }
-        // REPLACE
-        let output_terms = self.get_input()?;
+        // OUT
+        let output_terms = self.get_output()?;
         // !EOL
         if !self.expect(AliasTokenKind::Eol) {
             return Err(AliasSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))

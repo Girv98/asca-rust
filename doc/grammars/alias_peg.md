@@ -2,7 +2,7 @@
 
 ALIAS   ←   INTO / FROM
 
-INTO    ←   REPLACE ARR SEG+ EOL
+INTO    ←   REPLACE ARR OUTPUT EOL
 FROM    ←   INPUT ARR REPLACE EOL
 
 REPLACE ←   RPL_TRM ( ',' RPL_TRM )* ','?
@@ -13,6 +13,9 @@ ESCAPE  ←   ESC_NME / ESC_UNI / ESC_LIT
 ESC_NME ←   '@' '{' [A-Za-z]+ '}'
 ESC_UNI ←   '\' 'u' '{' [0-9A-F]+ '}'
 ESC_LIT ←   '\' SPC_CHR
+
+OUTPUT  ←   OUT_TRM ( ',' OUT_TRM )* ','?
+OUT_TRM ←   EMP / SBOUND / SEG+
 
 INPUT   ←   INP_TRM ( ',' INP_TRM )* ','?
 INP_TRM ←   SBOUND / SEG+

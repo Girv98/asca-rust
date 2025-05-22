@@ -272,7 +272,7 @@ impl Word {
         Ok(())
     }
 
-    fn fill_segments(&mut self, input_txt: &String, txt: &[char], i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, ASCAError> {
+    fn fill_segments(&mut self, input_txt: &String, txt: &mut Vec<char>, i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, ASCAError> {
         for alias in aliases {
             if let AliasParseElement::Replacement(string, plus) = &alias.input.kind {
                 let back_pos = *i;
@@ -355,7 +355,9 @@ impl Word {
                             
 
                         },
-                        _ => unreachable!()
+                        AliasParseElement::SyllBound => { txt.insert(*i, '.'); },
+                        AliasParseElement::Empty => {},
+                        AliasParseElement::Replacement(..) => unreachable!()
                     }
                     return Ok(true);
                 }
@@ -472,7 +474,7 @@ impl Word {
 
     fn setup(&mut self, input_txt: String, aliases: &[Transformation]) -> Result<(), ASCAError> {
         let mut i = 0;
-        let txt: Vec<char> = input_txt.chars().collect();
+        let mut txt: Vec<char> = input_txt.chars().collect();
 
         let mut sy = Syllable::new();
 
@@ -531,9 +533,7 @@ impl Word {
             }
             
             // GET SEG
-            if self.fill_segments(&input_txt, &txt, &mut i, &mut sy, aliases)? {
-                continue;
-            }
+            self.fill_segments(&input_txt, &mut txt, &mut i, &mut sy, aliases)?;
         }
         if sy.segments.is_empty() {
             if sy.tone != 0 || sy.stress != StressKind::Unstressed {
