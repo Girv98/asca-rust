@@ -1,7 +1,7 @@
-0.7.2 (Unreleased)
+0.7.2
 ==================
 Features:
-* Lib: Right-to-left propagation with tilde `~ | ~>` operator for easy regressive assimilation
+* Lib: Right-to-left propagation with the tilde `~ | ~>` operator for easy regressive harmony ([see documentation](./doc/doc.md#true-right-to-left-propagation))
 
 Fixes:
 * Lib/Web: Aliases now work as expected when tracing

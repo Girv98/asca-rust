@@ -39,6 +39,7 @@ This is documentation for the core principles of defining words and sound change
 * [Propagation](#propagation)
     * [Faux Right-to-left Propagation](#faux-right-to-left-propagation)
     * [True Right-to-left Propagation](#true-right-to-left-propagation)
+    * [Blocking](#blocking)
 * [Considerations](#considerations) 
 
 ## Defining Words
@@ -870,12 +871,14 @@ As ASCA changes all matching environments in a word sequentially, left-to-right 
 ```
 Example: Left-to-Right Vowel Backness Harmony
 
-V > [α front, β back] > V:[α front, β back]C_ (Vowels assimilate in backness to that of the preceding vowel) 
+V > [α front, β back] > V:[α front, β back] (C) _ (Vowels assimilate in backness to that of the preceding vowel) 
 
 /ki.to.le.nu/ becomes /ki.tø.le.ny/, not /ki.tø.lɤ.ny/
 ```
 
-Dedicated syntax for right-to-left propagation is in development. To achieve this currently, we can use a fixed harmonic trigger (this also works for left-to-right propagation) which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
+### Faux Right-to-left Propagation
+
+To achieve right to left harmonies in a "left-to-right" context, we can use a fixed harmonic trigger, which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
 ```
 V > [α front, β back] / _CV:[α front, β back]
@@ -895,13 +898,48 @@ V > [α front, β back] / _ ([],0) V:[α front, β back]#
 /ki.to.leu/ becomes /kɯ.to.lɤu/
 ```
 
+### True Right-to-left Propagation
+
+The above will work in many cases; However, to have true right-to-left harmony we can use the tilde operator `~` or `~>`. This is used in the place of the normal arrow between the input and output and denotes to asca that the rule should be inverted and applied from the end of the word to the beginning.
+
+We can now implement the previous example more simply as just a mirror image of its left-to-right version:
+```
+Previous Example without Anchoring:
+
+V ~ [α front, β back] / _ (C) V:[α front, β back]
+
+/ki.to.leu/ becomes /kɯ.to.lɤu/
+/ki.to.le.nu/ becomes /kɯ.to.lɤ.nu/
+```
+
+``` 
+Rule Example: Secondary Stressing
+
+% > [+str] / #_#, _%#           ;; The penultimate (or ultimate if none) syllable is stressed.
+% ~ [+sec.str] / _%%:[+str]     ;; Every other syllable before another stressed syllable has secondary stress.
+
+/sa.me.ka.se.ne.ta.ni.lo.ti.ne/ becomes /ˌsa.meˌka.seˌne.taˌni.loˈti.ne/
+Without '~', only the last would match, becoming /sa.me.ka.se.ne.taˌni.loˈti.ne/
+```
+
 ### Blocking
 
-We can modify the above rule with an exception clause to state that plosives block this harmony. So that, in this example, the /t/ will block the first vowel /i/ from assimilating:
+We can achieve blocking with an exception clause. For this example, plosives will block the spread such that the /t/ will block the first vowel /i/ from assimilating:
 
 ```
+Faux Right-to-Left:
+
 V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) P ([],0) V:[α front, β back]#
 
+/ki.to.le.nu/ becomes /ki.to.lɤ.nu/
+```
+
+```
+True Right-to-Left:
+
+V ~ [α front, β back] / _ ([]) V:[α front, β back] | _ P
+
+/ki.to.leu/ becomes /ki.to.lɤu/
 /ki.to.le.nu/ becomes /ki.to.lɤ.nu/
 ```
 
@@ -910,7 +948,8 @@ Blocking can also be achieved in non-explicit ways:
 ```
 Example: Regressive Nasal Vowel-Consonant Harmony that is blocked by obstruents and is transparent through sonorants
 
-V > [+nasal] / _ ([+son],0) [+nasal]
+V > [+nasal] / _ ([+son],0) [+nasal]    ;; Faux
+V ~ [+nasal] / _ ([+son]) [+nasal]      ;; True
 
 /amakan/ becomes /ãmakãn/
 /palanawasan/ becomes /pãlãnawasãn/
