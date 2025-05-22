@@ -1,3 +1,9 @@
+0.7.4 (Unreleased)
+==================
+
+Fixes:
+* Lib: A `$` or `*` alone in the output of a deromanisation rule is now allowed and no longer crashes
+
 0.7.3
 ==================
 Features:
