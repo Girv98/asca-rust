@@ -1,4 +1,4 @@
-0.7.2
+0.7.3
 ==================
 Features:
 * Lib: Right-to-left propagation with the tilde `~ | ~>` operator for easy regressive harmony ([see documentation](./doc/doc.md#true-right-to-left-propagation))
