@@ -245,7 +245,7 @@ pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<
     let unparsed_rules: Vec<RuleGroup> = serde_wasm_bindgen::from_value(val).expect("Rules are in valid JSObject format");
     
     match trace {
-        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_from, t), &unparsed_rules, &unparsed_into, &unparsed_from),
+        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_into, t), &unparsed_rules, &unparsed_into, &unparsed_from),
         None => parse_result_web(run_unparsed_debug(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from), &unparsed_rules, &unparsed_into, &unparsed_from),
     }
 }
