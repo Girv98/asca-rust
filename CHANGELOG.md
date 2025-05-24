@@ -1,8 +1,8 @@
-0.7.4 (Unreleased)
+0.7.4
 ==================
 
 Features:
-* Lib: Inbuilt aliases for diacritics
+* Lib: Inbuilt aliases for common diacritics
 
 Fixes:
 * Lib: A `$` or `*` alone in the output of a deromanisation rule is now allowed and no longer crashes
