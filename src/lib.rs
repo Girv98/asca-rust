@@ -85,40 +85,6 @@ lazy_static! {
     };    
 }
 
-
-
-// We are currently only normalising a few characters as most would be invalid anyway.
-pub(crate) fn normalise(s: &str) -> String {
-    let mut output = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            'ã' => output.push_str("ã"),
-            'ẽ' => output.push_str("ẽ"),
-            'ĩ' => output.push_str("ĩ"),
-            'õ' => output.push_str("õ"),
-            'ũ' => output.push_str("ũ"),
-            'ỹ' => output.push_str("ỹ"),
-            'ɚ' => output.push_str("ə˞"),
-            'ɝ' => output.push_str("ɜ˞"),
-            'ꭤ' => output.push('ɑ'),
-            'ǝ' => output.push('ə'),
-            'ℇ' => output.push('ɛ'),
-            'ℎ' => output.push('h'),
-            'ℏ' => output.push('ħ'),
-            // 'ﬁ' => output.push_str("fi"),
-            // 'ﬂ' => output.push_str("fl"),
-            // 'ĳ' => output.push_str("ij"),
-            // 'ǌ' => output.push_str("nj"),
-            // 'ǉ' => output.push_str("lj"),
-            _ => {
-                output.push(ch);
-            }
-        }
-    }
-
-    output
-}
-
 fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, ASCAError> {
     let mut transformed_phrases: Vec<Phrase> = Vec::with_capacity(phrases.len());
 
@@ -178,7 +144,7 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
 fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, ASCAError> {
     unparsed_phrases.iter().map(|phrase| -> Result<Phrase, ASCAError> {
         phrase.split(' ')
-        .map(|w| Word::new(normalise(w), alias_into))
+        .map(|w| Word::new(w, alias_into))
         .collect()
     }).collect()
 }

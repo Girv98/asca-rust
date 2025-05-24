@@ -394,7 +394,7 @@ impl<'a> Lexer<'a> {
         None
     }
     
-    fn cur_as_ipa(&self) -> char {
+    fn cur_as_ipa(&mut self) -> char {
         match self.curr_char() {
             'g' => 'ɡ',
             '?' => 'ʔ',
@@ -402,21 +402,30 @@ impl<'a> Lexer<'a> {
             'ł' => 'ɬ',
             'ñ' => 'ɲ',
             'φ' => 'ɸ',
-            // 'S' => 'ʃ', Can't have any of these in rules as they will be parsed as groups
-            // 'Z' => 'ʒ',
-            // 'C' => 'ɕ',
-            // 'G' => 'ɢ',
-            // 'N' => 'ɴ',
-            // 'B' => 'ʙ',
-            // 'R' => 'ʀ',
-            // 'X' => 'χ',
-            // 'H' => 'ʜ',
-            // 'A' => 'ɐ',
-            // 'E' => 'ɛ',
-            // 'I' => 'ɪ',
-            // 'O' => 'ɔ',
-            // 'U' => 'ʊ',
-            // 'Y' => 'ʏ',
+            '^' => match self.next_char() {
+                'j' => { self.advance(); 'ʲ' },
+                'w' => { self.advance(); 'ʷ' },
+                'v' => { self.advance(); 'ᶹ' },
+                'g' => { self.advance(); 'ˠ' },
+                '?' => { self.advance(); 'ˀ' },
+                'h' => { self.advance(); 'ʰ' },
+                'ɦ' => { self.advance(); 'ʱ' },
+
+                'm' => { self.advance(); 'ᵐ' },
+                'n' => { self.advance(); 'ⁿ' },
+                'ŋ' => { self.advance(); 'ᵑ' },
+                'N' => { self.advance(); 'ᶰ' },
+
+                '\'' => { self.advance(); 'ʼ' },
+                'ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ' |
+                'q' | 'ɢ' | 'ɴ' | 'χ' | 'ʁ'  => { self.advance(); self.cur_as_ipa() }
+                _ => '^'
+            },
+            'ꭤ' => 'ɑ',
+            'ǝ' => 'ə',
+            'ℇ' => 'ɛ',
+            'ℎ' => 'h',
+            'ℏ' => 'ħ',
             other => other,
         }
     }
@@ -475,20 +484,6 @@ impl<'a> Lexer<'a> {
                         buffer.push('\u{035C}');
                         self.advance();
                         continue;
-                    }
-                    // if a click consonant
-                    if let 'ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ' = self.next_char() {
-                        tmp.pop(); tmp.push(self.cur_as_ipa());
-                        self.advance();
-                        continue;
-                    }
-                    // if a contour click
-                    if let 'q'| 'ɢ' | 'ɴ' | 'χ' | 'ʁ' = self.next_char() {
-                        if let Some('ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ') = tmp.chars().next() {
-                            tmp.pop(); tmp.push(self.cur_as_ipa());
-                            self.advance();
-                            continue;
-                        }
                     }
                 }
 
@@ -702,14 +697,18 @@ mod lexer_tests {
     #[test]
     fn test_ipa_sep() {
         
-        let test_input= String::from("t͡ɕ b͡β b a");
+        let test_input= String::from("t͡ɕ b͡β b a ʘq ʘ^q qʘ q^ʘ");
         
         let expected_result = vec![
             Token::new(TokenKind::Cardinal, "t͡ɕ", 0, 0,  0,  3),
             Token::new(TokenKind::Cardinal, "b͡β", 0, 0,  4,  7),
             Token::new(TokenKind::Cardinal,  "b", 0, 0,  8,  9),
             Token::new(TokenKind::Cardinal,  "a", 0, 0, 10, 11),
-            Token::new(TokenKind::Eol,        "", 0, 0, 11, 12),
+            Token::new(TokenKind::Cardinal,  "ʘq", 0, 0, 12, 14),
+            Token::new(TokenKind::Cardinal,  "ʘq", 0, 0, 15, 18),
+            Token::new(TokenKind::Cardinal,  "qʘ", 0, 0, 19, 21),
+            Token::new(TokenKind::Cardinal,  "qʘ", 0, 0, 22, 25),
+            Token::new(TokenKind::Eol,        "", 0, 0, 25, 26),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        

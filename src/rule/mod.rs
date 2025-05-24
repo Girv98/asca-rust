@@ -192,13 +192,13 @@ impl fmt::Debug for Rule {
 
 #[cfg(test)]
 mod rule_tests {
-    use crate::{normalise, rule::{Lexer, Parser, RuleGroup}};
+    use crate::rule::{Lexer, Parser, RuleGroup};
 
     use super::*;
     
     fn setup_rule(test_str: &str) -> Rule {
 
-        let maybe_lex = Lexer::new(&normalise(test_str).chars().collect::<Vec<_>>(),0 ,0).get_line();
+        let maybe_lex = Lexer::new(&test_str.chars().collect::<Vec<_>>(),0 ,0).get_line();
         match maybe_lex {
             Ok(lexed) => {
                 match Parser::new(lexed, 0, 0).parse() {
@@ -220,7 +220,7 @@ mod rule_tests {
     }
 
     fn setup_word(test_str: &str) -> Word {
-        let maybe_word = Word::new(normalise(test_str), &[]);
+        let maybe_word = Word::new(test_str, &[]);
         match maybe_word {
             Ok(w) => return w,
             Err(e) => {

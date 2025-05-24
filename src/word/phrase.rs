@@ -36,6 +36,6 @@ impl Phrase {
 
     pub fn try_from(unparsed_phrase: &str, aliases: &[String]) -> Result<Self, ASCAError> {
         let alias_into = alias::parse_into(aliases)?;
-        unparsed_phrase.split(' ').map(|w| Word::new(crate::normalise(w), &alias_into)).collect()
+        unparsed_phrase.split(' ').map(|w| Word::new(w, &alias_into)).collect()
     }
 }
