@@ -63,7 +63,7 @@ Doubly articulated stops, such as `ɡ͡b`, are not supported.
 
 In the event that ASCA is unable to render a segment in IPA, `�` will be used in its place.
 
-Unless the diacritic is inherent to the base phone (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the segments in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
+Unless the diacritic is inherent to the base phone (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
 
 A full list of supported base phones and diacritics (with their values) can be found [here](https://bit.ly/3sHjqvA).
 
@@ -77,7 +77,7 @@ A word with no marked boundaries is considered one syllable. There are no rules 
 Segment length can be represented by either `ː` or `:`. A segment can be followed by multiple length markers, representing overlong segments. Alternatively, length can be represented by repetition of the segment (i.e. `si:m` can be `siim`). Identical segments that are separated by a syllable boundary are not considered one long segment. If a long segment falls at the end of a syllable, `;` can be used as shorthand to also close the syllable (i.e. `si:.tiŋ` can be `si;tiŋ`).
 
 #### Stress
-Primary stress can be represented by either `ˈ` or `'` and secondary stress by either `ˌ` or `,`. These are placed at the start of the syllable. The boundary marker can be omitted if followed by a stressed syllable (i.e. `ə'gəʊ` instead of `ə.'gəʊ`). Note that ejective consonants cannot be marked with a `'` as this will be interpreted as stress. `ʼ` must be used instead `i.e. /pʼ/`.
+Primary stress can be represented by either `ˈ` or `'` and secondary stress by either `ˌ` or `,`. These are placed at the start of the syllable. The boundary marker can be omitted if followed by a stressed syllable (i.e. `ə'gəʊ` instead of `ə.'gəʊ`). Note that ejective consonants cannot be marked with a `'` as this will be interpreted as stress. `ʼ` or `^'` must be used instead `i.e. /pʼ/ or /p^'/`.
 
 #### Tone
 ASCA does not currently support tone diacritics or tone letters. Tone instead is represented by numbers following the syllable. As of yet, there are no rules regarding the meaning or syntax of these numbers; However, for demonstration we will follow the [Chinese convention](https://en.wikipedia.org/wiki/Tone_letter#Numerical_values), using numbers from 1 (lowest pitch) to 5 (highest pitch). As with stress, either a syllable or a segment can be matched or modified with tone.
@@ -103,6 +103,18 @@ g => ɡ
 ! => ǃ
 ǝ => ə
 φ => ɸ
+^j => ʲ
+^w => ʷ
+^v => ᶹ
+^g => ˠ
+^' => ʼ
+^? => ˀ
+^h => ʰ
+^ɦ => ʱ
+^m => ᵐ
+^n => ⁿ
+^ŋ => ᵑ
+^N => ᶰ
 
 (The following cannot be used inside a rule)
 
@@ -133,11 +145,13 @@ A few common americanist characters can also be used:
 ƛ => t͡ɬ
 λ => d͡ɮ
 ```
+***Note: Inbuilt americanist characters will be removed in v0.8.0 in favour of custom aliases, see below.***
+
 Unlike with regular aliases, if a input word contains americanist characters, the output will be be rendered with these characters.
 
 ### Custom Aliasing / (De)Romanisation
 
-ASCA allows for a **subset** of the [regular rule syntax](#defining-sound-changes) to be used to define custom aliases and general romanisation/deromanisation.
+ASCA allows for a **subset** of the [regular rule syntax](#defining-basic-sound-changes) to be used to define custom aliases and general romanisation/deromanisation.
 These mappings are applied before the inbuilt aliases defined above. Segments can be selected with modifiers such as stress and tone. 
 On the web version, these rules are defined through the **alias** button; For cli, see the [cli documentation](./doc-cli.md).
 
@@ -158,7 +172,7 @@ $ => *
 ```
 
 ##### Named Escapes
-Named escapes take to form of `@{....}`. They allow for common diacritics to be used without needing to memorise codepoints, or look-up, copy, and paste. Currently supported named escapes are:
+Named escapes take to form of `@{....}`. They allow for common diacritics to be used without needing to memorise or look-up codepoints. Currently supported named escapes are:
 ```
 @{Space}        (U+0020 ASCII Space)
 @{Grave}        (U+0300 Combining Grave Accent)
