@@ -402,6 +402,7 @@ impl<'a> Lexer<'a> {
             'ł' => 'ɬ',
             'ñ' => 'ɲ',
             'φ' => 'ɸ',
+            // TODO: Any printed errors may be off by +1
             '^' => match self.next_char() {
                 'j' => { self.advance(); 'ʲ' },
                 'w' => { self.advance(); 'ʷ' },
@@ -486,6 +487,8 @@ impl<'a> Lexer<'a> {
                         continue;
                     }
                 }
+
+                // TODO: may need to backtrack in certain instances, see Word::fill_segments
 
                 // if buffer.ends_with('\u{0361}') || buffer.ends_with('\u{035C}') {
                 //     invalid 

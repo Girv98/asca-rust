@@ -148,28 +148,8 @@ impl Word {
 
     fn normalise(input_txt: String) -> String {
         let mut output = String::with_capacity(input_txt.len());
-        let mut last_char_was_caret = false;
         for ch in input_txt.chars() {
             match ch {
-                'j' if last_char_was_caret => { output.pop(); output.push('ʲ'); }
-                'w' if last_char_was_caret => { output.pop(); output.push('ʷ'); } 
-                'v' if last_char_was_caret => { output.pop(); output.push('ᶹ'); } 
-                'g' if last_char_was_caret => { output.pop(); output.push('ˠ'); } 
-                '?' if last_char_was_caret => { output.pop(); output.push('ˀ'); } 
-                'h' if last_char_was_caret => { output.pop(); output.push('ʰ'); } 
-                'ɦ' if last_char_was_caret => { output.pop(); output.push('ʱ'); } 
-
-                'm' if last_char_was_caret => { output.pop(); output.push('ᵐ') },
-                'n' if last_char_was_caret => { output.pop(); output.push('ⁿ') },
-                'ŋ' if last_char_was_caret => { output.pop(); output.push('ᵑ') },
-                'N' if last_char_was_caret => { output.pop(); output.push('ᶰ') },
-
-                'ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ' |
-                'q' | 'ɢ' | 'ɴ' | 'χ' | 'ʁ' if last_char_was_caret => { 
-                    output.pop(); output.push(Self::as_ipa(ch));
-                 }
-
-                '\'' if last_char_was_caret => { output.pop(); output.push('ʼ'); } 
                 '\'' => output.push('ˈ'),
                 ',' => output.push('ˌ'),
                 ':' => output.push('ː'),
@@ -187,15 +167,14 @@ impl Word {
                 'ℇ' => output.push('ɛ'),
                 'ℎ' => output.push('h'),
                 'ℏ' => output.push('ħ'),
-                '^' => { last_char_was_caret = true; output.push(ch); continue;}
                 _ => output.push(ch)
             }
-            last_char_was_caret = false;
         }
         output
     }
 
-    fn as_ipa(ch: char) -> char {
+    fn as_ipa(txt: &[char], index: &mut usize) -> char {
+        let ch = txt[*index];
         match ch {
             'S' => 'ʃ',
             'Z' => 'ʒ',
@@ -216,6 +195,29 @@ impl Word {
             'g' => 'ɡ',
             '?' => 'ʔ',
             '!' => 'ǃ',
+            '^' => match txt.get(*index+1) {
+                Some(asdf) => match asdf {
+                    '?' | 'ʔ' => { *index += 1; 'ˀ' }
+                    'ǃ' | '!' => { *index += 1; 'ǃ' }
+                    'g' | 'ɡ' => { *index += 1; 'ˠ' }
+                    'j' => { *index += 1; 'ʲ' }
+                    'w' => { *index += 1; 'ʷ' }
+                    'v' => { *index += 1; 'ᶹ' }
+                    'h' => { *index += 1; 'ʰ' }
+                    'ɦ' => { *index += 1; 'ʱ' }
+                    'm' => { *index += 1; 'ᵐ' }
+                    'n' => { *index += 1; 'ⁿ' }
+                    'ŋ' => { *index += 1; 'ᵑ' }
+                    'N' => { *index += 1; 'ᶰ' },
+                    '\'' | 'ˈ' => { *index += 1; 'ʼ' },
+                    'ʘ' | 'ǀ' | 'ǁ' | '‼' | 'ǂ' |
+                    'q' | 'ɢ' | 'ɴ' | 'χ' | 'ʁ' => {
+                        *index += 1; *asdf
+                    },
+                    _ => '^'
+                },
+                None => '^',
+            }
             other => other
         }
     }
@@ -412,33 +414,33 @@ impl Word {
         }
 
         // GET SEG
-        let mut buffer = Self::as_ipa(txt[*i]).to_string();
+        let mut buffer = Self::as_ipa(txt, i).to_string();
         
         if CARDINALS_TRIE.contains_prefix(buffer.as_str()) {
             *i += 1;
             while *i < txt.len() {
-                let mut tmp = buffer.clone(); tmp.push(Self::as_ipa(txt[*i]));
+                let mut tmp = buffer.clone(); tmp.push(Self::as_ipa(txt, i));
                 if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
-                    buffer.push(Self::as_ipa(txt[*i]));
+                    buffer.push(Self::as_ipa(txt, i));
                     *i += 1;
                     continue;
                 }
                 if txt[*i] == '^' {
-                    tmp.pop();
-                    tmp.push('\u{0361}');
+                    tmp.pop(); tmp.push('\u{0361}');
                     if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
                         buffer.push('\u{0361}');
                         *i += 1;
                         continue;
                     }
-                    tmp.pop();
-                    tmp.push('\u{035C}');
+                    tmp.pop(); tmp.push('\u{035C}');
                     if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
                         buffer.push('\u{035C}');
                         *i += 1;
                         continue;
                     }
                 }
+                // Because we are advancing in as_ipa()
+                if txt[*i-1] == '^' { *i -= 1; }
                 break;
             }
             let maybe_seg = CARDINALS_MAP.get(&buffer);
@@ -1066,8 +1068,8 @@ mod word_tests {
 
     #[test]
     fn test_render_aliases() {
-        match Word::new("'^NGAN;CEUN!eB^g.gRǝ:S!^q.φ^hXOI?,HYZ^wq^ʘ", &[]) {
-            Ok(w) => assert_eq!(w.render(&[]).0, "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘ"),
+        match Word::new("'^NGAN;CEUN!eB^g.gRǝ:S!^q.φ^hXOI?,HYZ^wq^ʘ'p^'a", &[]) {
+            Ok(w) => assert_eq!(w.render(&[]).0, "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼa"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
