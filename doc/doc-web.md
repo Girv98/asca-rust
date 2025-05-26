@@ -46,8 +46,8 @@ Blocks can be globally toggled on and off with the `Disable/Enable All` button.
 
 ## Debugging
 ### Word Tracing
-The evolution of a certain input word can be shown using the trace dropdown above the input box. This outputs each rule that is applied to 
-the word and how the word changes due to it.
+The evolution of a given input phrase can be shown using the trace dropdown above the input box. This will output each rule that is applied to 
+the phrase and how the phrase changes due to it. The applied rule blocks are also highlighted for easier discernment.
 
 ### Unknown Segments
 When ASCA is unable to represent a given segment, `�` will be printed in its place. If this occurs, a table of each unique unknown segment and its 

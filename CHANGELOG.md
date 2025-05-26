@@ -1,8 +1,9 @@
-0.7.5 (Unreleased)
+0.7.5
 ==================
-[0.7.4...0.7.5](https://github.com/Girv98/asca-rust/compare/0.7.4...master)
+[0.7.4...0.7.5](https://github.com/Girv98/asca-rust/compare/0.7.4...0.7.5)
 
-Web: Pass traced rule indices to WasmResult
+Features:
+* Wasm: Pass traced rule indices to WasmResult
 
 0.7.4
 ==================
@@ -212,6 +213,7 @@ Tweaks:
 
 0.2.1
 ==================
+[0.2.0...0.2.1](https://github.com/Girv98/asca-rust/compare/0.2.0...0.2.1)
 
 Bug fixes:
 * Fix bug whereby IPA literals with a feature alpha modifier were not correctly matching.
