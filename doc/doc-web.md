@@ -55,11 +55,10 @@ value will be shown at the end of the output. You can use this to cross referenc
 unknown is color-coded (and hoverable) so that you can easily discern each value.
 
 ## Aliasing/Romanisation
-Aliases can be defined through the `aliases` button, which will bring up a modal containing the 
+Aliases can be defined through the `aliases` button, which will bring up a modal containing the input fields,see [Custom aliasing](./doc.md#custom-aliasing--deromanisation) 
+for more
 
-see [](./doc.md#custom-aliasing--deromanisation) for more
-
-Note that aliases, like words, are not cleared with the `Clear All` button.
+Note that aliases, like the input, are not cleared with the `Clear All` button.
 
 ## Saving and Loading
 
@@ -99,7 +98,7 @@ Global:
 * `Alt+X` Clear Rules
 * `Alt+Z` Toggle All Rules
 
-Within a text box (Note: breaks undo):
+Within a text box (Note: currently breaks undo):
 * `Alt+↑` Move line(s) above
 * `Alt+↓` Move line(s) below
 * `Alt+Shift+↑` Duplicate line(s) above
