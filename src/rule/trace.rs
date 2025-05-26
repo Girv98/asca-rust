@@ -49,7 +49,7 @@ pub(crate) fn to_string(original: &Phrase, changes: Vec<Change>, rules: &[RuleGr
     res
 }
 
-pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[RuleGroup]) -> (Vec<String>, Vec<String>) {
+pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[RuleGroup]) -> (Vec<String>, Vec<String>, Vec<usize>) {
     let mut res = Vec::with_capacity(changes.len());
     let mut unk = Vec::new();
     let mut last = String::new();
@@ -62,9 +62,11 @@ pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[R
     }
 
     let mut last_unk = unk.clone();
+    let mut trace_indices = Vec::new();
 
     for change in changes {
         res.push(format!("Applied \"{}\":", rules[change.rule_index].name));
+        trace_indices.push(change.rule_index);
         let mut st = String::new();
 
         st.push_str(&last);
@@ -84,5 +86,5 @@ pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[R
 
         res.push(st);
     }
-    (res, unk)
+    (res, unk, trace_indices)
 }
