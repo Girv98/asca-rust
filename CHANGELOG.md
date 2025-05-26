@@ -1,5 +1,12 @@
+0.7.5 (Unreleased)
+==================
+[0.7.4...0.7.5](https://github.com/Girv98/asca-rust/compare/0.7.4...master)
+
+Web: Pass traced rule indices to WasmResult
+
 0.7.4
 ==================
+[0.7.3...0.7.4](https://github.com/Girv98/asca-rust/compare/0.7.3...0.7.4)
 
 Features:
 * Lib: Inbuilt aliases for common diacritics
@@ -9,6 +16,8 @@ Fixes:
 
 0.7.3
 ==================
+[0.7.1...0.7.3](https://github.com/Girv98/asca-rust/compare/0.7.1...0.7.3)
+
 Features:
 * Lib: Right-to-left propagation with the tilde `~ | ~>` operator for easy regressive harmony ([see documentation](./doc/doc.md#true-right-to-left-propagation))
 
@@ -17,6 +26,7 @@ Fixes:
 
 0.7.1
 ==================
+[0.7.0...0.7.1](https://github.com/Girv98/asca-rust/compare/0.7.0...0.7.1)
 
 Features:
 * Lib: Debug representation of `Segment` values and `try_as_grapheme` function
@@ -28,6 +38,8 @@ Fixes:
 
 0.7.0
 ==================
+[0.6.1...0.7.0](https://github.com/Girv98/asca-rust/compare/0.6.1...0.7.0)
+
 Breaking:
 * Cli:
     * New config file syntax (conversion is available through `asca conv config`) ([#6](https://github.com/Girv98/asca-rust/issues/6))
@@ -57,6 +69,8 @@ Fixes:
 
 0.6.1
 ==================
+[0.6.0...0.6.1](https://github.com/Girv98/asca-rust/compare/0.6.0...0.6.1)
+
 Meta:
 * Update to Rust 2024 Edition
 
@@ -66,18 +80,24 @@ Fixes:
 
 0.6.0
 ==================
+[0.5.3...0.6.0](https://github.com/Girv98/asca-rust/compare/0.5.3...0.6.0)
+
 Features:
 * Lib: A given word or phrase can now be traced throughout its evolution
 * Lib: Multiple words can now be placed on the same line separated by a space
 
 0.5.3
 ==================
+[0.5.2...0.5.3](https://github.com/Girv98/asca-rust/compare/0.5.2...0.5.3)
+
 Features:
 * Lib: Rules can now have comments, delimited by `;;`
 * Lib: Multiple contiguous underlines are now allowed in environments
 
 0.5.2
 ==================
+[0.5.1...0.5.2](https://github.com/Girv98/asca-rust/compare/0.5.1...0.5.2)
+
 Features:
 * Lib: Environments can now be grouped so they can be checked all at once, similarly to a set ([see documentation](doc/doc.md#environment-sets))
 
@@ -86,6 +106,7 @@ Fixes:
 
 0.5.1
 ==================
+[0.5.0...0.5.1](https://github.com/Girv98/asca-rust/compare/0.5.0...0.5.1)
 
 Fixes:
 * Alphas and Variables used after an ellipsis or an optional work as intended
@@ -95,6 +116,8 @@ Performance:
 
 0.5.0
 ==================
+[0.4.4...0.5.0](https://github.com/Girv98/asca-rust/compare/0.4.4...0.5.0)
+
 Features:
 * Structure Matching [(see docs)](/doc/doc.md#syllable-structure-matching)
     * Allows for matching a syllable based upon its segments
@@ -111,6 +134,8 @@ Fixes:
 
 0.4.4
 ==================
+[0.4.3...0.4.4](https://github.com/Girv98/asca-rust/compare/0.4.3...0.4.4)
+
 Fixes:
 * Aliases: Non-node segment features are now correctly applied.
 * Aliases: Applying stress or tone with the plus operator no longer sets the segment length to 1.
@@ -120,6 +145,7 @@ Features:
 
 0.4.3
 ==================
+[0.4.2...0.4.3](https://github.com/Girv98/asca-rust/compare/0.4.2...0.4.3)
 
 Fixes:
 * Aliases: Matching multiple segments with the plus operator will no longer overwrite the tail segments
@@ -134,6 +160,7 @@ Tweaks:
 
 0.4.2
 ==================
+[0.4.1...0.4.2](https://github.com/Girv98/asca-rust/compare/0.4.1...0.4.2)
 
 Features:
 * Lib: Allow for groups and matrices to be used in alias rules
@@ -147,6 +174,7 @@ Tweaks:
 
 0.4.1
 ==================
+[0.4.0...0.4.1](https://github.com/Girv98/asca-rust/compare/0.4.0...0.4.1)
 
 Features:
 * Lib: Allow unicode escapes within alias rules
@@ -154,6 +182,7 @@ Features:
 
 0.4.0
 ==================
+[0.3.1...0.4.0](https://github.com/Girv98/asca-rust/compare/0.3.1...0.4.0)
 
 Features: 
 * Lib: Ability to add custom aliases/romanisation
@@ -162,12 +191,14 @@ Features:
 
 0.3.1
 ==================
+[0.3.0...0.3.1](https://github.com/Girv98/asca-rust/compare/0.3.0...0.3.1)
 
 Features: 
 * Lib: Add `ᶻ` diacritic as a voiced alternative to the stridentised diacritic `ˢ`.
 
 0.3.0
 ==================
+[0.2.1...0.3.0](https://github.com/Girv98/asca-rust/compare/0.2.1...0.3.0)
 
 Features: 
 * Cli: Ability to convert a config tag into a web-asca json file 
