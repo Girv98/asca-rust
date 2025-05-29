@@ -97,25 +97,31 @@ Global:
 * `Alt+C` Collapse/Expand All
 * `Alt+X` Clear Rules
 * `Alt+Z` Toggle All Rules
+* `Alt+L` Open Aliases Modal
+* `Alt+S` Save
+<!-- * `Alt+O` Load -->
 
-Within a text box (Note: currently breaks undo):
+Within a text box:
 * `Alt+↑` Move line(s) above
 * `Alt+↓` Move line(s) below
 * `Alt+Shift+↑` Duplicate line(s) above
 * `Alt+Shift+↓` Duplicate line(s) below
 
-When a rule block is focused:
-* `Shift+N` Focus rule title
-* `Shift+R` Focus rule input
-* `Shift+D` Focus description
-* `Shift+T` Toggle focused block
+When an outer rule block is focused:
+* `Enter`   Collapse and expand focused block
 * `Delete`  Remove focused block
-* `Shift+ArrowUp`   Focus previous block
-* `Shift+ArrowDown` Focus next block
-* `Alt+ArrowUp`   Move block up (wraps)
-* `Alt+ArrowDown` Move block down (wraps)
+* `Shift+Home` Focus first rule block
+* `Shift+End`  Focus last rule block
+* `Shift+A` Focus rule title
+* `Shift+S` Focus rule input
+* `Shift+D` Focus description
+* `Shift+↑` Focus previous block
+* `Shift+↓` Focus next block
+* `Shift+T` Toggle focused block
+* `Alt+↑`   Move block up (wraps)
+* `Alt+↓`   Move block down (wraps)
+* `Shift+Alt+↑`   Duplicate focused block above
+* `Shift+Alt+↓`   Duplicate focused block below
 
 When any part of a rule block is focused:
 * `Shift+Backspace` Focus outer rule block
-* `Shift+Home` Focus first rule block
-* `Shift+End` Focus last rule block
