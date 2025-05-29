@@ -16,7 +16,7 @@ OUT_EL  ←   SYL / STRUCT / SET / SEG / VAR / SBOUND         // NOTE: 'SET' her
 ENV     ←   ENV_SPC / ENV_SET (',' ENV_SET)*
 ENV_SET ←   ':{' ENV_TRS '}:' / ENV_TRS                     // i.e. :{ ... }:
 ENV_TRS ←   ENV_TRM (',' ENV_TRM)*
-ENV_TRM ←   ('WBOUND')? ENV_ELS? '_' ENV_ELS? ('WBOUND')?
+ENV_TRM ←   WBOUND? ENV_ELS? '_'+ ENV_ELS? WBOUND?
 ENV_ELS ←   ( SBOUND / ELLIPSS / OPT / TERM )+
 ENV_SPC ←   '_' ',' ENV_ELS                                 // e.g. _,# ==> #_ , _#
 
@@ -45,7 +45,7 @@ BOUND	←   WBOUND / SBOUND
 WBOUND  ←   '#'
 SBOUND  ←   '$'
 ELLIPSS ←   '...' / '..' / '…'
-ARR     ←   ('='/'-')? '>'
+ARR     ←   (('='/'-')? '>') / '~' '>'?
 PIPE    ←   '|' / '//'
 
 IPA     ←   PRE_NAS? IPA_CHR (TIE IPA_CHR)? IPA_DIA*
