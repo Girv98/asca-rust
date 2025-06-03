@@ -1,3 +1,10 @@
+0.7.6
+==================
+[0.7.5...0.7.6](https://github.com/Girv98/asca-rust/compare/0.7.5...0.7.6)
+
+Fixes:
+* Lib: Fixes bug introduced in 0.7.5 where words in a phrase are output without spaces
+
 0.7.5
 ==================
 [0.7.4...0.7.5](https://github.com/Girv98/asca-rust/compare/0.7.4...0.7.5)
