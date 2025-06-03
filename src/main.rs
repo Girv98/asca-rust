@@ -15,7 +15,7 @@ fn run() -> io::Result<()> {
         let mut cmd = CliArgs::command();
         eprint!("Generating completion file for {generator:?}...");
         cli::args::print_completions(generator, &mut cmd);
-        eprintln!("{}", "DONE");
+        eprintln!("DONE");
         return Ok(())
     }
 
