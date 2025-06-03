@@ -229,6 +229,7 @@ fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[String], trace_in
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<(Vec<String>, Vec<String>, Vec<usize>), ASCAError> {
     let phrase = get_trace_phrase(unparsed_phrase, alias_into, trace_index)?.unwrap_or_default();
     let rules = parse_rule_groups(unparsed_rules)?;
@@ -237,6 +238,7 @@ fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alia
     Ok(rule::trace::to_string_wasm(&phrase, res, unparsed_rules))
 }
 
+#[allow(clippy::type_complexity)]
 fn parse_result_web(unparsed_result: Result<(Vec<String>, Vec<String>, Vec<usize>), ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String]) -> WasmResult {
     match unparsed_result {
         Ok((output, unknowns, trace_rules)) => {
