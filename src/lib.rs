@@ -132,6 +132,7 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
         let mut phr_res = String::new();
         for word in phrase.iter() {
             let (w, u) = word.render(&alias_from);
+            phr_res.push(' ');
             phr_res.push_str(&w);
             unknowns.extend(u);
         }
