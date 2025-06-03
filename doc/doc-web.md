@@ -106,7 +106,7 @@ Within a text box:
 * `Alt+↓` Move line(s) below
 * `Alt+Shift+↑` Duplicate line(s) above
 * `Alt+Shift+↓` Duplicate line(s) below
-* `Ctrl+/` Comment out/uncomment line (rules box only)
+* `Ctrl+/` or `Ctrl+;` Comment out/uncomment line (rules box only)
 * `Shift+Delete` Cut line (rules box only)
 
 When an outer rule block is focused:
