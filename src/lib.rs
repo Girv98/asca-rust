@@ -136,7 +136,7 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
             phr_res.push_str(&w);
             unknowns.extend(u);
         }
-        res.push(phr_res);
+        res.push(phr_res.trim().to_string());
     }
 
     (res, unknowns)
