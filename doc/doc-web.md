@@ -7,12 +7,12 @@
     * [Reordering Rules](#reordering-rules)
     * [Cloning Rules](#cloning-rules)
     * [Temporarily Disabling Rules](#temporarily-disabling-rules)
-
 * [Debugging](#debugging)
     * [Word Tracing](#word-tracing)
     * [Unknown Segments](#unknown-segments)
 * [Aliasing/Romanisation](#aliasingromanisation)
-* [Saving and Loading](#saving-and-loading)
+* [Save System](#save-system)
+    * [Importing and Exporting](#importing-and-exporting)
 * [Hotkeys and Keyboard Navigation](#hotkeys-and-keyboard-navigation)
 
 ## Rules
@@ -60,14 +60,22 @@ for more
 
 Note that aliases, like the input, are not cleared with the `Clear All` button.
 
-## Saving and Loading
+## Save System
+With ASCA's save system, multiple files can be loaded at once. This allows you to work on several projects at the same time while 
+also affording you the ability to quit out and not any lose progess. On each run, the current state of the active file is 
+saved to local storage. 
 
-Input words and rules can be saved to desktop and loaded into asca using JSON format:
+When a new save is generated, it is given a random 12 character ID which can be renamed by the user. When 
+a file is imported, its name will become its ID. Similarly, when a save is exported, its ID will be used as its default filename.
+
+### Importing and Exporting
+
+ASCA accepts JSON of the following format for importing and exporting saves:
 
 ``` JSON
 {
-    "into" : ["deromanisation rules here"],
-    "from" : ["romanisation rules here"],
+    "into" : ["deromanisation", "rules", "here"],
+    "from" : ["romanisation",  "rules", "here"],
     "words": ["words", "go", "here"],
     "rules": [
         {
@@ -83,8 +91,6 @@ Input words and rules can be saved to desktop and loaded into asca using JSON fo
     ]
 }
 ```
-On each run, the current state is saved to local storage. This affords you the ability to quit out and not lose progess.
-
 
 ## Hotkeys and Keyboard Navigation
 
@@ -98,8 +104,7 @@ Global:
 * `Alt+X` Clear Rules
 * `Alt+Z` Toggle All Rules
 * `Alt+L` Open Aliases Modal
-* `Alt+S` Save
-<!-- * `Alt+O` Load -->
+* `Alt+S` Export Active Save (`Ctrl+Alt+S` on Firefox)
 
 Within a text box:
 * `Alt+↑` Move line(s) above
