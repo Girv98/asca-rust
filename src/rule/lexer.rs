@@ -430,25 +430,27 @@ impl<'a> Lexer<'a> {
                 '\'' => { self.advance(); 'ʼ' },
                 'j' => { self.advance(); 'ʲ' },
                 'w' => { self.advance(); 'ʷ' },
-                'v' | 'ʋ' => { self.advance(); 'ᶹ' },
-                'g' => { self.advance(); 'ˠ' },
-                '?' => { self.advance(); 'ˀ' },
+                'g' | 'ɡ' => { self.advance(); 'ˠ' },
                 'h' => { self.advance(); 'ʰ' },
                 'ɦ' | 'H' => { self.advance(); 'ʱ' },
-
+                's' => { self.advance(); 'ˢ' },
+                'z' => { self.advance(); 'ᶻ' },
+                'l' => { self.advance(); 'ˡ' },
+                
                 'm' => { self.advance(); 'ᵐ' },
                 'n' => { self.advance(); 'ⁿ' },
-                'ŋ' => { self.advance(); 'ᵑ' },
+                'P' | 'ñ' | 'ɲ' => { self.advance(); 'ᶮ' },
+                'T' | 'ɳ' => { self.advance(); 'ᶯ' },
+                'G' | 'ŋ' => { self.advance(); 'ᵑ' },
                 'N' | 'ɴ' => { self.advance(); 'ᶰ' },
-
-                'l' => { self.advance(); 'ˡ' },
+                
+                'v' | 'ʋ' => { self.advance(); 'ᶹ' },
                 'y' | 'ɥ' => { self.advance(); 'ᶣ' },
                 'X' | 'χ' => { self.advance(); 'ᵡ' },
                 'R' | 'ʁ' => { self.advance(); 'ʶ' },
-                's' => { self.advance(); 'ˢ' },
-                'z' => { self.advance(); 'ᶻ' },
                 'e' | 'ə' => { self.advance(); 'ᵊ' },
-
+                '?' | 'ʔ' => { self.advance(); 'ˀ' },
+                
                 _ => '"'
             }
             'ꭤ' => 'ɑ',
