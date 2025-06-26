@@ -194,7 +194,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::UnknownFeature    (feat, pos) => write!(f, "Unknown feature '{feat}' at {}:{}-{}'. Did you mean {}? ", pos.line, pos.start, pos.end, get_feat_closest(feat)),
             Self::DiacriticDoesNotMeetPreReqsFeat(.., t , pos) |
             Self::DiacriticDoesNotMeetPreReqsNode(.., t , pos) => {
-                write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be +[{}{}]", if *pos { '+' } else { '-' },t) 
+                write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be [{}{}]", if *pos { '+' } else { '-' },t) 
             },
             Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only modify IPA Segments"),
             Self::UnbalancedRuleEnv(_) => write!(f, "Environment has too few elements"),
