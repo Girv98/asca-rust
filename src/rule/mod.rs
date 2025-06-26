@@ -361,14 +361,14 @@ mod rule_tests {
     }
 
     #[test]
-    fn  test_sub_insert_ipa() {
+    fn test_sub_insert_ipa() {
         let test_rule = setup_rule("a > eoi");
         let test_word = setup_word("dak");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "deoik");
     }
 
     #[test]
-    fn  test_sub_insert_syll_bound() {
+    fn test_sub_insert_syll_bound() {
         let test_rule = setup_rule("a > a$e");
         let test_word = setup_word("'dak");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ˈda.ek");
@@ -376,6 +376,10 @@ mod rule_tests {
         let test_rule = setup_rule("k > k$");
         let test_word = setup_word("dak");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "dak");
+
+        let test_rule = setup_rule("k > k$");
+        let test_word = setup_word("kak");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "k.ak");
 
         let test_rule = setup_rule("k > k$a");
         let test_word = setup_word("dak");
@@ -1759,9 +1763,23 @@ mod rule_tests {
 
         let test_rule = setup_rule("a > <wed>");
         assert_eq!(test_rule.apply(setup_word("asd.has")).unwrap().render(&[]).0, "wed.sd.h.wed.s");
-
         let test_rule = setup_rule("a > <wad>");
         assert_eq!(test_rule.apply(setup_word("asd.has")).unwrap().render(&[]).0, "wad.sd.h.wad.s");
+        let test_rule = setup_rule("a > <wad>");
+        assert_eq!(test_rule.apply(setup_word("asd")).unwrap().render(&[]).0, "wad.sd");
+        let test_rule = setup_rule("a > <wad>");
+        assert_eq!(test_rule.apply(setup_word("as")).unwrap().render(&[]).0, "wad.s");
+        let test_rule = setup_rule("a > <wad>");
+        assert_eq!(test_rule.apply(setup_word("as.as")).unwrap().render(&[]).0, "wad.s.wad.s");
+        let test_rule = setup_rule("a > <wad>");
+        assert_eq!(test_rule.apply(setup_word("a.a")).unwrap().render(&[]).0, "wad.wad");
+        let test_rule = setup_rule("a > <a>");
+        assert_eq!(test_rule.apply(setup_word("a.a")).unwrap().render(&[]).0, "a.a");
+        let test_rule = setup_rule("a > <wad> | <wad>_");
+        assert_eq!(test_rule.apply(setup_word("a.a")).unwrap().render(&[]).0, "wad.a");
+        let test_rule = setup_rule("[] > <wad> | <wad>_");
+        assert_eq!(test_rule.apply(setup_word("a.a")).unwrap().render(&[]).0, "wad.a");
+
     }
     
 
