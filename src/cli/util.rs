@@ -304,7 +304,6 @@ fn get_seq_input(seq: &OldConfig) -> String {
     input
 }
 
-// TODO: To be updated when syntax is finalised
 pub(super) fn to_new_config_format(conf: Vec<OldConfig>) -> String {
     let mut result = String::new();
     for seq in conf {
