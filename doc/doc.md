@@ -77,7 +77,7 @@ A word with no marked boundaries is considered one syllable. There are no rules 
 Segment length can be represented by either `ː` or `:`. A segment can be followed by multiple length markers, representing overlong segments. Alternatively, length can be represented by repetition of the segment (i.e. `si:m` can be `siim`). Identical segments that are separated by a syllable boundary are not considered one long segment. If a long segment falls at the end of a syllable, `;` can be used as shorthand to also close the syllable (i.e. `si:.tiŋ` can be `si;tiŋ`).
 
 #### Stress
-Primary stress can be represented by either `ˈ` or `'` and secondary stress by either `ˌ` or `,`. These are placed at the start of the syllable. The boundary marker can be omitted if followed by a stressed syllable (i.e. `ə'gəʊ` instead of `ə.'gəʊ`). Note that ejective consonants cannot be marked with a `'` as this will be interpreted as stress. `ʼ` or `^'` must be used instead `i.e. /pʼ/ or /p^'/`.
+Primary stress can be represented by either `ˈ` or `'` and secondary stress by either `ˌ` or `,`. These are placed at the start of the syllable. The boundary marker can be omitted if followed by a stressed syllable (i.e. `ə'gəʊ` instead of `ə.'gəʊ`). Note that ejective consonants cannot be marked with a `'` as this will be interpreted as stress. `ʼ` or `"'` must be used instead `i.e. /pʼ/ or /p"'/`.
 
 #### Tone
 ASCA does not currently support tone diacritics or tone letters. Tone instead is represented by numbers following the syllable. As of yet, there are no rules regarding the meaning or syntax of these numbers; However, for demonstration we will follow the [Chinese convention](https://en.wikipedia.org/wiki/Tone_letter#Numerical_values), using numbers from 1 (lowest pitch) to 5 (highest pitch). As with stress, either a syllable or a segment can be matched or modified with tone.
@@ -103,20 +103,36 @@ g => ɡ
 ! => ǃ
 ǝ => ə
 φ => ɸ
-^j => ʲ
-^w => ʷ
-^v => ᶹ
-^g => ˠ
-^' => ʼ
-^? => ˀ
-^h => ʰ
-^ɦ => ʱ
-^m => ᵐ
-^n => ⁿ
-^ŋ => ᵑ
-^N => ᶰ
+ñ => ɲ
+ł => ɬ
 
-(The following cannot be used inside a rule)
+(Some diacritics can be aliased with a double-quote ")
+
+"' => ʼ
+"j => ʲ
+"w => ʷ
+"g => ˠ
+"h => ʰ
+"H or "ɦ => ʱ
+"s => ˢ
+"z => ᶻ
+"l => ˡ
+
+"m => ᵐ
+"n => ⁿ
+"P or "ɲ => ᶮ
+"T or "ɳ => ᶯ
+"G or "ŋ => ᵑ
+"N or "ɴ => ᶰ
+
+"v or "ʋ => ᶹ
+"y or "ɥ => ᶣ
+"X or "χ => ᵡ
+"R or "ʁ => ʶ
+"e or "ə => ᵊ
+"? or "ʔ => ˀ
+
+(Note: The following cannot be used inside a rule, but can be used when defining a word)
 
 S => ʃ
 Z => ʒ
@@ -136,24 +152,11 @@ Y => ʏ
 ```
 Aliases are rendered as their target IPA characters in the output.
 
-
-A few common americanist characters can also be used:
-```
-ł => ɬ
-ñ => ɲ
-¢ => t͡s
-ƛ => t͡ɬ
-λ => d͡ɮ
-```
-***Note: Inbuilt americanist characters will be removed in v0.8.0 in favour of custom aliases, see below.***
-
-Unlike with regular aliases, if a input word contains americanist characters, the output will be be rendered with these characters.
-
 ### Custom Aliasing / (De)Romanisation
 
 ASCA allows for a **subset** of the [regular rule syntax](#defining-basic-sound-changes) to be used to define custom aliases and general romanisation/deromanisation.
 These mappings are applied before the inbuilt aliases defined above. Segments can be selected with modifiers such as stress and tone. 
-On the web version, these rules are defined through the **alias** button; For cli, see the [cli documentation](./doc-cli.md).
+On the web version, these rules are defined through the **Aliasing** button; For cli, see the [cli documentation](./doc-cli.md).
 
 #### Unicode Escapes
 ASCA allows for unicode character escapes to be used in replacement strings. 
@@ -400,10 +403,10 @@ r...l > &
 
 Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule. 
 
-<!-- TODO: We can achieve both long-range and short-range metathesis by using `([],0)` (see [optionals](#optional-segments)) in place of the ellipsis. This denotes matching 'zero or more' segments.
+<!-- TODO: We can achieve both long-range and short-range metathesis by using `(..)`. This denotes skipping 'zero or more' segments.
 
 ```
-r ([],0) l > &
+r (...) l > &
 
 parabla => palabra
 arla > alra

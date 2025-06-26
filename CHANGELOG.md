@@ -1,3 +1,18 @@
+0.8.0
+==================
+[0.7.7...0.8.0](https://github.com/Girv98/asca-rust/compare/0.7.7...0.8.0)
+
+Breaking:
+* Lib:
+    * Diacritic aliases are now preceded by `"` instead of `^` to remove ambiguity between `ʔ͡h` and `ʔʰ` which are now `?^h` and `?"h` respectively.
+    * Removed dedicated americanist aliases in favour of custom aliasing. The following can be used as a replacement:
+        * Into IPA: `ł, ñ, ¢, ƛ, λ => ɬ, ɲ, t͡s, t͡ɬ, d͡ɮ`
+        * From IPA: `ɬ, ɲ, t͡s, t͡ɬ, d͡ɮ => ł, ñ, ¢, ƛ, λ`
+    * Fix: Prenasalised palatal and retroflex consonants now use consistent diacritics (`ᶮC` and `ᶯC` respectively)
+
+Features:
+* Lib: More inbuilt diacritic aliases using the new `"` prefix ([see doc](doc/doc.md#inbuilt-aliases))
+
 0.7.7
 ==================
 [0.7.5...0.7.7](https://github.com/Girv98/asca-rust/compare/0.7.5...0.7.7)
