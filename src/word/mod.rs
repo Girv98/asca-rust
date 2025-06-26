@@ -197,19 +197,8 @@ impl Word {
             '!' => 'ǃ',
             '^' => match txt.get(*index+1) {
                 Some(asdf) => match asdf {
-                    '?' | 'ʔ' => { *index += 1; 'ˀ' }
-                    'ǃ' | '!' => { *index += 1; 'ǃ' }
-                    'g' | 'ɡ' => { *index += 1; 'ˠ' }
-                    'j' => { *index += 1; 'ʲ' }
-                    'w' => { *index += 1; 'ʷ' }
-                    'v' => { *index += 1; 'ᶹ' }
-                    'h' => { *index += 1; 'ʰ' }
-                    'ɦ' => { *index += 1; 'ʱ' }
-                    'm' => { *index += 1; 'ᵐ' }
-                    'n' => { *index += 1; 'ⁿ' }
-                    'ŋ' => { *index += 1; 'ᵑ' }
-                    'N' => { *index += 1; 'ᶰ' },
-                    '\'' | 'ˈ' => { *index += 1; 'ʼ' },
+                    'ǃ' | '!' => { *index += 1; 'ǃ' },
+                    
                     'ʘ' | 'ǀ' | 'ǁ' | '‼' | 'ǂ' |
                     'q' | 'ɢ' | 'ɴ' | 'χ' | 'ʁ' => {
                         *index += 1; *asdf
@@ -217,6 +206,34 @@ impl Word {
                     _ => '^'
                 },
                 None => '^',
+            },
+            '"' => match txt.get(*index+1) {
+                Some(asdf) => match asdf {
+                    '\'' | 'ˈ' => { *index += 1; 'ʼ' },
+                    '?' | 'ʔ' => { *index += 1; 'ˀ' },
+                    'g' | 'ɡ' => { *index += 1; 'ˠ' },
+
+                    'j' => { *index += 1; 'ʲ' },
+                    'w' => { *index += 1; 'ʷ' },
+                    'v' | 'ʋ' => { *index += 1; 'ᶹ' },
+                    'h' => { *index += 1; 'ʰ' },
+                    'ɦ' | 'H' => { *index += 1; 'ʱ' },
+                    'm' => { *index += 1; 'ᵐ' },
+                    'n' => { *index += 1; 'ⁿ' },
+                    'ŋ' => { *index += 1; 'ᵑ' },
+                    'N' | 'ɴ' => { *index += 1; 'ᶰ' },
+
+                    'l' => { *index += 1; 'ˡ' },
+                    'y' | 'ɥ' => { *index += 1; 'ᶣ' },
+                    'X' | 'χ' => { *index += 1; 'ᵡ' },
+                    'R' | 'ʁ' => { *index += 1; 'ʶ' },
+                    's' => { *index += 1; 'ˢ' },
+                    'z' => { *index += 1; 'ᶻ' },
+                    'e' | 'ə' => { *index += 1; 'ᵊ' },
+
+                    _ => '"'
+                },
+                None => '"',
             }
             other => other
         }
@@ -440,7 +457,7 @@ impl Word {
                     }
                 }
                 // Because we are advancing in as_ipa()
-                if txt[*i-1] == '^' { *i -= 1; }
+                if txt[*i-1] == '^' || txt[*i-1] == '"' { *i -= 1; }
                 break;
             }
             let maybe_seg = CARDINALS_MAP.get(&buffer);
@@ -1068,7 +1085,7 @@ mod word_tests {
 
     #[test]
     fn test_render_aliases() {
-        match Word::new("'^NGAN;CEUN!eB^g.gRǝ:S!^q.φ^hXOI?,HYZ^wq^ʘ'p^'a", &[]) {
+        match Word::new("'\"NGAN;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a", &[]) {
             Ok(w) => assert_eq!(w.render(&[]).0, "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼa"),
             Err(e) => {
                 println!("{}", e.format_word_error());

@@ -86,7 +86,7 @@ impl Display for TokenKind {
             TokenKind::Slash         => write!(f, "Slash"),
             TokenKind::Pipe          => write!(f, "Pipe"),
             TokenKind::Cardinal      => write!(f, "Cardinal"),
-            TokenKind::Diacritic(_)  => write!(f, "Diacritic"),
+            TokenKind::Diacritic(i)  => write!(f, "Diacritic({})", i),
             TokenKind::Star          => write!(f, "Star"),
             TokenKind::EmptySet      => write!(f, "Empty"),
             TokenKind::Ellipsis      => write!(f, "Ellipsis"),
@@ -402,8 +402,7 @@ impl<'a> Lexer<'a> {
         if self.inside_matrix { return None }
         let start = self.pos;
 
-        let mut char = self.curr_char();
-        if char == '\'' { char = 'ʼ'; }
+        let char = self.cur_as_ipa();
         for (i, d) in DIACRITS.iter().enumerate() {
             if char == d.diacrit {
                 self.advance();
@@ -423,24 +422,35 @@ impl<'a> Lexer<'a> {
             'φ' => 'ɸ',
             // TODO: Any printed errors may be off by +1
             '^' => match self.next_char() {
-                'j' => { self.advance(); 'ʲ' },
-                'w' => { self.advance(); 'ʷ' },
-                'v' => { self.advance(); 'ᶹ' },
-                'g' => { self.advance(); 'ˠ' },
-                '?' => { self.advance(); 'ˀ' },
-                'h' => { self.advance(); 'ʰ' },
-                'ɦ' => { self.advance(); 'ʱ' },
-
-                'm' => { self.advance(); 'ᵐ' },
-                'n' => { self.advance(); 'ⁿ' },
-                'ŋ' => { self.advance(); 'ᵑ' },
-                'N' => { self.advance(); 'ᶰ' },
-
-                '\'' => { self.advance(); 'ʼ' },
                 'ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ' |
                 'q' | 'ɢ' | 'ɴ' | 'χ' | 'ʁ'  => { self.advance(); self.cur_as_ipa() }
                 _ => '^'
             },
+            '"' => match self.next_char() {
+                '\'' => { self.advance(); 'ʼ' },
+                'j' => { self.advance(); 'ʲ' },
+                'w' => { self.advance(); 'ʷ' },
+                'v' | 'ʋ' => { self.advance(); 'ᶹ' },
+                'g' => { self.advance(); 'ˠ' },
+                '?' => { self.advance(); 'ˀ' },
+                'h' => { self.advance(); 'ʰ' },
+                'ɦ' | 'H' => { self.advance(); 'ʱ' },
+
+                'm' => { self.advance(); 'ᵐ' },
+                'n' => { self.advance(); 'ⁿ' },
+                'ŋ' => { self.advance(); 'ᵑ' },
+                'N' | 'ɴ' => { self.advance(); 'ᶰ' },
+
+                'l' => { self.advance(); 'ˡ' },
+                'y' | 'ɥ' => { self.advance(); 'ᶣ' },
+                'X' | 'χ' => { self.advance(); 'ᵡ' },
+                'R' | 'ʁ' => { self.advance(); 'ʶ' },
+                's' => { self.advance(); 'ˢ' },
+                'z' => { self.advance(); 'ᶻ' },
+                'e' | 'ə' => { self.advance(); 'ᵊ' },
+
+                _ => '"'
+            }
             'ꭤ' => 'ɑ',
             'ǝ' => 'ə',
             'ℇ' => 'ɛ',
@@ -507,8 +517,10 @@ impl<'a> Lexer<'a> {
                     }
                 }
 
-                // TODO: may need to backtrack in certain instances, see Word::fill_segments
-
+                if self.last_char_eq('^') || self.last_char_eq('"') {
+                    self.back();
+                }
+                
                 // if buffer.ends_with('\u{0361}') || buffer.ends_with('\u{035C}') {
                 //     invalid 
                 // }
@@ -653,8 +665,8 @@ impl<'a> Lexer<'a> {
         if let Some(num_token) = self.get_numeric()       { return Ok(num_token) }
         if let Some(ftr_token) = self.get_feature()?      { return Ok(ftr_token) }
         if let Some(spc_token) = self.get_special_char()? { return Ok(spc_token) }
-        if let Some(ipa_token) = self.get_ipa()           { return Ok(ipa_token) }
         if let Some(dia_token) = self.get_diacritic()     { return Ok(dia_token) }
+        if let Some(ipa_token) = self.get_ipa()           { return Ok(ipa_token) }
         if let Some(str_token) = self.get_string()?       { return Ok(str_token) } 
         
         Err(RuleSyntaxError::UnknownCharacter(self.curr_char(), self.group, self.line, self.pos))
@@ -704,7 +716,7 @@ mod lexer_tests {
             Token::new(TokenKind::Cardinal, "ⁿt͡s"   , 0, 0, 10, 12),
             Token::new(TokenKind::Cardinal, "ⁿd͡ɮ"   , 0, 0, 13, 15),
             Token::new(TokenKind::Cardinal, "ⁿt͡ɬ"   , 0, 0, 16, 18),
-            Token::new(TokenKind::Eol,         ""    ,0, 0, 18, 19),
+            Token::new(TokenKind::Eol,         ""   ,0, 0, 18, 19),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
@@ -717,9 +729,29 @@ mod lexer_tests {
     }
 
     #[test]
+    fn test_floating_dia() {
+        let test_input= String::from("\"H > \"h");
+
+        let expected_res = vec![
+            Token::new(TokenKind::Diacritic(29),  "ʱ", 0, 0, 0, 2),
+            Token::new(TokenKind::GreaterThan,    ">", 0, 0, 3, 4),
+            Token::new(TokenKind::Diacritic(28),  "ʰ", 0, 0, 5, 7),
+            Token::new(TokenKind::Eol,             "", 0, 0, 7, 8),
+        ];
+
+        let res = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();
+
+        assert_eq!(res.len(), expected_res.len());
+
+        for i in 0..res.len() {
+            assert_eq!(res[i], expected_res[i]);
+        }
+    }
+
+    #[test]
     fn test_ipa_sep() {
         
-        let test_input= String::from("t͡ɕ b͡β b a ʘq ʘ^q qʘ q^ʘ");
+        let test_input= String::from("t͡ɕ b͡β b a ʘq ʘ^q qʘ q^ʘ b\"H");
         
         let expected_result = vec![
             Token::new(TokenKind::Cardinal, "t͡ɕ", 0, 0,  0,  3),
@@ -730,10 +762,13 @@ mod lexer_tests {
             Token::new(TokenKind::Cardinal,  "ʘq", 0, 0, 15, 18),
             Token::new(TokenKind::Cardinal,  "qʘ", 0, 0, 19, 21),
             Token::new(TokenKind::Cardinal,  "qʘ", 0, 0, 22, 25),
-            Token::new(TokenKind::Eol,        "", 0, 0, 25, 26),
+            Token::new(TokenKind::Cardinal,  "b", 0, 0, 26, 27),
+            Token::new(TokenKind::Diacritic(29),  "ʱ", 0, 0, 27, 29),
+
+            Token::new(TokenKind::Eol,        "", 0, 0, 29, 30),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();
 
         assert_eq!(result.len(), expected_result.len());
 
