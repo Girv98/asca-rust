@@ -288,15 +288,6 @@ impl<'a> AliasLexer<'a> {
         let start = self.pos;
 
         let mut buffer = self.cur_as_ipa().to_string();
-
-        // For americanist notation
-        if buffer == "¢" {
-            buffer = "t͡s".to_string()
-        } else if buffer == "ƛ" {
-            buffer = "t͡ɬ".to_string()
-        } else if buffer == "λ" {
-            buffer = "d͡ɮ".to_string()
-        }
         
         if CARDINALS_TRIE.contains_prefix(buffer.as_str()) {
             self.advance();
@@ -305,21 +296,6 @@ impl<'a> AliasLexer<'a> {
                 tmp.push(self.cur_as_ipa());
                 if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
                     buffer.push(self.cur_as_ipa());
-                    self.advance();
-                    continue;
-                }
-
-                // for prenasalisation to work with americanist chars
-                if self.curr_char() == '¢' {
-                    buffer.push_str("t͡s");
-                    self.advance();
-                    continue;
-                } else if self.curr_char() == 'ƛ' {
-                    buffer.push_str("t͡ɬ");
-                    self.advance();
-                    continue;
-                } else if self.curr_char() == 'λ' {
-                    buffer.push_str("d͡ɮ");
                     self.advance();
                     continue;
                 }

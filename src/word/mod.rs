@@ -106,7 +106,6 @@ impl SegPos {
 #[derive(Clone)]
 pub struct Word {
     pub syllables: Vec<Syllable>,
-    americanist: bool
 }
 
 impl PartialEq for Word {
@@ -128,20 +127,8 @@ impl fmt::Debug for Word {
 
 impl Word { 
     pub fn new<I>(text: I, aliases: &[Transformation]) -> Result<Self, ASCAError> where I: Into<String> {
-        let mut w = Self { syllables: Vec::new(), americanist: false };
-        let t_norm = Self::normalise(text.into());
-
-        let t_amer = t_norm
-                    .replace('¢', "t͡s")
-                    .replace('ƛ', "t͡ɬ")
-                    .replace('λ', "d͡ɮ")
-                    .replace('ł', "ɬ")
-                    .replace('ñ', "ɲ");
-
-        if t_amer != t_norm {
-            w.americanist = true
-        }
-        w.setup(t_amer, aliases)?;
+        let mut w = Self { syllables: Vec::new() };
+        w.setup(Self::normalise(text.into()), aliases)?;
 
         Ok(w)
     }
@@ -628,20 +615,7 @@ impl Word {
             }
         }
 
-        // TODO: Remove americanist stuff in favour of aliasing
-        (
-            if self.americanist {
-                buffer.replace("t͡s", "¢")
-                    .replace("t͡ɬ",  "ƛ")
-                    .replace("d͡ɮ", "λ")
-                    .replace("ɬ",  "ł")
-                    .replace("ɲ",  "ñ")
-            } else {
-                buffer
-            }
-            , 
-            reprs
-        )
+        (buffer, reprs)
     }
 
     fn alias_match_node(&self, seg: Segment, node: NodeKind, val: &ModKind) -> bool {
@@ -1095,9 +1069,25 @@ mod word_tests {
     }
 
     #[test]
-    fn test_americanist_aliases() {
-        match Word::new("¢añ.φλełƛ", &[]) {
-            Ok(w) => assert_eq!(w.render(&[]).0, "¢añ.ɸλełƛ"),
+    fn test_americanist_aliases_replacement() {
+        let into = AliasParser::new(AliasKind::Deromaniser, 
+            AliasLexer::new(
+                AliasKind::Deromaniser, 
+                &"ł, ñ, ¢, ƛ, λ => ɬ, ɲ, t͡s, t͡ɬ, d͡ɮ".chars().collect::<Vec<_>>(), 
+                0
+            ).get_line().unwrap(), 
+            0
+        ).parse().unwrap();
+        let from = AliasParser::new(AliasKind::Romaniser,   
+            AliasLexer::new(
+                AliasKind::Romaniser, 
+                &"ɬ, ɲ, t͡s, t͡ɬ, d͡ɮ => ł, ñ, ¢, ƛ, λ".chars().collect::<Vec<_>>(), 0
+            ).get_line().unwrap(), 
+            0
+        ).parse().unwrap();
+
+        match Word::new("¢:añ.φλełƛ", &into) {
+            Ok(w) => assert_eq!(w.render(&from).0, "¢ːañ.ɸλełƛ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1107,7 +1097,7 @@ mod word_tests {
 
     #[test]
     fn test_romanisation_simple() {
-        let t = AliasParser::new(crate::alias::AliasKind::Romaniser, AliasLexer::new(crate::alias::AliasKind::Romaniser, &"ʃ, a:[+str], $ > sh, á, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
+        let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"ʃ, a:[+str], $ > sh, á, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
         match Word::new("ʃa'ta", &[]) {
             Ok(w) => assert_eq!(w.render(&t).0, "shatá"),
             Err(e) => {
@@ -1116,7 +1106,7 @@ mod word_tests {
             }
         }
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"k > c".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka:.ta", &[]) {
+        match Word::new("'ka;ta", &[]) {
             Ok(w) => assert_eq!(w.render(&t).0, "ˈcaː.ta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
@@ -1135,7 +1125,7 @@ mod word_tests {
 
     #[test]
     fn test_romanisation_length() {
-        let t = AliasParser::new(crate::alias::AliasKind::Romaniser, AliasLexer::new(crate::alias::AliasKind::Romaniser, &"ʃ:[+long], a:[+str, +long], t:[+long], $ > ssh, â, tt, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
+        let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"ʃ:[+long], a:[+str, +long], t:[+long], $ > ssh, â, tt, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
         match Word::new("ʃ:a't:a:", &[]) {
             Ok(w) => assert_eq!(w.render(&t).0, "sshattâ"),
             Err(e) => {
