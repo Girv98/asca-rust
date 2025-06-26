@@ -159,27 +159,36 @@ pub(crate) struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub(crate) fn new(source: &'a [char], group: usize, line: usize) -> Self {
-        Self { source, group, line, pos: 0, inside_matrix: false , inside_option: false, inside_syll: false, inside_set: false, inside_env_set: false}
+        Self { 
+            source, 
+            group, 
+            line, 
+            pos: 0, 
+            inside_matrix: false, 
+            inside_option: false, 
+            inside_syll: false, 
+            inside_set: false, 
+            inside_env_set: false, 
+        }
     }
 
-    fn has_more_chars(&self) -> bool { !self.source.is_empty() }
+    fn has_more_chars(&self) -> bool { self.pos < self.source.len() }
 
     fn trim_whitespace(&mut self) {
-        while self.has_more_chars() && self.source[0].is_whitespace() {
+        while self.has_more_chars() && self.source[self.pos].is_whitespace() {
             self.advance();
         }
     }
 
     fn chop(&mut self, n: usize) -> String {
-        let token = &self.source[0..n];
-        self.source = &self.source[n..];
+        let token = &self.source[self.pos..self.pos+n];
         self.pos += n;
         token.iter().collect()
     }
 
     fn chop_while<P>(&mut self, mut predicate: P) -> String where P: FnMut(&char) -> bool {
         let mut n = 0;
-        while n < self.source.len() && predicate(&self.source[n]) {
+        while self.pos+n < self.source.len() && predicate(&self.source[self.pos+n]) {
             n += 1;
         }
         self.chop(n)
@@ -187,23 +196,33 @@ impl<'a> Lexer<'a> {
 
     fn curr_char(&self) -> char {
         if self.has_more_chars() {
-            self.source[0]
+            self.source[self.pos]
         } else {
             '\0'
         }
     }
 
     fn next_char(&self) -> char {
-        if self.source.len() > 1 {
-            self.source[1]
+        if self.source.len() > self.pos+1 {
+            self.source[self.pos+1]
         } else {
             '\0'
         }
     }
 
+    fn last_char_eq(&self, ch: char) -> bool {
+        if self.pos == 0 { return false }
+
+        self.source[self.pos-1] == ch
+    }
+
     fn advance(&mut self) {
-        self.source = &self.source[1..];
         self.pos += 1;
+    }
+
+    fn back(&mut self) {
+        debug_assert!(self.pos > 0);
+        self.pos -= 1;
     }
 
     fn get_bracket(&mut self) -> Result<Option<Token>, RuleSyntaxError> {
