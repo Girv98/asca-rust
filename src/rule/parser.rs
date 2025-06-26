@@ -945,18 +945,15 @@ impl Parser {
                 }
                 continue;
             }
-            // Input elements
+            // Rest
             let inp_term = self.get_input_els()?;
-            if inp_term.is_empty() && inputs.is_empty() {
-                return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.pos))
-            } else if inp_term.is_empty() && !self.expect(TokenKind::Comma) {
-                break;
-            }
-            
-            if let TokenKind::Diacritic(_) = self.curr_tkn.kind {
-                match inp_term.last() {
-                    Some(ParseItem { kind: _, position }) => return Err(RuleSyntaxError::UnexpectedDiacritic(*position, self.curr_tkn.position)),
-                    _ => { unreachable!(); }
+
+            if inp_term.is_empty() {
+                match self.curr_tkn.kind {
+                    TokenKind::Comma if inputs.is_empty() => return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.pos)),
+                    TokenKind::Diacritic(_) => return Err(RuleSyntaxError::FloatingDiacritic(self.curr_tkn.position)),
+                    _ if inputs.is_empty()  => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.pos)),
+                    _ => break
                 }
             }
 
@@ -969,6 +966,7 @@ impl Parser {
         if inputs.is_empty() {
             return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.token_list[self.pos].position.start))
         }
+
         Ok(inputs)
     }
 
@@ -992,22 +990,23 @@ impl Parser {
                 }
                 continue;
             }
-            // Output Elements
+            // Rest
             let out_term = self.get_output_els()?;
-            if out_term.is_empty() && outputs.is_empty(){
-                return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.token_list[self.pos].position.start))
-            } else if out_term.is_empty() && !self.expect(TokenKind::Comma) {
-                break;
-            }
-
-            if let TokenKind::Diacritic(_) = self.curr_tkn.kind {
-                match out_term.last() {
-                    Some(ParseItem { kind: _, position }) => return Err(RuleSyntaxError::UnexpectedDiacritic(*position, self.curr_tkn.position)),
-                    _ => { unreachable!(); }
+            
+            if out_term.is_empty() {
+                match self.curr_tkn.kind {
+                    TokenKind::Comma if outputs.is_empty() => return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.pos)),
+                    TokenKind::Diacritic(_) => return Err(RuleSyntaxError::FloatingDiacritic(self.curr_tkn.position)),
+                    TokenKind::Eol | TokenKind::Comment | TokenKind::Pipe | TokenKind::Slash if outputs.is_empty() => {
+                        return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.pos))
+                    },
+                    _ if outputs.is_empty() => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.pos)),
+                    _ => break
                 }
             }
 
             outputs.push(out_term);
+
             if !self.expect(TokenKind::Comma) {
                 break
             }
@@ -1083,6 +1082,35 @@ mod parser_tests {
                 unreachable!()
             },
         } 
+    }
+    #[test]
+    fn test_floating_diacritic() {
+        let maybe_result = Parser:: new(setup("a, \"H > \"h"), 0, 0).parse();
+        assert!(maybe_result.is_err());
+        assert!(if let RuleSyntaxError::FloatingDiacritic(..) = maybe_result.unwrap_err() {true} else {false} );
+    }
+
+    #[test]
+    fn test_trailing_comma() {
+        let maybe_result = Parser:: new(setup("a, > e"), 0, 0).parse();
+
+        assert!(maybe_result.is_ok());
+        let result = maybe_result.unwrap().unwrap();
+
+        assert_eq!(result.input.len(), 1);
+        assert_eq!(result.output.len(), 1);
+        assert!(result.context.is_empty());
+        assert!(result.except.is_empty());
+
+        let maybe_result = Parser:: new(setup("a, b, > e"), 0, 0).parse();
+
+        assert!(maybe_result.is_ok());
+        let result = maybe_result.unwrap().unwrap();
+
+        assert_eq!(result.input.len(), 2);
+        assert_eq!(result.output.len(), 1);
+        assert!(result.context.is_empty());
+        assert!(result.except.is_empty());
     }
 
     #[test]

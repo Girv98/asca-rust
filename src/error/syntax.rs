@@ -128,6 +128,7 @@ pub enum RuleSyntaxError {
     TooManyWordBoundaries(Position),
     StuffBeforeWordBound (Position),
     StuffAfterWordBound  (Position),
+    FloatingDiacritic    (Position),
     WordBoundLoc         (Position),
     OptLocError          (Position),
     EmptySet             (Position),
@@ -187,6 +188,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::TooManyWordBoundaries(_) => write!(f, "Cannot have multiple word boundaries on each side of an environment"),
             Self::StuffBeforeWordBound (_) => write!(f, "Can't have segments before the beginning of a word"),
             Self::StuffAfterWordBound  (_) => write!(f, "Can't have segments after the end of a word"),
+            Self::FloatingDiacritic    (_) => write!(f, "Floating diacritic. Diacritics can only be used to modify IPA Segments"),
             Self::WordBoundLoc         (_) => write!(f, "Wordboundaries are not allowed in the input or output"),
             Self::OptLocError          (_) => write!(f, "Optionals can only be used in environments"),
             Self::EmptySet             (_) => write!(f, "Sets cannot be empty"),
@@ -196,7 +198,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::DiacriticDoesNotMeetPreReqsNode(.., t , pos) => {
                 write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be [{}{}]", if *pos { '+' } else { '-' },t) 
             },
-            Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only modify IPA Segments"),
+            Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only be used to modify IPA Segments"),
             Self::UnbalancedRuleEnv(_) => write!(f, "Environment has too few elements"),
             Self::UnbalancedRuleIO (_) => write!(f, "Input or Output has too few elements"),
             Self::UnexpectedEol(_, c) => write!(f, "Expected `{c}`, but received End of Line"),
@@ -265,7 +267,8 @@ impl RuleSyntaxError {
             ),
             Self::TooManyWordBoundaries(pos) |
             Self::StuffBeforeWordBound(pos)  | 
-            Self::StuffAfterWordBound(pos) => (
+            Self::StuffAfterWordBound(pos)   | 
+            Self::FloatingDiacritic(pos)     => (
                 " ".repeat(pos.start) + "^" + "\n", 
                 pos.group,
                 pos.line
