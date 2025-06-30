@@ -22,7 +22,7 @@ pub(super) fn ask(question: &str, auto: Option<bool>) -> io::Result<bool> {
         return Ok(ans)
     }
     loop {
-        print!(":: {} [y/N]: ", question);
+        print!(":: {question} [y/N]: ");
         io::stdout().flush()?;
         let mut buf = String::new();
         let _ = std::io::stdin().read_line(&mut buf);
@@ -72,9 +72,9 @@ fn create_ext_list(valid_extensions: &[&str]) -> String {
         let mut exts_str = String::new();
         for (i, e) in valid_extensions.iter().enumerate() {
             match i.cmp(&(valid_extensions.len()-2)) {
-                std::cmp::Ordering::Greater => exts_str.push_str(&format!(".{}", e)),
-                std::cmp::Ordering::Less    => exts_str.push_str(&format!(".{}, ", e)),
-                std::cmp::Ordering::Equal   => exts_str.push_str(&format!(".{}, or ", e)),
+                std::cmp::Ordering::Greater => exts_str.push_str(&format!(".{e}")),
+                std::cmp::Ordering::Less    => exts_str.push_str(&format!(".{e}, ")),
+                std::cmp::Ordering::Equal   => exts_str.push_str(&format!(".{e}, or ")),
             }
         }
         exts_str
@@ -90,7 +90,7 @@ pub(super) fn validate_file_or_dir(maybe_path: Option<PathBuf>) -> io::Result<(P
             } else if path.is_file() {
                 Ok((path, false))
             } else {
-                Err(util_err(format!("Given path {} cannot be found", format!("{:?}", path).yellow())))
+                Err(util_err(format!("Given path {} cannot be found", format!("{path:?}").yellow())))
             }
         },
         None => Ok((PathBuf::from("."), true)),
@@ -104,7 +104,7 @@ pub(super) fn validate_directory(maybe_path: Option<PathBuf>) -> io::Result<Path
             if path.is_dir() {
                 Ok(path)
             } else {
-                Err(util_err(format!("{} is not a directory", format!("{:?}", path).yellow())))
+                Err(util_err(format!("{} is not a directory", format!("{path:?}").yellow())))
             }
         },
         None => Ok(PathBuf::from(".")),
@@ -115,7 +115,7 @@ pub(super) fn as_file(path: &Path) -> io::Result<&Path> {
     if path.is_file() {
         Ok(path)
     } else {
-        Err(util_err(format!("Given path {} is not a file", format!("{:?}", path).yellow())))
+        Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow())))
     }
 }
 
@@ -142,8 +142,8 @@ pub(super) fn validate_or_get_path(maybe_path: Option<&Path>, valid_extensions: 
         None => {
             let files = get_dir_files(".", valid_extensions)?;
             match files.len().cmp(&1) {
-                std::cmp::Ordering::Greater => Err(util_err(format!("More than one matching {} file found in current directory. Please specify.", kind))),
-                std::cmp::Ordering::Less    => Err(util_err(format!("No matching {} files found in current directory", kind))),
+                std::cmp::Ordering::Greater => Err(util_err(format!("More than one matching {kind} file found in current directory. Please specify."))),
+                std::cmp::Ordering::Less    => Err(util_err(format!("No matching {kind} files found in current directory"))),
                 std::cmp::Ordering::Equal   => {
                     eprintln!("{} No {} file provided. Using {}", "Note:".bright_blue(), kind, format!("{:?}", files[0]).yellow());
                     Ok(files[0].clone())
@@ -157,7 +157,7 @@ pub(super) fn file_open<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
     match fs::File::open(path) {
         Ok(file) => Ok(file),
         Err(e) => {
-            eprintln!("{} error occured when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+            eprintln!("{} error occured when reading file {}:", "asca:".bright_red(), format!("{path:?}").yellow());
             Err(map_io_error(e))
         }
     }
@@ -165,19 +165,19 @@ pub(super) fn file_open<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
 
 pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String) -> io::Result<()> {
     if let Err (e) = fs::write(path, content) {
-        eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+        eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{path:?}").yellow());
         return Err(map_io_error(e))
     }
-    eprintln!(":: Wrote to file {:?}", path);
+    eprintln!(":: Wrote to file {path:?}");
     Ok(())
 }
 
 pub(super) fn file_create_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String) -> io::Result<()> {
     if let Err (e) = fs::write(path, content) {
-        eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+        eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{path:?}").yellow());
         return Err(map_io_error(e))
     }
-    eprintln!(":: Created file {} in current directory", format!("{:?}", path).yellow());
+    eprintln!(":: Created file {} in current directory", format!("{path:?}").yellow());
     Ok(())
 }
 
@@ -185,7 +185,7 @@ pub(super) fn file_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
     match fs::read_to_string(path) {
         Ok(dir) => Ok(dir),
         Err(e) => {            
-            eprintln!("{} error occurred when reading file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+            eprintln!("{} error occurred when reading file {}:", "asca:".bright_red(), format!("{path:?}").yellow());
             Err(map_io_error(e))
         },
     }
@@ -193,10 +193,10 @@ pub(super) fn file_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result
 
 pub(super) fn dir_create_all<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<()> {
     if let Err(e) = fs::create_dir_all(path) {            
-        eprintln!("{} error occurred when creating {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+        eprintln!("{} error occurred when creating {}:", "asca:".bright_red(), format!("{path:?}").yellow());
         return Err(map_io_error(e))
     } 
-    eprintln!(":: Created dir {}", format!("{:?}", path).yellow());
+    eprintln!(":: Created dir {}", format!("{path:?}").yellow());
     Ok(())
 }
 
@@ -204,7 +204,7 @@ pub(super) fn dir_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<
     match fs::read_dir(path) {
         Ok(dir) => Ok(dir),
         Err(e) => {            
-            eprintln!("{} error occurred when reading from {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
+            eprintln!("{} error occurred when reading from {}:", "asca:".bright_red(), format!("{path:?}").yellow());
             Err(map_io_error(e))
         },
     }
@@ -213,7 +213,7 @@ pub(super) fn dir_read<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::Result<
 pub(super) fn dir_create_file<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: String, auto: Option<bool>) -> io::Result<()> {
     let path = path.as_ref();
     if path.exists() {
-        if ask(&(format!("File {} already exists, do you wish to overwrite it?", format!("{:?}", path).yellow())), auto)? {
+        if ask(&(format!("File {} already exists, do you wish to overwrite it?", format!("{path:?}").yellow())), auto)? {
             file_write(&path, content)
         } else {
             Ok(())
@@ -230,7 +230,7 @@ pub(super) fn write_to_file(path: &Path, content: String, extension: &str, auto:
     // else error
     if path.is_file() {
         if path.extension().is_some_and(|ext| ext == extension) {
-            if ask(&(format!("File {} already exists, do you wish to overwrite it?", format!("{:?}", path).yellow())), auto)? {
+            if ask(&(format!("File {} already exists, do you wish to overwrite it?", format!("{path:?}").yellow())), auto)? {
                 return file_write(path, content)
             }
             Ok(())
@@ -329,12 +329,12 @@ pub(super) fn to_rsca_format(rules: Vec<RuleGroup>) -> String {
 
         let mut rule_str = String::new();
         for r in rg.rule {
-            rule_str.push_str(&format!("    {}\n", r));
+            rule_str.push_str(&format!("    {r}\n"));
         }
 
         let mut desc_str = String::new();
         for d in rg.description.split('\n') {
-            desc_str.push_str(&format!("# {}\n", d));
+            desc_str.push_str(&format!("# {d}\n"));
         }
 
         result.push_str(&name_str);
@@ -348,13 +348,13 @@ pub(super) fn to_alias(into: Vec<String>, from: Vec<String>) -> String {
     let mut result = String::from("@into\n");
 
     for to in into {
-        result.push_str(&format!("    {}\n", to));
+        result.push_str(&format!("    {to}\n"));
     }
 
     result.push_str("@from\n");
 
     for fr in from {
-        result.push_str(&format!("    {}\n", fr));
+        result.push_str(&format!("    {fr}\n"));
     }
 
     result

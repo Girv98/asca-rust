@@ -368,7 +368,7 @@ fn calc_padding(trace: &[Vec<String>]) -> Vec<usize> {
 // Handle printing result to the terminal
 fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
     debug_assert!(!trace.is_empty());
-    println!("\nOUTPUT - {}", tag);
+    println!("\nOUTPUT - {tag}");
     let arr = "=>".bright_red().bold();
 
     let num_steps = trace.len();

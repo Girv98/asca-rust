@@ -87,7 +87,7 @@ impl Segment {
     pub fn try_as_grapheme(&self) -> Result<String, String> {
         match self.get_as_grapheme() {
             Some(grapheme) => Ok(grapheme),
-            None => Err(format!("{:?}", self)),
+            None => Err(format!("{self:?}")),
         }
     }
 

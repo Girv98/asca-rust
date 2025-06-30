@@ -23,7 +23,7 @@ pub fn from_asca(words: Option<PathBuf>, rules: Option<PathBuf>, alias: Option<P
     if let Some(path) = &output {
         util::write_to_file(path, json, JSON_FILE_EXT, None)
     } else {
-        util::dir_create_file(&format!("out.{}", JSON_FILE_EXT), json, None)
+        util::dir_create_file(&format!("out.{JSON_FILE_EXT}"), json, None)
     }
 }
 
@@ -39,13 +39,13 @@ pub fn from_json(path: Option<PathBuf>, words_path: Option<PathBuf>, rules_path:
     if let Some(path) = words_path {
         util::write_to_file(&path, words, WORD_FILE_EXT, None)?;
     } else {
-        util::dir_create_file(&format!("out.{}", WORD_FILE_EXT), words, None)?;
+        util::dir_create_file(&format!("out.{WORD_FILE_EXT}"), words, None)?;
     }
 
     if let Some(path) = rules_path {
         util::write_to_file(&path, rules, RULE_FILE_EXT, None)?;
     } else {
-        util::dir_create_file(&format!("out.{}", RULE_FILE_EXT), rules, None)?;
+        util::dir_create_file(&format!("out.{RULE_FILE_EXT}"), rules, None)?;
     }
 
 
@@ -55,7 +55,7 @@ pub fn from_json(path: Option<PathBuf>, words_path: Option<PathBuf>, rules_path:
         if let Some(path) = alias_path {
             util::write_to_file(&path, alias, ALIAS_FILE_EXT, None)?;
         } else {
-            util::dir_create_file(&format!("out.{}", ALIAS_FILE_EXT), alias, None)?;
+            util::dir_create_file(&format!("out.{ALIAS_FILE_EXT}"), alias, None)?;
         }
     }
 
@@ -72,7 +72,7 @@ pub fn update_conf_format(config_dir: Option<PathBuf>) -> io::Result<()> {
         path.pop();
     }
 
-    path.push(format!("config-new.{}", CONF_FILE_EXT));
+    path.push(format!("config-new.{CONF_FILE_EXT}"));
 
     util::dir_create_file(&path, new_conf, None)
     
@@ -130,6 +130,6 @@ pub fn from_seq(config_dir: Option<PathBuf>, tag: String, output: Option<PathBuf
     if let Some(path) = &output {
         util::write_to_file(path, json, JSON_FILE_EXT, None)
     } else {
-        util::dir_create_file(&format!("out.{}", JSON_FILE_EXT), json, None)
+        util::dir_create_file(&format!("out.{JSON_FILE_EXT}"), json, None)
     }
 }

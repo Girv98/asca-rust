@@ -60,9 +60,9 @@ impl fmt::Display for RuleRuntimeError {
             Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable"),
             Self::MetathSyllSegment       (..) => write!(f, "Cannot swap a syllable with a segment"),
             Self::UnevenSet               (..) => write!(f, "Two matched sets must have the same number of elements"),
-            Self::NodeCannotBeSome(node, _) => write!(f, "{} node cannot arbitrarily positive", node),
-            Self::NodeCannotBeNone(node, _) => write!(f, "{} node cannot be removed", node),
-            Self::NodeCannotBeSet (node, _) => write!(f, "{} node cannot be assigned using PLACE alpha", node),
+            Self::NodeCannotBeSome(node, _) => write!(f, "{node} node cannot arbitrarily positive"),
+            Self::NodeCannotBeNone(node, _) => write!(f, "{node} node cannot be removed"),
+            Self::NodeCannotBeSet (node, _) => write!(f, "{node} node cannot be assigned using PLACE alpha"),
             Self::WordBoundSetLocError(_) => write!(f, "Word Boundaries cannot be in the input or output"),
             Self::SubstitutionEllipsis(_) => write!(f, "An ellipsis cannot be substituted"),
             Self::SyllVarInsideStruct (_) => write!(f, "Variables assigned to syllables cannot be used inside a structure"),
@@ -177,8 +177,8 @@ impl From<AliasRuntimeError> for ASCAError {
 impl fmt::Display for AliasRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NodeCannotBeSome(node, _) => write!(f, "{} node cannot arbitrarily positive", node),
-            Self::NodeCannotBeNone(node, _) => write!(f, "{} node cannot be removed", node),
+            Self::NodeCannotBeSome(node, _) => write!(f, "{node} node cannot arbitrarily positive"),
+            Self::NodeCannotBeNone(node, _) => write!(f, "{node} node cannot be removed"),
             Self::IndefiniteFeatures(_) => write!(f, "Cannot create a segment from a limited list of features. If you would like to assign to the previous segment, use '+'."),
             Self::OverlongPosLongNeg(_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
             Self::SecStrPosStrNeg   (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),

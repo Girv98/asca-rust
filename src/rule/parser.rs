@@ -99,7 +99,7 @@ impl fmt::Display for ParseElement {
             ParseElement::Structure(segs, str, tone, var) => {
                 write!(f, "STRUCT=>{str:?}:{tone:#?}={var:#?} <")?;
                 for i in segs {
-                    write!(f, "{}", i)?;
+                    write!(f, "{i}")?;
                     write!(f, ", ")?;
                 }
                 write!(f, ">")
@@ -107,7 +107,7 @@ impl fmt::Display for ParseElement {
             ParseElement::Set(s) => {
                 write!(f, "{{")?;
                 for i in s {
-                    write!(f, "{}", i)?;
+                    write!(f, "{i}")?;
                     write!(f, ", ")?;
                 }
                 write!(f, "}}")
@@ -115,10 +115,10 @@ impl fmt::Display for ParseElement {
             ParseElement::Optional(s, min, max) => {
                 write!(f, "(")?;
                 for i in s {
-                    write!(f, "{}", i)?;
+                    write!(f, "{i}")?;
                     write!(f, ", ")?;
                 }
-                write!(f, " {}:{})", min, max)
+                write!(f, " {min}:{max})")
             },
             ParseElement::Environment(envs) => {
                 for env in envs {

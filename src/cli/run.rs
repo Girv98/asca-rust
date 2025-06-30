@@ -23,7 +23,7 @@ fn print_comparison(result: &[String], comp_path: &Path) -> io::Result<()> {
         } else if res != comp {
             println!("{:<pad$} {} {}", comp.bright_blue().bold(), sep, res.bright_green().bold());
         } else {
-            println!("{:<pad$} {} {}", comp, sep, res);
+            println!("{comp:<pad$} {sep} {res}");
         }
     }
     // In edge cases where one file is longer then the other

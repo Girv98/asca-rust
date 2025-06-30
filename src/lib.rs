@@ -77,10 +77,10 @@ lazy_static! {
 
         dt.iter().map(|x| x.to_diacritic()).collect()
     };
-    static ref CARDINALS_VEC: Vec<String> = CARDINALS_MAP.iter().map(|(k,_)| k.clone()).collect();
+    static ref CARDINALS_VEC: Vec<String> = CARDINALS_MAP.keys().cloned().collect();
     static ref CARDINALS_TRIE: Trie = {
         let mut m = Trie::new();
-        CARDINALS_MAP.iter().for_each(|(k,_)| m.insert(k.as_str()));
+        CARDINALS_MAP.keys().for_each(|k| m.insert(k.as_str()));
         m
     };    
 }

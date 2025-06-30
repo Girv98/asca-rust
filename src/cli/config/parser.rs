@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
         }
         
         if entries.is_empty() {
-            return Err(self.error(format!("No rule entries found for sequence '{}'", tag)))
+            return Err(self.error(format!("No rule entries found for sequence '{tag}'")))
         }
 
         Ok(entries)
@@ -376,7 +376,7 @@ impl<'a> Parser<'a> {
                     },
                 }
             } else if file_path.extension().is_some() {
-                return Err(self.error(format!("File {} could not be found. seq '{}' @ '{}'", format!("{:?}", file_path).yellow(), tag.yellow(), item.yellow())))
+                return Err(self.error(format!("File {} could not be found. seq '{}' @ '{}'", format!("{file_path:?}").yellow(), tag.yellow(), item.yellow())))
             } else {
                 // assume it is a piped tag
                 parsed_input.push(InputKind::FromTag(item.clone()));

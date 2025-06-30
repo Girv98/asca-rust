@@ -332,7 +332,7 @@ impl OldParser{
         for c in &conf {
             if let Some(from_tag) = &c.from {
                 if !tag_set.contains(from_tag) {
-                    return Err(self.error(format!("tag '{}' does not exist", from_tag)))
+                    return Err(self.error(format!("tag '{from_tag}' does not exist")))
                 }
             }
         }

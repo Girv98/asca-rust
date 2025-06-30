@@ -86,7 +86,7 @@ impl Display for TokenKind {
             TokenKind::Slash         => write!(f, "Slash"),
             TokenKind::Pipe          => write!(f, "Pipe"),
             TokenKind::Cardinal      => write!(f, "Cardinal"),
-            TokenKind::Diacritic(i)  => write!(f, "Diacritic({})", i),
+            TokenKind::Diacritic(i)  => write!(f, "Diacritic({i})"),
             TokenKind::Star          => write!(f, "Star"),
             TokenKind::EmptySet      => write!(f, "Empty"),
             TokenKind::Ellipsis      => write!(f, "Ellipsis"),

@@ -91,7 +91,7 @@ pub fn parse_alias(path: &Path) -> io::Result<(Vec<String>, Vec<String>)> {
     if into.is_empty() && from.is_empty() {
         return Err(io::Error::other(format!(
             "{} Could not parse {} as an alias file:\n Could not find an {} or {}", 
-            "Alias Parse Error: ".bright_red(), format!("{:?}", path).yellow(), "@into".yellow(), "@from".yellow()
+            "Alias Parse Error: ".bright_red(), format!("{path:?}").yellow(), "@into".yellow(), "@from".yellow()
     )))
     }
 
