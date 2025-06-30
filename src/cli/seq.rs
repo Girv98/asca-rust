@@ -375,9 +375,11 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
     let num_words = trace[0].len();
     let base_pad = calc_padding(trace);
 
+    let mut output = String::with_capacity(num_words * num_steps * 16); // assuming at least 16 bytes per word;
+
     for word in 0..num_words {
         if trace[0][word].is_empty() {
-            println!();
+            output += "\n";
             continue;
         }
         // Concat start word
@@ -392,9 +394,10 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
         }
         // Concat final result
         let pad = base_pad[num_steps-1] + util::fix_combining_char_pad(&trace[num_steps-1][word]);
-        str = format!("{str} {arr} {:<pad$}", &trace[num_steps-1][word].bright_green().bold());
-        println!("{}", str)
+        str = format!("\n{str} {arr} {:<pad$}", &trace[num_steps-1][word].bright_green().bold());
+        output += &str;
     }
+    println!("{}", output.trim_end());
 }
 
 fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<String>)> {

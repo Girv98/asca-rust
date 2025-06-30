@@ -54,14 +54,18 @@ fn print_result(result: &[String], start_words: &[String], maybe_compare: Option
             bef_len = std::cmp::max(bef_len, bef_sp);
         }
 
+        let mut output = String::with_capacity(start_words.len() * 64); // assuming at least 64 bytes per line
+
         for (bef, aft) in start_words.iter().zip(result) {
             if bef.is_empty() && aft.is_empty() {
-                println!();
+                output += "\n";
             } else {
                 let pad = bef_len + util::fix_combining_char_pad(bef);
-                println!("{:<pad$} {} {}", bef.bright_blue().bold(), arr, aft.bright_green().bold());
+                output += &format!("\n{:<pad$} {} {}", bef.bright_blue().bold(), arr, aft.bright_green().bold());
             }
         }
+
+        println!("{}", output.trim_end());
         Ok(())
     }
 }
