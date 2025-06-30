@@ -21,8 +21,8 @@ def set_features(d):
     place_head = 0
 
 
-    grapheme = d.get("%")
-    del d["%"]
+    grapheme = d.get("$")
+    del d["$"]
 
     # Set Root Features
     if d['cons']:
