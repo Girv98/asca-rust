@@ -145,7 +145,7 @@ pub(super) fn validate_or_get_path(maybe_path: Option<&Path>, valid_extensions: 
                 std::cmp::Ordering::Greater => Err(util_err(format!("More than one matching {} file found in current directory. Please specify.", kind))),
                 std::cmp::Ordering::Less    => Err(util_err(format!("No matching {} files found in current directory", kind))),
                 std::cmp::Ordering::Equal   => {
-                    println!("{} No {} file provided. Using {}", "Note:".bright_blue(), kind, format!("{:?}", files[0]).yellow());
+                    eprintln!("{} No {} file provided. Using {}", "Note:".bright_blue(), kind, format!("{:?}", files[0]).yellow());
                     Ok(files[0].clone())
                 },
             }
@@ -168,7 +168,7 @@ pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: Str
         eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     }
-    println!(":: Wrote to file {:?}", path);
+    eprintln!(":: Wrote to file {:?}", path);
     Ok(())
 }
 
@@ -177,7 +177,7 @@ pub(super) fn file_create_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, conte
         eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     }
-    println!(":: Created file {} in current directory", format!("{:?}", path).yellow());
+    eprintln!(":: Created file {} in current directory", format!("{:?}", path).yellow());
     Ok(())
 }
 
@@ -196,7 +196,7 @@ pub(super) fn dir_create_all<P: AsRef<Path> + Debug + ?Sized>(path: &P) -> io::R
         eprintln!("{} error occurred when creating {}:", "asca:".bright_red(), format!("{:?}", path).yellow());
         return Err(map_io_error(e))
     } 
-    println!(":: Created dir {}", format!("{:?}", path).yellow());
+    eprintln!(":: Created dir {}", format!("{:?}", path).yellow());
     Ok(())
 }
 
