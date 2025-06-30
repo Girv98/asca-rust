@@ -584,27 +584,29 @@ impl<'a> Lexer<'a> {
             "root"        | "rut"       | "rt"                    => Ok(Feature(Node(Root))),
             "consonantal" | "consonant" | "cons" | "cns"          => Ok(Feature(Feat(Consonantal))),
             "sonorant"    | "sonor"     | "son"  | "snrt" | "sn"  => Ok(Feature(Feat(Sonorant))),
-            "syllabic"    | "syllab"    | "syll" | "syl"          => Ok(Feature(Feat(Syllabic))),
+            "syllabic"    | "syllab"    | "syll" | "syl"  | "sl"  => Ok(Feature(Feat(Syllabic))),
             // Manner Node Features
             "manner"         | "mann"   | "man"  | "mnnr" | "mnr" => Ok(Feature(Node(Manner))),
             "continuant"     | "contin" | "cont" | "cnt"          => Ok(Feature(Feat(Continuant))),
             "approximant"    | "approx" | "appr" | "app"          => Ok(Feature(Feat(Approximant))),
-            "lateral"        | "latrl"  | "ltrl" | "lat"          => Ok(Feature(Feat(Lateral))),
-            "nasal"          | "nsl"    | "nas"                   => Ok(Feature(Feat(Nasal))),
+            "lateral"        | "latrl"  | "ltrl" | "lat"  | "lt"  => Ok(Feature(Feat(Lateral))),
+            "nasal"          | "nsl"    | "nas"  | "ns" | "nl"    => Ok(Feature(Feat(Nasal))),
             "delayedrelease" | "delrel" | "d.r." | "del.rel." | 
             "delayed" | "dl" | "dlrl"   | "dr"   | "delay"    |
-            "drelease"       | "del.rel"| "drel"                  => Ok(Feature(Feat(DelayedRelease))),
-            "strident"       | "strid"  | "stri" | "stridnt"      => Ok(Feature(Feat(Strident))),
-            "rhotic"         | "rhot"   | "rho"  | "rhtc" | "rh"  => Ok(Feature(Feat(Rhotic))),
-            "click"          | "clik"   | "clk"  | "clck"          => Ok(Feature(Feat(Click))),
+            "drelease"       | "del.rel"| "drel" | "d.r" | "dr."  => Ok(Feature(Feat(DelayedRelease))),
+            "strident"       | "strid"  | "stri" | "stridnt"  | 
+            "strdent"        | "strdnt"                           => Ok(Feature(Feat(Strident))),
+            "rhotic"         | "rhot"   | "rho"  | "rhtc" | "rh"
+            | "rht" | "rhc"                                       => Ok(Feature(Feat(Rhotic))),
+            "click"          | "clik"   | "clk"  | "clck"         => Ok(Feature(Feat(Click))),
             // Laryngeal Node Features
             "laryngeal"      | "laryng"     | "laryn"  | "lar"    => Ok(Feature(Node(Laryngeal))),
             "voice"          | "voi"        | "vce"    | "vc"     => Ok(Feature(Feat(Voice))),
-            "spreadglottis"  | "spreadglot" | 
-            "spread"         | "s.g."       | "s.g"    | "sg"     => Ok(Feature(Feat(SpreadGlottis))),
+            "spreadglottis"  | "spreadglot" | "spread" | 
+            "s.g."           | "s.g"        | "sg."    | "sg"     => Ok(Feature(Feat(SpreadGlottis))),
             "constrictedglottis"            | "constricted"  |
             "constglot"      | "constr"     | "c.g." | "c.g" | 
-            "cg"                                                  => Ok(Feature(Feat(ConstrGlottis))),
+            "cg." | "cg"                                          => Ok(Feature(Feat(ConstrGlottis))),
             // Place Node Feature
             "place"       | "plce"    | "plc"                     => Ok(Feature(Node(Place))),
             // Labial Place Node Features
@@ -635,7 +637,7 @@ impl<'a> Lexer<'a> {
             "long"     | "lng"                                    => Ok(Feature(Supr(Long))),
             "overlong" | "overlng" | "ovrlng" | "vlong" | 
             "olong" | "vlng" | "olng"                             => Ok(Feature(Supr(Overlong))),
-            "stress"   | "str"                                    => Ok(Feature(Supr(Stress))),
+            "stress"   | "strs" | "str"                           => Ok(Feature(Supr(Stress))),
             "secondarystress"| "sec.stress" | "secstress" |
             "sec.str."       | "sec.str"    | "secstr"    | "sec" => Ok(Feature(Supr(SecStress))),
             
