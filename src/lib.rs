@@ -142,6 +142,22 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
     (res, unknowns)
 }
 
+fn input_phrases_to_string(phrases: &[Phrase]) -> Vec<String> {
+    let mut res = Vec::with_capacity(phrases.len());
+
+    for phrase in phrases {
+        let mut phr_res = String::new();
+        for word in phrase.iter() {
+            let (w, _) = word.render(&[]);
+            phr_res.push(' ');
+            phr_res.push_str(&w);
+        }
+        res.push(phr_res.trim().to_string());
+    }
+
+    res
+}
+
 fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, ASCAError> {
     unparsed_phrases.iter().map(|phrase| -> Result<Phrase, ASCAError> {
         phrase.split(' ')
@@ -176,12 +192,15 @@ pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], a
     Ok(res)
 }
 
-pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<(Vec<String>, Vec<String>), ASCAError> {
+#[allow(clippy::type_complexity)]
+pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<(Vec<String>, Vec<String>, Vec<String>), ASCAError> {
     let phrases = parse_phrases(unparsed_phrases, &alias::parse_into(alias_into)?)?;
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rule_groups(&rules, &phrases)?;
+    
+    let (output, unknowns) = phrases_to_string(res, alias::parse_from(alias_from)?);
 
-    Ok(phrases_to_string(res, alias::parse_from(alias_from)?))
+    Ok((input_phrases_to_string(&phrases), output, unknowns))
 }
 
 // For interop with WebASCA
@@ -189,13 +208,19 @@ pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[Stri
 #[doc(hidden)]
 #[wasm_bindgen]
 pub struct WasmResult {
+    input: Vec<String>,         // parsed input
     output: Vec<String>,
-    unknowns: Vec<String>,
-    trace_rules: Vec<usize>,
+    unknowns: Vec<String>,      // Any segments that were unable to be parsed
+    trace_rules: Vec<usize>,    // Indices of rules which were applied
+    was_ok: bool                // Did we error, or succeed?
 }
 
 #[wasm_bindgen]
 impl WasmResult {
+    pub fn get_input(&self) -> Vec<String> {
+        self.input.clone()
+    }
+
     pub fn get_output(&self) -> Vec<String> {
         self.output.clone()
     }
@@ -207,6 +232,10 @@ impl WasmResult {
     pub fn get_traces(&self) -> Vec<usize> {
         self.trace_rules.clone()
     }
+
+    pub fn was_ok(&self) -> bool {
+        self.was_ok
+    }
 }
 
 
@@ -215,10 +244,10 @@ pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<
     let unparsed_rules: Vec<RuleGroup> = serde_wasm_bindgen::from_value(val).expect("Rules are in valid JSObject format");
     
     match trace {
-        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_into, t), &unparsed_rules, &unparsed_into, &unparsed_from),
+        Some(t) => parse_result_web(run_trace_wasm(&unparsed_rules, &unparsed_phrases, &unparsed_into, t), &unparsed_rules, &unparsed_into, &unparsed_from, &unparsed_phrases),
         None => match run_unparsed_debug(&unparsed_rules, &unparsed_phrases, &unparsed_into, &unparsed_from) {
-            Ok((res, unk)) => parse_result_web(Ok((res, unk, vec![])), &unparsed_rules, &unparsed_into, &unparsed_from),
-            Err(e) => parse_result_web(Err(e), &unparsed_rules, &unparsed_into, &unparsed_from),
+            Ok((inp, res, unk)) => parse_result_web(Ok((inp, res, unk, vec![])), &unparsed_rules, &unparsed_into, &unparsed_from, &unparsed_phrases),
+            Err(e) => parse_result_web(Err(e), &unparsed_rules, &unparsed_into, &unparsed_from, &unparsed_phrases),
         }
     }
 }
@@ -231,19 +260,21 @@ fn get_trace_phrase(unparsed_phrases: &[String], alias_into: &[String], trace_in
 }
 
 #[allow(clippy::type_complexity)]
-fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<(Vec<String>, Vec<String>, Vec<usize>), ASCAError> {
+fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alias_into: &[String], trace_index: usize) -> Result<(Vec<String>, Vec<String>, Vec<String>, Vec<usize>), ASCAError> {
     let phrase = get_trace_phrase(unparsed_phrase, alias_into, trace_index)?.unwrap_or_default();
     let rules = parse_rule_groups(unparsed_rules)?;
     let res = apply_rules_trace(&rules, &phrase)?;
 
-    Ok(rule::trace::to_string_wasm(&phrase, res, unparsed_rules))
+    let (out, unk, trc) = rule::trace::to_string_wasm(&phrase, res, unparsed_rules);
+
+    Ok((input_phrases_to_string(&[phrase]), out, unk, trc))
 }
 
 #[allow(clippy::type_complexity)]
-fn parse_result_web(unparsed_result: Result<(Vec<String>, Vec<String>, Vec<usize>), ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String]) -> WasmResult {
-    match unparsed_result {
-        Ok((output, unknowns, trace_rules)) => {
-            WasmResult { output, unknowns, trace_rules }
+fn parse_result_web(result: Result<(Vec<String>, Vec<String>, Vec<String>, Vec<usize>), ASCAError>, rules: &[RuleGroup], unparsed_into: &[String], unparsed_from: &[String], unparsed_phrases: &[String]) -> WasmResult {
+    match result {
+        Ok((input, output, unknowns, trace_rules)) => {
+            WasmResult { input, output, unknowns, trace_rules, was_ok: true}
         },
         Err(err) => {
             let output = match err {
@@ -253,7 +284,7 @@ fn parse_result_web(unparsed_result: Result<(Vec<String>, Vec<String>, Vec<usize
                 ASCAError::RuleSyn(e) => e.format(rules),
                 ASCAError::RuleRun(e) => e.format(rules),
             };
-            WasmResult { output: vec![output], unknowns: vec![], trace_rules: vec![] }
+            WasmResult { input: unparsed_phrases.to_vec(), output: vec![output], unknowns: vec![], trace_rules: vec![], was_ok: false }
         },
     }    
 }
