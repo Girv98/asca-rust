@@ -19,7 +19,7 @@ This is documentation for the core principles of defining words and sound change
     * [Condensed Rules](#condensed-rules)
     * [Special Environment](#special-environment)
     * [Syllable Structure](#syllable-structure)
-* [Distinctive Features](#distinctive-features)
+* [Segment Features](#segment-features)
     * [Using Distinctive Features](#using-distinctive-features)
     * [Nodes and Subnodes](#node-and-subnode-features)
     * [Inversion](#inversion)
@@ -445,7 +445,7 @@ _,ABC => ABC_ , _CBA
 
 ### Syllable Structure
 ASCA does not enforce 'legal' syllables and it is up to you to maintain syllable boundaries.
-This can be done by metathesising, inserting, and deleting `$`.
+This can be done by metathesising, inserting, or deleting syllable boundaries `$`.
 
 For example, imagine a input word of `'si.tu`. If we apply the rule `V > * / C_#`, we end up with a floating consonant `'si.t`.
 
@@ -456,9 +456,13 @@ or
 $ > * / _C# (the two syllables are merged by deleting the boundary between them)
 ```
 
-## Distinctive Features
+## Segment Features
 ASCA allows for 26 segmental features.  
-A full table of segments and there values can be found [here](https://bit.ly/3sHjqvA).
+A full table of segments and their values, as well as a vowel space, can be found [here](https://bit.ly/3sHjqvA). 
+
+An introduction to distinctive features can be found [here](https://en.wikipedia.org/wiki/Distinctive_feature). 
+
+ASCA defines the features it uses as follows:
 
 ```
 ┌────────┬─────────┬─────────┬─────────────────────────────┬────────────────────────────┐
@@ -482,7 +486,7 @@ A full table of segments and there values can be found [here](https://bit.ly/3sH
 ├────────┼───────────────────┼─────────────────────────────┼────────────────────────────┤
 │        │       voice       │       voiced segments       │     voiceless segments     │
 │ LARYNG │   spread glottis  │   aspirates, breathy voice  │             -              │
-│        │   const glottis   │    ejectives, implosives    │             -              │
+│        │   const. glottis  │    ejectives, implosives    │             -              │
 │        │                   │         creaky voice        │             -              │
 ├────────┼─────────┬─────────┼─────────────────────────────┼────────────────────────────┤
 │        │ LABIAL  │ labdent │       ɱ, ʋ, f, v, etc.      │      ɸ, β, p, b, etc.      │
@@ -504,6 +508,9 @@ A full table of segments and there values can be found [here](https://bit.ly/3sH
 ```
 
 ```
+s.g. = spread glottis
+c.g. = constricted glottis
+
 ┌────────┬─────────────┬─────────────┬─────────────┬─────────────┐
 │        │ -s.g. -c.g. │ -s.g. +c.g. │ +s.g. -c.g. │ +s.g. +c.g. │
 ├────────┼─────────────┼─────────────┼─────────────┼─────────────┤
@@ -520,7 +527,7 @@ A full table of segments and there values can be found [here](https://bit.ly/3sH
 ### Using Distinctive Features
 
 Distinctive features are defined between square brackets `e.g. [+cons]`. These are called matrices. A matrix can have multiple features, each separated by a comma `e.g. [+cons, -syll]`. 
-Whitespace is not important, meaning `[+del.rel.]` is identical to `[ + d e l . r e l . ]`. Many features also have shorthands `e.g. [bk, hi, lo, dr] = [back, high, low, del.rel.]`.
+ASCA is fairly flexible with distinctive features; Features have many shorthands `e.g. [bk, hi, lo, dr, sg] = [back, high, low, del.rel., spread glottis]` ([full list](#feature-shorthands)), and whitespace is not important, meaning `[+del.rel.]` is identical to `[ + d e l . r e l . ]`.     
 
 A matrix can be used standalone to represent a segment, or can be used to modify a segment by joining them with a colon `:`.
 ```
@@ -1020,3 +1027,52 @@ a:[Along] > e:[Along]   ([Along, Boverlong] if you have overlong vowels)
 hat  > het
 ha:t > he:t
 ```
+
+
+## Feature Shorthands
+
+ASCA tries to be as flexible as possible to fit any notational style (even some silly ones).
+The following can be upper or lower case, or with any whitespace between characters.
+
+Segment Features:
+* Root Node: `root` `rut` `rt`
+    * Consonantal: `consonantal` `consonant` `cons` `cns`
+    * Sonorant: `sonorant` `sonor` `son` `snrt` `sn`
+    * Syllabic: `syllabic` `syllab` `syll` `syl` `sl`
+* Manner Node: `manner` `mann` `man` `mnnr` `mnr`
+    * Continuant: `continuant` `contin` `cont` `cnt`
+    * Approximant: `approximant` `approx` `appr` `app`
+    * Lateral: `lateral` `latrl` `ltrl` `lat` `lt`
+    * Nasal: `nasal` `nsl` `nas` `ns` `nl`
+    * Delayedrelease: `delayedrelease` `drelease` `delrel` `d.r.` `d.r` `dr.` `del.rel.` `del.rel` `delayed` `delay` `dl` `dlrl` `dr` `drel`
+    * Strident: `strident` `strid` `stri` `stridnt` `strdent` `strdnt`
+    * Rhotic: `rhotic` `rhot` `rho` `rhtc` `rht` `rh`
+    * Click: `click` `clik` `clk` `clck`
+* Laryngeal Node: `laryngeal` `laryng` `laryn` `lar`
+    * Voice: `voice` `voi` `vce` `vc`
+    * Spread Glottis:`spreadglottis` `spreadglot` `spread` `s.g.` `s.g` `sg.` `sg`
+    * Constricted Glottis:`constrictedglottis` `constricted` `constglot` `constr` `c.g.` `c.g` `cg.` `cg`
+* Place Node: `place` `plce` `plc`
+    * Labial Subnode: `labial` `lbl` `lab`
+        * Labiodental: `labiodental` `labio` `labiod` `ldental` `labiodent` `labdent` `lbdntl` `ldent` `ldl`
+        * Roundness: `round` `rund` `rnd` `rd`
+    * Coronal Subnode: `coronal` `coron` `crnl` `cor`
+        * Anterior: `anterior` `anter` `antr` `ant`
+        * Distributed: `distributed` `distrib` `dist` `dis`  `dst`
+    * Dorsal Subnode: `dorsal` `drsl` `dors` `dor`
+        * Front: `front` `frnt` `fnt` `fro` `frt` `fr`
+        * Back: `back` `bck` `bk`
+        * High: `high` `hgh` `hi`
+        * Low: `low` `lw` `lo`
+        * Tense: `tense` `tens` `tns` `ten`
+        * Reduced: `reduced` `reduc` `redu` `rdcd` `red`
+    * Pharyngeal Subnode: `pharyngeal` `pharyng` `pharyn` `phar` `phr`
+        * ATR: `advancedtongueroot` `a.t.r.` `a.t.r` `a.tr` `at.r` `atr`
+        * RTR: `retractedtongueroot` `r.t.r.` `r.t.r` `r.tr` `rt.r` `rtr`
+
+
+Suprasegmental Features:
+* Long: `long` `lng`
+* Overlong: `overlong` `overlng` `ovrlng` `vlong` `vlng` `olong` `olng`
+* Stress: `stress` `strs` `str`
+* Secondary Stress: `secondarystress` `sec.stress` `secstress` `sec.str.` `sec.str` `secstr` `sec`
