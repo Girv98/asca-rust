@@ -1,3 +1,19 @@
+0.8.1
+==================
+[0.8.0...0.8.1](https://github.com/Girv98/asca-rust/compare/0.8.0...0.8.1)
+
+Features:
+* Wasm: 
+    * Pass parsed input phrases to WasmResult
+    * Pass boolean representing a success/error to WasmResult
+* Lib: Add some more feature shorthands
+
+Fixes:
+* Lib: Remove floating `'` from the end of some line positions within certain error messages
+* Cli: 
+    * Blank lines are omitted from the end of the printed output
+    * Progress and info messages are sent to stderr instead of stdout
+
 0.8.0
 ==================
 [0.7.7...0.8.0](https://github.com/Girv98/asca-rust/compare/0.7.7...0.8.0)
