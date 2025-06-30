@@ -152,7 +152,7 @@ impl From<RuleSyntaxError> for ASCAError {
 impl fmt::Display for RuleSyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ExpectedAlphabetic(c, g, l, pos) => write!(f, "Expected ASCII character, but received '{c}' at {g}:{l}:{pos}'."),
+            Self::ExpectedAlphabetic(c, g, l, pos) => write!(f, "Expected ASCII character, but received '{c}' at {g}:{l}:{pos}."),
             Self::ExpectedCharColon (c, g, l, pos) => write!(f, "Expected ':', but received '{c}' at {g}:{l}:{pos}"),
             Self::ExpectedCharArrow (c, g, l, pos) => write!(f, "Expected '->', but received -'{c}' at {g}:{l}:{pos}"),
             Self::MalformedComment  (c, g, l, pos) => write!(f, "Malformed Comment: Expected ';;', but received ';{c}' at {g}:{l}:{pos}"),
@@ -192,8 +192,8 @@ impl fmt::Display for RuleSyntaxError {
             Self::WordBoundLoc         (_) => write!(f, "Wordboundaries are not allowed in the input or output"),
             Self::OptLocError          (_) => write!(f, "Optionals can only be used in environments"),
             Self::EmptySet             (_) => write!(f, "Sets cannot be empty"),
-            Self::UnknownEnbyFeature(feat, pos) => write!(f, "Feature '{feat}' has no modifier at {}:{}-{}'.", pos.line, pos.start, pos.end),
-            Self::UnknownFeature    (feat, pos) => write!(f, "Unknown feature '{feat}' at {}:{}-{}'. Did you mean {}? ", pos.line, pos.start, pos.end, get_feat_closest(feat)),
+            Self::UnknownEnbyFeature(feat, pos) => write!(f, "Feature '{feat}' has no modifier at {}:{}-{}.", pos.line, pos.start, pos.end),
+            Self::UnknownFeature    (feat, pos) => write!(f, "Unknown feature '{feat}' at {}:{}-{}. Did you mean {}? ", pos.line, pos.start, pos.end, get_feat_closest(feat)),
             Self::DiacriticDoesNotMeetPreReqsFeat(.., t , pos) |
             Self::DiacriticDoesNotMeetPreReqsNode(.., t , pos) => {
                 write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be [{}{}]", if *pos { '+' } else { '-' },t) 
