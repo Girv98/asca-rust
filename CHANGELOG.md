@@ -1,3 +1,12 @@
+0.8.2
+==================
+[0.8.1...0.8.2](https://github.com/Girv98/asca-rust/compare/0.8.1...0.8.2)
+
+Fixes:
+* Lib: 
+    * Fixed infinite loop caused by erroneous use of `^` in certain situations.
+    * Fixed `qǀ`, `qǃ`, `qǁ`, `q‼`, and `qǂ` being falsely encoded as `+voice`
+
 0.8.1
 ==================
 [0.8.0...0.8.1](https://github.com/Girv98/asca-rust/compare/0.8.0...0.8.1)
