@@ -445,8 +445,7 @@ impl Word {
                         continue;
                     }
                 }
-                // Because we are advancing in as_ipa()
-                if txt[*i-1] == '^' || txt[*i-1] == '"' { *i -= 1; }
+                if txt[*i-1] == '"' { *i -= 1; }
                 break;
             }
             let maybe_seg = CARDINALS_MAP.get(&buffer);
