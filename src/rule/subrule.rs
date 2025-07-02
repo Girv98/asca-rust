@@ -262,7 +262,8 @@ impl SubRule {
             ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, state.position),
             ParseElement::Set(s) => self.context_match_set(s, word, pos, forwards),
             ParseElement::Optional(opt_states, min, max) => self.context_match_option(states, state_index, word, pos, forwards, opt_states, *min, *max),
-            ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards),
+            ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, true),
+            ParseElement::WEllipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, false),
             
             ParseElement::EmptySet | ParseElement::Metathesis |
             ParseElement::Environment(_) => unreachable!(),
@@ -296,7 +297,7 @@ impl SubRule {
         let cur_syll_index = pos.syll_index;
 
         for (mut i, item) in items.iter().enumerate() {
-            if pos.syll_index != cur_syll_index {
+            if pos.syll_index != cur_syll_index && item.kind != ParseElement::WEllipsis {
                 return Ok(false)
             }
             match &item.kind {
@@ -305,9 +306,18 @@ impl SubRule {
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                     break;
-                } else if self.context_match_ellipis_struct(&items, &mut i, word, pos, cur_syll_index)? {
+                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, true)? {
                     break;
                 } else { return Ok(false) }, 
+                ParseElement::WEllipsis => if i == items.len() - 1 {
+                    // if last item, jump to end of syll and break loop
+                    pos.syll_index += 1;
+                    pos.seg_index = 0;
+                    break;
+                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, false)? {
+                    break;
+                } else { 
+                    return Ok(false) },
                 ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, item.position)? {
                     pos.increment(word);
                 } else { return Ok(false) },
@@ -334,13 +344,13 @@ impl SubRule {
         Ok(true)
     }
 
-    fn context_match_ellipis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize) -> Result<bool, RuleRuntimeError> {
+    fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize, inc: bool) -> Result<bool, RuleRuntimeError> {
         if *index >= items.len() {
             return Ok(true)
         }
         
         *index += 1;
-        pos.increment(word);
+        if inc { pos.increment(word) }
 
         while pos.syll_index == syll_index {
             let back_pos = *pos;
@@ -350,7 +360,7 @@ impl SubRule {
             
             let mut m = true;
             while *index < items.len() {
-                if pos.syll_index != syll_index {
+                if pos.syll_index != syll_index && items[*index].kind != ParseElement::WEllipsis {
                     m = false;
                     break;
                 }
@@ -360,8 +370,17 @@ impl SubRule {
                         pos.syll_index = syll_index + 1;
                         pos.seg_index = 0;
                         return Ok(true)
-                    } else if self.context_match_ellipis_struct(items, index, word, pos, syll_index)? {
-                        // Don't know about this
+                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, true)? {
+                        pos.syll_index = syll_index + 1;
+                        pos.seg_index = 0;
+                        return Ok(true)
+                    } else { m = false; break; }, 
+                    ParseElement::WEllipsis => if *index == items.len() - 1 {
+                        // if last item, jump to end of syll and break loop
+                        pos.syll_index = syll_index + 1;
+                        pos.seg_index = 0;
+                        return Ok(true)
+                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, false)? {
                         pos.syll_index = syll_index + 1;
                         pos.seg_index = 0;
                         return Ok(true)
@@ -390,13 +409,13 @@ impl SubRule {
         Ok(false)
     }
 
-    fn context_match_ellipsis(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_ellipsis(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
         if *state_index >= states.len() {
             return Ok(true)
         }
 
         *state_index += 1;
-        pos.increment(word);
+        if inc { pos.increment(word) }
 
         while word.in_bounds(*pos) {
             let back_pos = *pos;
@@ -1197,7 +1216,7 @@ impl SubRule {
                 ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(state.position)),
                 ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(state.position)),
                 ParseElement::EmptySet  | ParseElement::Metathesis | 
-                ParseElement::Ellipsis  | ParseElement::Optional(..) | 
+                ParseElement::Ellipsis  | ParseElement::Optional(..) | ParseElement::WEllipsis | 
                 ParseElement::WordBound | ParseElement::Environment(..) => unreachable!(),
             }
         }
@@ -1248,7 +1267,7 @@ impl SubRule {
 
         for item in items {
             match &item.kind {
-                ParseElement::Ellipsis   => return Err(if is_inserting {RuleRuntimeError::InsertionEllipsis(item.position)} else {RuleRuntimeError::SubstitutionEllipsis(item.position)}),
+                ParseElement::Ellipsis | ParseElement::WEllipsis => return Err(if is_inserting {RuleRuntimeError::InsertionEllipsis(item.position)} else {RuleRuntimeError::SubstitutionEllipsis(item.position)}),
                 ParseElement::Matrix(..) => return Err(if is_inserting {RuleRuntimeError::InsertionMatrix(item.position)}   else {RuleRuntimeError::SubstitutionMatrix(item.position)}),
                 &ParseElement::Ipa(mut segment, ref modifiers) => {
                     let mut len = 1;
@@ -1727,7 +1746,7 @@ impl SubRule {
                     }
                 },
                 ParseElement::EmptySet   | ParseElement::Metathesis    | 
-                ParseElement::Ellipsis   | ParseElement::Optional(..)  | 
+                ParseElement::Ellipsis   | ParseElement::Optional(..)  | ParseElement::WEllipsis | 
                 ParseElement::WordBound  | ParseElement::Environment(..) => unreachable!(),
             }
         }
@@ -1911,7 +1930,7 @@ impl SubRule {
                     ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(z.position)),
                     
                     ParseElement::EmptySet   | ParseElement::Metathesis    | 
-                    ParseElement::Ellipsis   | ParseElement::Optional(..)  | 
+                    ParseElement::Ellipsis   | ParseElement::Optional(..)  | ParseElement::WEllipsis | 
                     ParseElement::WordBound  | ParseElement::Environment(..) => unreachable!(),
                 }
             }
@@ -2086,7 +2105,8 @@ impl SubRule {
             } else { Ok(false) },
             ParseElement::Syllable(s, t, v) => self.input_match_syll(captures, state_index, s, t, v, word, seg_pos),
             ParseElement::Structure(segs, stress, tone, var) => self.input_match_structure(captures, state_index, segs, stress, tone, var, word, seg_pos),
-            ParseElement::Ellipsis => self.input_match_ellipsis(captures, word, seg_pos, states, state_index),
+            ParseElement::Ellipsis  => self.input_match_ellipsis(captures, word, seg_pos, states, state_index, true),
+            ParseElement::WEllipsis => self.input_match_ellipsis(captures, word, seg_pos, states, state_index, false),
 
             ParseElement::Optional(..) | ParseElement::Environment(_) |
             ParseElement::EmptySet | ParseElement::WordBound | ParseElement::Metathesis  => unreachable!(),
@@ -2114,7 +2134,7 @@ impl SubRule {
         }
 
         for (mut i, item) in items.iter().enumerate() {
-            if pos.syll_index != cur_syll_index {
+            if pos.syll_index != cur_syll_index && item.kind != ParseElement::WEllipsis {
                 return Ok(false)
             }
             match &item.kind {
@@ -2122,7 +2142,14 @@ impl SubRule {
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                     break;
-                } else if self.context_match_ellipis_struct(items, &mut i, word, pos, cur_syll_index)? {
+                } else if self.context_match_ellipsis_struct(items, &mut i, word, pos, cur_syll_index, true)? {
+                    break;
+                } else { return Ok(false) },
+                ParseElement::WEllipsis => if i == items.len() - 1 {
+                    pos.syll_index += 1;
+                    pos.seg_index = 0;
+                    break;
+                } else if self.context_match_ellipsis_struct(items, &mut i, word, pos, cur_syll_index, false)? {
                     break;
                 } else { return Ok(false) },
                 ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, item.position)? {
@@ -2156,8 +2183,8 @@ impl SubRule {
         Ok(true)
     }
     
-    fn input_match_ellipsis(&self, captures: &mut Vec<MatchElement>, word: &Word, pos: &mut SegPos, states: &[ParseItem], state_index: &mut usize) -> Result<bool, RuleRuntimeError> {
-        // should work akin to '.+?' in Regex, that is, a lazy-match of one-or-more elements
+    fn input_match_ellipsis(&self, captures: &mut Vec<MatchElement>, word: &Word, pos: &mut SegPos, states: &[ParseItem], state_index: &mut usize, inc: bool) -> Result<bool, RuleRuntimeError> {
+        // should work akin to '.+?' or '.*?' in Regex, that is, a lazy-match of one-or-more elements or lazy-match of zero-or-more elements
         // increment seg_pos
         // save position
         // try to match rest of states
@@ -2171,7 +2198,7 @@ impl SubRule {
         }
 
         *state_index += 1;
-        pos.increment(word);
+        if inc { pos.increment(word) }
 
         while word.in_bounds(*pos) {
             let back_pos = *pos;

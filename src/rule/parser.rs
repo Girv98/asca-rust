@@ -34,6 +34,7 @@ pub(crate) enum ParseElement {
     EmptySet    ,
     WordBound   ,
     SyllBound   ,
+    WEllipsis   ,
     Ellipsis    ,
     Metathesis  ,
     Set         (Vec<ParseItem>),
@@ -57,17 +58,18 @@ impl ParseElement {
 
     fn reverse(&mut self) {
         match self {
-            ParseElement::EmptySet   | ParseElement::WordBound    | ParseElement::SyllBound | 
-            ParseElement::Ellipsis   | ParseElement::Metathesis   | ParseElement::Ipa(..)   | 
-            ParseElement::Matrix(..) | ParseElement::Variable(..) | ParseElement::Syllable(..) => {},
+            Self::EmptySet   | Self::WordBound    | Self::SyllBound | 
+            Self::Ellipsis   | Self::Metathesis   | Self::Ipa(..)   | 
+            Self::Matrix(..) | Self::Variable(..) | Self::Syllable(..) | 
+            Self::WEllipsis => {},
             
-            ParseElement::Optional(items, ..) | ParseElement::Structure(items, ..) | 
-            ParseElement::Set(items) => {
+            Self::Optional(items, ..) | Self::Structure(items, ..) | 
+            Self::Set(items) => {
                 items.reverse();
                 for i in items { i.reverse(); }
             },
 
-            ParseElement::Environment(envs) => for env in envs { env.reverse(); },
+            Self::Environment(envs) => for env in envs { env.reverse(); },
         }
     }
 }
@@ -75,28 +77,29 @@ impl ParseElement {
 impl fmt::Display for ParseElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParseElement::Variable(tk, p) => {
+            Self::Variable(tk, p) => {
                 // let tt = p.iter()
                 // .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
 
                 // write!(f, "{} = [{}]", t, tt)
                 write!(f, "{tk:#?} = {p:#?}")
             },
-            ParseElement::EmptySet   => write!(f, "∅"),
-            ParseElement::WordBound  => write!(f, "#"),
-            ParseElement::SyllBound  => write!(f, "$"),
-            ParseElement::Ellipsis   => write!(f, "…"),
-            ParseElement::Metathesis => write!(f, "&"),
+            Self::EmptySet   => write!(f, "∅"),
+            Self::WordBound  => write!(f, "#"),
+            Self::SyllBound  => write!(f, "$"),
+            Self::Ellipsis   => write!(f, "…"),
+            Self::WEllipsis  => write!(f, "(…)"),
+            Self::Metathesis => write!(f, "&"),
 
-            ParseElement::Ipa(s, m) => write!(f, "{s:?} + {m:?}"),
+            Self::Ipa(s, m) => write!(f, "{s:?} + {m:?}"),
 
-            ParseElement::Matrix(tokens, var) => {
+            Self::Matrix(tokens, var) => {
                 write!(f, "{tokens:#?}={var:#?}")
             },
-            ParseElement::Syllable(str, tone, var) => {
+            Self::Syllable(str, tone, var) => {
                 write!(f, "SYLL=>{str:?}:{tone:#?}={var:#?}")
             },
-            ParseElement::Structure(segs, str, tone, var) => {
+            Self::Structure(segs, str, tone, var) => {
                 write!(f, "STRUCT=>{str:?}:{tone:#?}={var:#?} <")?;
                 for i in segs {
                     write!(f, "{i}")?;
@@ -104,7 +107,7 @@ impl fmt::Display for ParseElement {
                 }
                 write!(f, ">")
             }
-            ParseElement::Set(s) => {
+            Self::Set(s) => {
                 write!(f, "{{")?;
                 for i in s {
                     write!(f, "{i}")?;
@@ -112,7 +115,7 @@ impl fmt::Display for ParseElement {
                 }
                 write!(f, "}}")
             },
-            ParseElement::Optional(s, min, max) => {
+            Self::Optional(s, min, max) => {
                 write!(f, "(")?;
                 for i in s {
                     write!(f, "{i}")?;
@@ -120,7 +123,7 @@ impl fmt::Display for ParseElement {
                 }
                 write!(f, " {min}:{max})")
             },
-            ParseElement::Environment(envs) => {
+            Self::Environment(envs) => {
                 for env in envs {
                     let xb = env.before.iter()
                     .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
@@ -248,7 +251,7 @@ impl Parser {
     }
 
     fn get_env_elements(&mut self, is_after: bool) -> Result<Vec<ParseItem>, RuleSyntaxError> {
-        // returns (('WBOUND')? ( SBOUND / ELLIPSS / OPT / TERM )+) / (( SBOUND / ELLIPSS / OPT / TERM )+ ('WBOUND')?)
+        // returns (('WBOUND')? ( SBOUND / W_ELLIP / ELLIPSS / OPT / TERM )+) / (( SBOUND / W_ELLIP / ELLIPSS / OPT / TERM )+ ('WBOUND')?)
         let mut els = Vec::new();
         let mut contains_word_bound = false;
         let mut word_bound_pos = Position::new(0, 0, 0, 0);
@@ -265,6 +268,10 @@ impl Parser {
             }
             if let Some(x) = self.get_syll_bound() {
                 els.push(x);
+                continue;
+            }
+            if let Some(el) = self.eat_expect(TokenKind::WrappedEllipsis) {
+                els.push(ParseItem::new(ParseElement::WEllipsis, el.position));
                 continue;
             }
             if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
@@ -289,7 +296,7 @@ impl Parser {
                 return Err(RuleSyntaxError::StuffAfterWordBound(word_bound_pos))
             }
         }
-        
+
         Ok(els)
     }
 
@@ -824,15 +831,22 @@ impl Parser {
 
         while self.has_more_tokens() {
             if self.eat_expect(TokenKind::RightAngle).is_some() { break; }
+            // ħ æ ð C V []
             if let Some(x) = self.get_seg()? { 
                 terms.push(x);
                 continue;
             }
+            // (...)
+            if let Some(el) = self.eat_expect(TokenKind::WrappedEllipsis) {
+                terms.push(ParseItem::new(ParseElement::WEllipsis, el.position));
+                continue;
+            }
+            // ...
             if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
                 terms.push(ParseItem::new(ParseElement::Ellipsis, el.position));
                 continue;
             }
-
+            // 1 2 3
             if let Some(x) = self.get_var()? {
                 terms.push(x);
                 continue;
@@ -866,7 +880,7 @@ impl Parser {
             let num = number.value.parse::<usize>().unwrap();
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
         }
-
+        
         Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
     }
 
@@ -886,7 +900,9 @@ impl Parser {
         // returns INP_EL+
         let mut els = Vec::new();
         loop {
-            if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
+            if let Some(w_el) = self.eat_expect(TokenKind::WrappedEllipsis) {
+                els.push(ParseItem::new(ParseElement::WEllipsis, w_el.position))
+            } else if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
                 els.push(ParseItem::new(ParseElement::Ellipsis, el.position));
             } else if let Some(s_bound) = self.get_syll_bound() {
                 els.push(s_bound);

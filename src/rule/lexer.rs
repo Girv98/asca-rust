@@ -41,6 +41,7 @@ pub(crate) enum TokenKind {
     Star,             // *
     EmptySet,         // ∅
     Ellipsis,         // ... or .. or … or ⋯
+    WrappedEllipsis,  // (...) or (..) or (…) or (⋯)
     Comment,          // Delimited by ';;'
     Feature(FeatureCategory),
     Eol,              // End of Line 
@@ -59,40 +60,41 @@ impl TokenKind {
 impl Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenKind::LeftSquare    => write!(f, "LSquare"),
-            TokenKind::RightSquare   => write!(f, "RSquare"),
-            TokenKind::LeftCurly     => write!(f, "LCurly"),
-            TokenKind::RightCurly    => write!(f, "RCurly"),
-            TokenKind::LeftAngle     => write!(f, "LAngle"),
-            TokenKind::RightAngle    => write!(f, "RAngle"),
-            TokenKind::LeftBracket   => write!(f, "LBrack"),
-            TokenKind::RightBracket  => write!(f, "RBrack"),
-            TokenKind::LeftColCurly  => write!(f, "LCCurly"),
-            TokenKind::RightColCurly => write!(f, "RCCurly"),
+            TokenKind::LeftSquare      => write!(f, "LSquare"),
+            TokenKind::RightSquare     => write!(f, "RSquare"),
+            TokenKind::LeftCurly       => write!(f, "LCurly"),
+            TokenKind::RightCurly      => write!(f, "RCurly"),
+            TokenKind::LeftAngle       => write!(f, "LAngle"),
+            TokenKind::RightAngle      => write!(f, "RAngle"),
+            TokenKind::LeftBracket     => write!(f, "LBrack"),
+            TokenKind::RightBracket    => write!(f, "RBrack"),
+            TokenKind::LeftColCurly    => write!(f, "LCCurly"),
+            TokenKind::RightColCurly   => write!(f, "RCCurly"),
             // TokenKind::LessThan      => write!(f, "LT"),
-            TokenKind::GreaterThan   => write!(f, "GT"),
-            TokenKind::Equals        => write!(f, "Eq"),
-            TokenKind::Underline     => write!(f, "UL"),
-            TokenKind::Arrow         => write!(f, "Arrow"),
-            TokenKind::Reverse       => write!(f, "Reverse"),
-            TokenKind::Comma         => write!(f, "Comma"),
-            TokenKind::Colon         => write!(f, "Colon"),
-            TokenKind::WordBoundary  => write!(f, "WBound"),
-            TokenKind::SyllBoundary  => write!(f, "SBound"),
-            TokenKind::Syllable      => write!(f, "Syll"),
-            TokenKind::Ampersand     => write!(f, "Amper"),
-            TokenKind::Group         => write!(f, "Prim"),
-            TokenKind::Number        => write!(f, "Num"),
-            TokenKind::Slash         => write!(f, "Slash"),
-            TokenKind::Pipe          => write!(f, "Pipe"),
-            TokenKind::Cardinal      => write!(f, "Cardinal"),
-            TokenKind::Diacritic(i)  => write!(f, "Diacritic({i})"),
-            TokenKind::Star          => write!(f, "Star"),
-            TokenKind::EmptySet      => write!(f, "Empty"),
-            TokenKind::Ellipsis      => write!(f, "Ellipsis"),
-            TokenKind::Comment       => write!(f, "Comment"),
-            TokenKind::Feature(x)    => write!(f, "{x}"),
-            TokenKind::Eol           => write!(f, "End of Line"),
+            TokenKind::GreaterThan     => write!(f, "GT"),
+            TokenKind::Equals          => write!(f, "Eq"),
+            TokenKind::Underline       => write!(f, "UL"),
+            TokenKind::Arrow           => write!(f, "Arrow"),
+            TokenKind::Reverse         => write!(f, "Reverse"),
+            TokenKind::Comma           => write!(f, "Comma"),
+            TokenKind::Colon           => write!(f, "Colon"),
+            TokenKind::WordBoundary    => write!(f, "WBound"),
+            TokenKind::SyllBoundary    => write!(f, "SBound"),
+            TokenKind::Syllable        => write!(f, "Syll"),
+            TokenKind::Ampersand       => write!(f, "Amper"),
+            TokenKind::Group           => write!(f, "Prim"),
+            TokenKind::Number          => write!(f, "Num"),
+            TokenKind::Slash           => write!(f, "Slash"),
+            TokenKind::Pipe            => write!(f, "Pipe"),
+            TokenKind::Cardinal        => write!(f, "Cardinal"),
+            TokenKind::Diacritic(i)    => write!(f, "Diacritic({i})"),
+            TokenKind::Star            => write!(f, "Star"),
+            TokenKind::EmptySet        => write!(f, "Empty"),
+            TokenKind::Ellipsis        => write!(f, "Ellipsis"),
+            TokenKind::WrappedEllipsis => write!(f, "WrappedEllipsis"),
+            TokenKind::Comment         => write!(f, "Comment"),
+            TokenKind::Feature(x)      => write!(f, "{x}"),
+            TokenKind::Eol             => write!(f, "End of Line"),
         }
     }
 }
@@ -680,11 +682,30 @@ impl<'a> Lexer<'a> {
         let mut token_list: Vec<Token> =  Vec::new();
         loop {
             let next_token = self.get_next_token()?;
-            if let TokenKind::Eol = next_token.kind {
-                token_list.push(next_token);
-                break
+
+            match next_token.kind {
+                TokenKind::Eol => {
+                    token_list.push(next_token);
+                    break
+                },
+                // Check if penult and ult tokens are '(' and '...'
+                // If so, remove them and push on a new token '(...)'
+                TokenKind::RightBracket => match (token_list.get(token_list.len().wrapping_sub(2)), token_list.last()) {
+                    (Some(mb), Some(me)) if mb.kind == TokenKind::LeftBracket && me.kind == TokenKind::Ellipsis => {
+                        let tk = Token { 
+                            kind: TokenKind::WrappedEllipsis, 
+                            value: format!("({})", me.value).into(), 
+                            position: Position::new(self.group, self.line, mb.position.start, next_token.position.end)
+                        };
+                        
+                        token_list.pop();
+                        token_list.pop();
+                        token_list.push(tk);
+                    },
+                    _ => token_list.push(next_token)
+                }
+                _ => token_list.push(next_token)
             }
-            token_list.push(next_token);
         }
         Ok(token_list)
     }
@@ -824,7 +845,7 @@ mod lexer_tests {
 
     #[test]
     fn test_metathesis() {
-        
+        // Standard Ellipsis
         let test_input= String::from("t^ɕ...b͡β > &");
         let expected_result = vec![
             Token::new(TokenKind::Cardinal,   "t͡ɕ", 0, 0,  0,  3),
@@ -833,6 +854,25 @@ mod lexer_tests {
             Token::new(TokenKind::GreaterThan, ">", 0, 0, 10, 11),
             Token::new(TokenKind::Ampersand,   "&", 0, 0, 12, 13),
             Token::new(TokenKind::Eol,          "", 0, 0, 13, 14),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+
+        // Wrapped Ellipsis
+        let test_input= String::from("t^ɕ(...)b͡β > &");
+        let expected_result = vec![
+            Token::new(TokenKind::Cardinal,            "t͡ɕ", 0, 0,  0,  3),
+            Token::new(TokenKind::WrappedEllipsis,  "(...)", 0, 0,  3,  8),
+            Token::new(TokenKind::Cardinal,            "b͡β", 0, 0,  8, 11),
+            Token::new(TokenKind::GreaterThan,          ">", 0, 0, 12, 13),
+            Token::new(TokenKind::Ampersand,            "&", 0, 0, 14, 15),
+            Token::new(TokenKind::Eol,                   "", 0, 0, 15, 16),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
