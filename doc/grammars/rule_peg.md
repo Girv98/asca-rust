@@ -23,7 +23,7 @@ ENV_SPC ←   '_' ',' ENV_ELS                                 // e.g. _,# ==> #_
 TERM    ←   SYL / STRUCT / SET / SEG / VAR
 SYL     ←   '%' (':' PARAMS)? VAR_ASN?
 STRUCT  ←   '<' SYL_TRM+ '>' (':' PARAMS)? VAR_ASN?
-SYL_TRM ←   SEG / W_ELLIP / ELLIPSS / VAR
+SYL_TRM ←   SEG / W_ELLIP / ELLIPSS / VAR / SET / OPT       // NOTE: Boundaries and Syllables inside a struct are runtime invalid
 SET     ←   '{' SET_TRM (',' SET_TRM)* '}'                  // NOTE: At the moment, we can't have multi-segment sets i.e. "{nd}" is not allowed 
 SET_TRM ←   SEG / BOUND / SYL                               // NOTE: WBOUND not valid in input/output
 OPT     ←   '(' OPT_TRM+ (',' [0-9]+ (':' [1-9]+)?)? ')'

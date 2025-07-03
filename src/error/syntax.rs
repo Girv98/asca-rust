@@ -101,6 +101,7 @@ pub enum RuleSyntaxError {
     ExpectedNumber    (char, GroupIndex, LineIndex, PosIndex),
     ExpectedTokenFeature(Token),
     ExpectedRightBracket(Token),
+    ExpectedStructElem  (Token),
     TooManyUnderlines   (Token),
     BadSyllableMatrix   (Token),
     ExpectedUnderline   (Token),
@@ -161,6 +162,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::ExpectedNumber    (c, g, l, pos) => write!(f, "Expected a number, but received '{c}' at {g}:{l}:{pos}"),
             Self::ExpectedTokenFeature(token) => write!(f, "{} cannot be placed inside a matrix. An element inside `[]` must a distinctive feature", token.value),
             Self::ExpectedRightBracket(token) => write!(f, "Expected ')', but received '{}'", token.value),
+            Self::ExpectedStructElem  (token) => write!(f, "Expected a Segment, Set, Option, or Ellipsis, but received '{}'", token.value),
             Self::TooManyUnderlines   (_)     => write!(f, "Cannot have multiple underlines in an environment"),
             Self::BadSyllableMatrix   (_)     => write!(f, "A syllable can only have parameters stress and tone"),
             Self::ExpectedUnderline   (token) => write!(f, "Expected '_', but received '{}'", token.value),
@@ -217,6 +219,7 @@ impl RuleSyntaxError {
             Self::OptMathError        (t, ..) | 
             Self::ExpectedTokenFeature(t) | 
             Self::ExpectedRightBracket(t) |
+            Self::ExpectedStructElem  (t) | 
             Self::TooManyUnderlines   (t) | 
             Self::ExpectedUnderline   (t) | 
             Self::ExpectedVariable    (t) | 

@@ -22,19 +22,26 @@ pub enum RuleRuntimeError {
     NodeCannotBeSet (String, Position),
     WordBoundSetLocError(Position),
     SubstitutionEllipsis(Position),
+    BoundaryInsideStruct(Position),
+    SyllbleInsideStruct (Position),
     SyllVarInsideStruct (Position),
     InsertionGroupedEnv (Position),
+    StructInsideStruct  (Position),
     AlphaNodeAssignInv  (Position),
     OverlongPosLongNeg  (Position),
     AlphaIsNotSameNode  (Position),
     SubstitutionMatrix  (Position),
     InsertionEllipsis   (Position),
     SubstitutionSyll    (Position),
+    SubstitutionSet     (Position),
+    SubstitutionOpt     (Position),
     SecStrPosStrNeg     (Position),
     AlphaUnknownInv     (Position),
     InsertionMatrix     (Position),
     AlphaIsNotNode      (Position),
     InsertionNoEnv      (Position),
+    InsertionSet        (Position),
+    InsertionOpt        (Position),
     AlphaUnknown        (Position),
     LonelySet           (Position),
     UnknownVariable(Token),
@@ -65,7 +72,10 @@ impl fmt::Display for RuleRuntimeError {
             Self::NodeCannotBeSet (node, _) => write!(f, "{node} node cannot be assigned using PLACE alpha"),
             Self::WordBoundSetLocError(_) => write!(f, "Word Boundaries cannot be in the input or output"),
             Self::SubstitutionEllipsis(_) => write!(f, "An ellipsis cannot be substituted"),
-            Self::SyllVarInsideStruct (_) => write!(f, "Variables assigned to syllables cannot be used inside a structure"),
+            Self::BoundaryInsideStruct(_) => write!(f, "A boundary cannot be used inside a structure"),
+            Self::SyllbleInsideStruct (_) => write!(f, "A syllable cannot be used inside a structure"),
+            Self::SyllVarInsideStruct (_) => write!(f, "A variable assigned to a syllable cannot be used inside a structure"),
+            Self::StructInsideStruct  (_) => write!(f, "A structure cannot be used inside a structure"),
             Self::InsertionGroupedEnv (_) => write!(f, "Grouped Environments cannot (yet) be used in insertion rules"),
             Self::AlphaNodeAssignInv  (_) => write!(f, "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive."),
             Self::OverlongPosLongNeg  (_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
@@ -73,11 +83,15 @@ impl fmt::Display for RuleRuntimeError {
             Self::SubstitutionMatrix  (_) => write!(f, "A matrix cannot be used inside a structure when substituting"),
             Self::InsertionEllipsis   (_) => write!(f, "An ellipsis cannot be inserted"),
             Self::SubstitutionSyll    (_) => write!(f, "Blank syllables cannot be used in substitution output."),
+            Self::SubstitutionSet     (_) => write!(f, "Sets cannot be used in structures the in output"),
+            Self::SubstitutionOpt     (_) => write!(f, "Options cannot be used in structures the in output"),
             Self::SecStrPosStrNeg     (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),
             Self::AlphaUnknownInv     (_) => write!(f, "First occurence of a node alpha must not be inverted."),
             Self::InsertionMatrix     (_) => write!(f, "An incomplete matrix cannot be inserted"),
             Self::AlphaIsNotNode      (_) => write!(f, "Node alphas cannot be used on binary features"),
             Self::InsertionNoEnv      (_) => write!(f, "Insertion rules must have a context"),
+            Self::InsertionSet        (_) => write!(f, "Sets cannot be used in insertion output"),
+            Self::InsertionOpt        (_) => write!(f, "Options cannot be used in insertion output"),
             Self::AlphaUnknown        (_) => write!(f, "Alpha has not be assigned before applying"),
             Self::LonelySet           (_) => write!(f, "A Set in output must have a matching Set in input"),
             Self::UnknownVariable(token)  => write!(f, "Unknown variable '{}' at {}", token.value, token.position.start),
@@ -106,7 +120,10 @@ impl RuleRuntimeError {
             ),
             Self::WordBoundSetLocError(pos) |
             Self::SubstitutionEllipsis(pos) |
+            Self::BoundaryInsideStruct(pos) |
             Self::SyllVarInsideStruct (pos) |
+            Self::SyllbleInsideStruct (pos) |
+            Self::StructInsideStruct  (pos) |
             Self::InsertionGroupedEnv (pos) |
             Self::AlphaNodeAssignInv  (pos) |
             Self::OverlongPosLongNeg  (pos) |
@@ -114,10 +131,14 @@ impl RuleRuntimeError {
             Self::SubstitutionMatrix  (pos) |
             Self::InsertionEllipsis   (pos) |
             Self::SubstitutionSyll    (pos) |
+            Self::SubstitutionSet     (pos) |
+            Self::SubstitutionOpt     (pos) |
             Self::SecStrPosStrNeg     (pos) |
             Self::AlphaUnknownInv     (pos) |
             Self::InsertionMatrix     (pos) |
             Self::AlphaIsNotNode      (pos) |
+            Self::InsertionSet        (pos) |
+            Self::InsertionOpt        (pos) |
             Self::AlphaUnknown        (pos) |
             Self::LonelySet           (pos) | 
             Self::NodeCannotBeSome (_, pos) |

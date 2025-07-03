@@ -851,8 +851,18 @@ impl Parser {
                 terms.push(x);
                 continue;
             }
+            // {_,_,_}
+            if let Some(x) = self.get_set()? {
+                terms.push(x);
+                continue;
+            }
+            // (_,_:_)
+            if let Some(x) = self.get_opt()? {
+                terms.push(x);
+                continue;
+            }
 
-            return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
+            return Err(RuleSyntaxError::ExpectedStructElem(self.curr_tkn.clone()))
         }
 
         if !self.expect(TokenKind::Colon) {

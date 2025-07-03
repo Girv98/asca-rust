@@ -171,7 +171,7 @@ impl SubRule {
         };
         let mut si = 0;
         while si < states.len() {
-            if !self.context_match(states, &mut si, word_rev, &mut start_pos, false, ins_match_before)? {
+            if !self.context_match(states, &mut si, word_rev, &mut start_pos, false, ins_match_before, false)? {
                 is_match = false;
                 if is_context { break; }
             }
@@ -193,7 +193,7 @@ impl SubRule {
         };
         let mut si = 0;
         while si < states.len() {
-            if !self.context_match(states, &mut si, word, &mut start_pos, true, ins_match_before)? {
+            if !self.context_match(states, &mut si, word, &mut start_pos, true, ins_match_before, false)? {
                 is_match = false;
                 if is_context { break; }
             }
@@ -235,9 +235,14 @@ impl SubRule {
         Ok(!is_expt_match && is_cont_match)
     }
 
-    fn context_match(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, ins_match_before: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, ins_match_before: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         let state = &states[*state_index];
         match &state.kind {
+            ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
+            ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
+            ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(state.position)),
+            ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(state.position)),
+
             ParseElement::WordBound => Ok(word.out_of_bounds(*pos)),
             ParseElement::SyllBound => if ins_match_before {
                 Ok(!pos.at_word_start() && pos.at_syll_start())
@@ -259,9 +264,9 @@ impl SubRule {
             } else {
                 self.context_match_structure(segs, stress, tone, var, word, pos, forwards)
             },
-            ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, state.position),
-            ParseElement::Set(s) => self.context_match_set(s, word, pos, forwards),
-            ParseElement::Optional(opt_states, min, max) => self.context_match_option(states, state_index, word, pos, forwards, opt_states, *min, *max),
+            ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, state.position, within_struct),
+            ParseElement::Set(s) => self.context_match_set(s, word, pos, forwards, within_struct),
+            ParseElement::Optional(opt_states, min, max) => self.context_match_option(states, state_index, word, pos, forwards, opt_states, *min, *max, within_struct),
             ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, true),
             ParseElement::WEllipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, false),
             
@@ -292,6 +297,9 @@ impl SubRule {
         let mut items = items.to_vec().clone();
         if !forwards {
             items.reverse();
+            for i in &mut items {
+                i.reverse();
+            }
         }
 
         let cur_syll_index = pos.syll_index;
@@ -306,7 +314,7 @@ impl SubRule {
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                     break;
-                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, true)? {
+                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, forwards, true)? {
                     break;
                 } else { return Ok(false) }, 
                 ParseElement::WEllipsis => if i == items.len() - 1 {
@@ -314,7 +322,7 @@ impl SubRule {
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                     break;
-                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, false)? {
+                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, forwards,false)? {
                     break;
                 } else { 
                     return Ok(false) },
@@ -324,7 +332,23 @@ impl SubRule {
                 ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, word, pos, item.position)? {
                     return Ok(false) 
                 },
-                ParseElement::Variable(..) => unimplemented!(),
+                // NOTE: since syllables are invalid, passing `forwards` won't matter
+                ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, word, pos, forwards, item.position, true)? {
+                   return Ok(false) 
+                },
+                ParseElement::Set(set) => if !self.context_match_set(set, word, pos, forwards, true)? {
+                    return Ok(false) 
+                },
+                ParseElement::Optional(states, min, max) => if self.context_match_option(&items, &mut i, word, pos, forwards, states, *min, *max, true)? {
+                    // This works i guess
+                    if pos.syll_index == cur_syll_index {
+                        pos.syll_index += 1;
+                        pos.seg_index = 0;
+                    }
+                    debug_assert!(pos.syll_index == cur_syll_index+1);
+                    debug_assert!(pos.seg_index == 0);
+                    break;
+                } else { return Ok(false) },
                 _ => unreachable!()
             }
         }
@@ -344,7 +368,7 @@ impl SubRule {
         Ok(true)
     }
 
-    fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize, inc: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
         if *index >= items.len() {
             return Ok(true)
         }
@@ -370,7 +394,7 @@ impl SubRule {
                         pos.syll_index = syll_index + 1;
                         pos.seg_index = 0;
                         return Ok(true)
-                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, true)? {
+                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, forwards, true)? {
                         pos.syll_index = syll_index + 1;
                         pos.seg_index = 0;
                         return Ok(true)
@@ -380,7 +404,7 @@ impl SubRule {
                         pos.syll_index = syll_index + 1;
                         pos.seg_index = 0;
                         return Ok(true)
-                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, false)? {
+                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, forwards, false)? {
                         pos.syll_index = syll_index + 1;
                         pos.seg_index = 0;
                         return Ok(true)
@@ -391,7 +415,21 @@ impl SubRule {
                     ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, word, pos, items[*index].position)? {
                         m = false; break;
                     },
-                    ParseElement::Variable(..) => unimplemented!(),
+                    // since syllables are invalid, passing `forwards` won't matter
+                    ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, word, pos, forwards, items[*index].position, true)? {
+                        m = false; break;
+                    },
+                    ParseElement::Set(set) => if !self.context_match_set(set, word, pos, forwards, true)? {
+                        m = false; break;
+                    },
+                    ParseElement::Optional(states, min, max) => if self.context_match_option(items, index, word, pos, forwards, states, *min, *max, true)? {
+                        // This works i guess
+                        if pos.syll_index == syll_index {
+                            pos.syll_index += 1;
+                            pos.seg_index = 0;
+                        }  
+                        return Ok(true)
+                    } else {m = false; break; },
                     _ => unreachable!()
                 }
                 *index += 1;
@@ -425,7 +463,7 @@ impl SubRule {
 
             let mut m = true;
             while *state_index < states.len() {
-                if !self.context_match(states, state_index, word, pos, forwards, false)? {
+                if !self.context_match(states, state_index, word, pos, forwards, false, false)? {
                     m = false;
                     break;
                 }
@@ -444,10 +482,10 @@ impl SubRule {
         Ok(false)
     }
 
-    fn match_opt_states(&self, opt_states: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_opt_states(&self, opt_states: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         let mut si = 0;
         while si < opt_states.len() {
-            if !self.context_match(opt_states, &mut si, word, pos, forwards, false)? {
+            if !self.context_match(opt_states, &mut si, word, pos, forwards, false, within_struct)? {
                 return Ok(false)
             }
             si += 1;
@@ -455,16 +493,20 @@ impl SubRule {
         Ok(true)
     }
 
-    fn context_match_option(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, opt_states: &[ParseItem], match_min: usize, match_max: usize) -> Result<bool, RuleRuntimeError> {
+    // This is an absolute mess
+    fn context_match_option(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, opt_states: &[ParseItem], match_min: usize, match_max: usize, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         // should work like regex (...){min, max}? 
         let match_max = if match_max == 0 { None } else { Some(match_max) };
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_varlbs = self.variables.borrow().clone();
-        
+
+        let start_syll = pos.syll_index;
+
+        // match states min times i.e. (nd, 2:5) matches ndnd minimum
         let mut index = 0;
         while index < match_min {
-            if !self.match_opt_states(opt_states, word, pos, forwards)? {
+            if !self.match_opt_states(opt_states, word, pos, forwards, within_struct)? {
                 *pos = back_pos;
                 *self.alphas.borrow_mut() = back_alphas;
                 *self.variables.borrow_mut() = back_varlbs;
@@ -473,43 +515,69 @@ impl SubRule {
             index += 1;
         }
 
-        *state_index +=1;
+        // after matching min times, check the surrounding states
+        *state_index += 1;
         let back_state = *state_index;
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_varlbs = self.variables.borrow().clone();
 
-        let mut m = true;
-        while *state_index < states.len() {
-            if !self.context_match(states, state_index, word, pos, forwards, false)? {
-                m = false;
-                break;
+        if *state_index >= states.len() && within_struct {
+            if pos.at_syll_end(word) {
+                pos.increment(word);
+                return Ok(true)
+            } else if pos.at_syll_start() {
+                return Ok(true)
             }
-            *state_index += 1;
-        }
-        if m {
-            return Ok(true)
+        } else {
+            let mut m = true;
+            while *state_index < states.len() {
+                if !self.context_match(states, state_index, word, pos, forwards, false, within_struct)? {
+                    m = false;
+                    break;
+                }
+                *state_index += 1;
+            }
+            if m {
+                return Ok(true)
+            } else {
+                *self.alphas.borrow_mut() = back_alphas.clone();
+                *self.variables.borrow_mut() = back_varlbs.clone();
+            }
         }
 
+        // If no match at this point, try matching max times
         *pos = back_pos;
         *state_index = back_state;
         *self.alphas.borrow_mut() = back_alphas.clone();
         *self.variables.borrow_mut() = back_varlbs.clone();
-        
         let max = match_max.unwrap_or(usize::MAX);
         while index < max {
             *state_index = back_state;
-            if self.match_opt_states(opt_states, word, pos, forwards)? {
+            if self.match_opt_states(opt_states, word, pos, forwards, within_struct)? {
                 let mut m = true;
                 while *state_index < states.len() {
-                    if !self.context_match(states, state_index, word, pos, forwards, false)? {
+                    if !self.context_match(states, state_index, word, pos, forwards, false, within_struct)? {
                         m = false;
                         break;
                     }
                     *state_index += 1;
                 }
-                if m {
+                if !within_struct && m {                    
                     return Ok(true)
+                } else if m {
+                    if pos.at_syll_end(word) || pos.at_syll_start() && pos.syll_index == start_syll + 1 {
+                        return Ok(true)
+                    } else if *state_index >= states.len() && index < max {
+                            index += 1;
+                            *self.alphas.borrow_mut() = back_alphas.clone();
+                            *self.variables.borrow_mut() = back_varlbs.clone();
+                            continue;
+                    } else {
+                        *self.alphas.borrow_mut() = back_alphas.clone();
+                        *self.variables.borrow_mut() = back_varlbs.clone();
+                        return Ok(false)
+                    }
                 } else {
                     index += 1;
                     *self.alphas.borrow_mut() = back_alphas.clone();
@@ -517,20 +585,33 @@ impl SubRule {
                     continue;
                 }
             } else {
+                *self.alphas.borrow_mut() = back_alphas.clone();
+                *self.variables.borrow_mut() = back_varlbs.clone();
                 return Ok(false)
             }
         }
+
+        *self.alphas.borrow_mut() = back_alphas.clone();
+        *self.variables.borrow_mut() = back_varlbs.clone();
         Ok(false)
     }
 
-    fn context_match_set(&self, set: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_set(&self, set: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         let back_pos= *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_varlbs = self.variables.borrow().clone();
         
         for s in set {
             let res = match &s.kind {
-                ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, s.position),
+                ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
+                ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
+                // Since the lexer doesn't allow nesting, this will never happen. But, it's nice to have.
+                ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(s.position)),
+                ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(s.position)),
+
+                ParseElement::Structure(..) => unimplemented!(),
+
+                ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, s.position, within_struct),
                 ParseElement::Ipa(seg, mods) => if self.context_match_ipa(seg, mods, word, *pos, s.position)? {
                     pos.increment(word);
                     Ok(true)
@@ -552,13 +633,14 @@ impl SubRule {
         Ok(false)
     }
 
-    fn context_match_var(&self, vt: &Token, mods: &Option<Modifiers>, word: &Word, pos: &mut SegPos, forwards: bool, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+    fn context_match_var(&self, vt: &Token, mods: &Option<Modifiers>, word: &Word, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         if let Some(var) = self.variables.borrow_mut().get(&vt.value.parse::<usize>().unwrap()) {
             match var {
                 VarKind::Segment(s) => if self.context_match_ipa(s, mods, word, *pos, err_pos)? {
                     pos.increment(word);
                     Ok(true)
                 } else { Ok(false) },
+                VarKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllVarInsideStruct(vt.position)),
                 VarKind::Syllable(s) => self.context_match_syll_var(s, mods, word, pos, forwards),
             }            
         } else {
@@ -921,7 +1003,7 @@ impl SubRule {
                     let mut state_index = 0;
                     start_pos = ins_pos;
                     while state_index < aft_states.len() {
-                        if !self.context_match(aft_states, &mut state_index, word, &mut pos, true, false)? {
+                        if !self.context_match(aft_states, &mut state_index, word, &mut pos, true, false, false)? {
                             match bef_states.last().unwrap().kind {
                                 ParseElement::WordBound => return Ok(None),
                                 ParseElement::SyllBound => start_pos.increment(word),
@@ -964,7 +1046,7 @@ impl SubRule {
         }
 
         while word.in_bounds(cur_pos) {
-            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, false)? {
+            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, false, false)? {
                 if state_index >= states.len() - 1 {
                     return Ok(Some(cur_pos))
                 }
@@ -1008,7 +1090,7 @@ impl SubRule {
 
         while word.in_bounds(cur_pos) {
             let before_pos = cur_pos;
-            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, true)? {
+            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, true, false)? {
                 if match_begin.is_none() {
                     let mut sp = before_pos;
                     if let ParseElement::Syllable(..) | ParseElement::SyllBound = states.first().unwrap().kind {
@@ -1268,7 +1350,9 @@ impl SubRule {
         for item in items {
             match &item.kind {
                 ParseElement::Ellipsis | ParseElement::WEllipsis => return Err(if is_inserting {RuleRuntimeError::InsertionEllipsis(item.position)} else {RuleRuntimeError::SubstitutionEllipsis(item.position)}),
-                ParseElement::Matrix(..) => return Err(if is_inserting {RuleRuntimeError::InsertionMatrix(item.position)}   else {RuleRuntimeError::SubstitutionMatrix(item.position)}),
+                ParseElement::Matrix(..) => return Err(if is_inserting {RuleRuntimeError::InsertionMatrix(item.position)} else {RuleRuntimeError::SubstitutionMatrix(item.position)}),
+                ParseElement::Optional(..) => return Err(if is_inserting {RuleRuntimeError::InsertionOpt(item.position)} else {RuleRuntimeError::SubstitutionOpt(item.position)}),
+                ParseElement::Set(_) => return Err(if is_inserting {RuleRuntimeError::InsertionSet(item.position)} else {RuleRuntimeError::SubstitutionSet(item.position)}),
                 &ParseElement::Ipa(mut segment, ref modifiers) => {
                     let mut len = 1;
                     if let Some(mods) = modifiers {
@@ -1319,7 +1403,6 @@ impl SubRule {
                         }
                     }
                 },
-                // ParseElement::Optional(vec, _, _) => unimplemented!(),
                 _ => unreachable!()
             }
         }
@@ -2142,14 +2225,14 @@ impl SubRule {
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                     break;
-                } else if self.context_match_ellipsis_struct(items, &mut i, word, pos, cur_syll_index, true)? {
+                } else if self.context_match_ellipsis_struct(items, &mut i, word, pos, cur_syll_index, true, true)? {
                     break;
                 } else { return Ok(false) },
                 ParseElement::WEllipsis => if i == items.len() - 1 {
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                     break;
-                } else if self.context_match_ellipsis_struct(items, &mut i, word, pos, cur_syll_index, false)? {
+                } else if self.context_match_ellipsis_struct(items, &mut i, word, pos, cur_syll_index, true, false)? {
                     break;
                 } else { return Ok(false) },
                 ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, item.position)? {
@@ -2167,12 +2250,21 @@ impl SubRule {
                     },
                     None => return Err(RuleRuntimeError::UnknownVariable(num.clone())),
                 }
-                ParseElement::Optional(..) => unimplemented!(),
-                _ => unreachable!()
+                ParseElement::Optional(states, min, max) => if self.context_match_option(items, &mut i, word, pos, true, states, *min, *max, true)? {
+                    // This works i guess
+                    if pos.syll_index == cur_syll_index {
+                        pos.syll_index += 1;
+                        pos.seg_index = 0;
+                    }                    
+                    break;
+                } else { return Ok(false) },
+                ParseElement::Set(set) => if !self.context_match_set(set, word, pos, true, true)? {
+                    return Ok(false) 
+                },
+                ParseElement::EmptySet | ParseElement::WordBound | ParseElement::SyllBound | ParseElement::Metathesis | 
+                ParseElement::Syllable(..) | ParseElement::Structure(..) | ParseElement::Environment(..) => unreachable!(),
             }
-
         }
-
         if pos.seg_index != 0 { return Ok(false) }
 
         if let Some(v) = var {
