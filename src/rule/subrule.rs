@@ -160,579 +160,6 @@ impl SubRule {
         Ok(word)
     }
 
-    fn match_before_env(&self, states: &[ParseItem], word_rev: &Word, pos: &SegPos, ins_match_before: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
-        // NOTE: assumes parent has done reversals
-        let mut start_pos = *pos;
-        start_pos.increment(word_rev);
-        let mut is_match = if is_context {
-            true
-        } else {
-            !states.is_empty()
-        };
-        let mut si = 0;
-        while si < states.len() {
-            if !self.context_match(states, &mut si, word_rev, &mut start_pos, false, ins_match_before, false)? {
-                is_match = false;
-                if is_context { break; }
-            }
-            si += 1;
-        }
-
-        Ok(is_match)
-    }
-
-    fn match_after_env(&self, states: &[ParseItem], word: &Word, pos: &SegPos, ins_match_before: bool, inc: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
-        let mut start_pos = *pos;
-        if inc {
-            start_pos.increment(word);
-        }
-        let mut is_match = if is_context {
-            true
-        } else {
-            !states.is_empty()
-        };
-        let mut si = 0;
-        while si < states.len() {
-            if !self.context_match(states, &mut si, word, &mut start_pos, true, ins_match_before, false)? {
-                is_match = false;
-                if is_context { break; }
-            }
-            si += 1;
-        }
-
-        Ok(is_match)
-    }
-
-    fn match_contexts_and_exceptions(&self, word: &Word, start_pos: SegPos, end_pos: SegPos, inc: bool) -> Result<bool, RuleRuntimeError> {
-        let contexts = self.get_contexts();
-        let exceptions = self.get_exceptions();
-        if contexts.is_empty() && exceptions.is_empty() {
-            return Ok(true)
-        }
-
-        let word_rev = word.reverse();
-        let mut is_cont_match = contexts.is_empty();
-        let mut is_expt_match = false;
-
-        for (bef_cont_states, aft_cont_states) in contexts {
-            let mut bef_cont_states = bef_cont_states.clone();
-            bef_cont_states.reverse();
-            if (bef_cont_states.is_empty() || self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)?) 
-            && (aft_cont_states.is_empty() || self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?) {
-                is_cont_match = true;
-                break;
-            }
-        }
-        for (bef_expt_states, aft_expt_states) in exceptions {
-            let mut bef_expt_states = bef_expt_states.clone();
-            bef_expt_states.reverse();
-            if (bef_expt_states.is_empty() || self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?) 
-            && (aft_expt_states.is_empty() || self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?) {
-                is_expt_match = true;
-                break;
-            }
-        }
-        Ok(!is_expt_match && is_cont_match)
-    }
-
-    fn context_match(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, ins_match_before: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        let state = &states[*state_index];
-        match &state.kind {
-            ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
-            ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
-            ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(state.position)),
-            ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(state.position)),
-
-            ParseElement::WordBound => Ok(word.out_of_bounds(*pos)),
-            ParseElement::SyllBound => if ins_match_before {
-                Ok(!pos.at_word_start() && pos.at_syll_start())
-            } else {
-                Ok(pos.at_syll_start())
-            },
-            ParseElement::Ipa(s, m) => if self.context_match_ipa(s, m, word, *pos, state.position)? {
-                pos.increment(word); 
-                Ok(true)
-            } else { Ok(false) },
-            ParseElement::Matrix(m, v) => self.context_match_matrix(m, v, word, pos, state.position),
-            ParseElement::Syllable(s, t, v) => if ins_match_before {
-                Ok(!pos.at_word_start() && self.context_match_syll(s, t, v, word, pos, forwards)?)
-            } else {
-                self.context_match_syll(s, t, v, word, pos, forwards)
-            },
-            ParseElement::Structure(segs, stress, tone, var) => if ins_match_before {
-                Ok(!pos.at_word_start() && self.context_match_structure(segs, stress, tone, var, word, pos, forwards)?)
-            } else {
-                self.context_match_structure(segs, stress, tone, var, word, pos, forwards)
-            },
-            ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, state.position, within_struct),
-            ParseElement::Set(s) => self.context_match_set(s, word, pos, forwards, within_struct),
-            ParseElement::Optional(opt_states, min, max) => self.context_match_option(states, state_index, word, pos, forwards, opt_states, *min, *max, within_struct),
-            ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, true),
-            ParseElement::WEllipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, false),
-            
-            ParseElement::EmptySet | ParseElement::Metathesis |
-            ParseElement::Environment(_) => unreachable!(),
-        }
-    }
-
-    fn context_match_structure(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
-        if items.is_empty() {
-            return self.context_match_syll(stress, tone, var, word, pos, forwards)
-        }
-        if !pos.at_syll_start() {
-            return Ok(false)
-        }
-        let cur_syll = if word.in_bounds(*pos){ 
-            &word.syllables[pos.syll_index] 
-        } else { return Ok(false) };
-        if !self.match_stress(stress, cur_syll)? {
-            return Ok(false)
-        }
-        if let Some(t) = tone.as_ref() {
-            if !self.match_tone(t, cur_syll) {
-                return Ok(false)
-            }
-        }
-
-        let mut items = items.to_vec().clone();
-        if !forwards {
-            items.reverse();
-            for i in &mut items {
-                i.reverse();
-            }
-        }
-
-        let cur_syll_index = pos.syll_index;
-
-        for (mut i, item) in items.iter().enumerate() {
-            if pos.syll_index != cur_syll_index && item.kind != ParseElement::WEllipsis {
-                return Ok(false)
-            }
-            match &item.kind {
-                ParseElement::Ellipsis => if i == items.len() - 1 {
-                    // if last item, jump to end of syll and break loop
-                    pos.syll_index += 1;
-                    pos.seg_index = 0;
-                    break;
-                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, forwards, true)? {
-                    break;
-                } else { return Ok(false) }, 
-                ParseElement::WEllipsis => if i == items.len() - 1 {
-                    // if last item, jump to end of syll and break loop
-                    pos.syll_index += 1;
-                    pos.seg_index = 0;
-                    break;
-                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, forwards,false)? {
-                    break;
-                } else { 
-                    return Ok(false) },
-                ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, item.position)? {
-                    pos.increment(word);
-                } else { return Ok(false) },
-                ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, word, pos, item.position)? {
-                    return Ok(false) 
-                },
-                // NOTE: since syllables are invalid, passing `forwards` won't matter
-                ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, word, pos, forwards, item.position, true)? {
-                   return Ok(false) 
-                },
-                ParseElement::Set(set) => if !self.context_match_set(set, word, pos, forwards, true)? {
-                    return Ok(false) 
-                },
-                ParseElement::Optional(states, min, max) => if self.context_match_option(&items, &mut i, word, pos, forwards, states, *min, *max, true)? {
-                    // This works i guess
-                    if pos.syll_index == cur_syll_index {
-                        pos.syll_index += 1;
-                        pos.seg_index = 0;
-                    }
-                    debug_assert!(pos.syll_index == cur_syll_index+1);
-                    debug_assert!(pos.seg_index == 0);
-                    break;
-                } else { return Ok(false) },
-                _ => unreachable!()
-            }
-        }
-
-        if pos.seg_index != 0 { return Ok(false) }
-
-        if let Some(v) = var {
-            if forwards {
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(word.syllables[cur_syll_index].clone()));
-            } else {
-                let mut syll = word.syllables[cur_syll_index].clone();
-                syll.segments.make_contiguous().reverse();
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll));
-            }
-        }
-
-        Ok(true)
-    }
-
-    fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
-        if *index >= items.len() {
-            return Ok(true)
-        }
-        
-        *index += 1;
-        if inc { pos.increment(word) }
-
-        while pos.syll_index == syll_index {
-            let back_pos = *pos;
-            let back_index = *index;
-            let back_alphas = self.alphas.borrow().clone();
-            let back_varlbs = self.variables.borrow().clone();
-            
-            let mut m = true;
-            while *index < items.len() {
-                if pos.syll_index != syll_index && items[*index].kind != ParseElement::WEllipsis {
-                    m = false;
-                    break;
-                }
-                match &items[*index].kind {
-                    ParseElement::Ellipsis => if *index == items.len() - 1 {
-                        // if last item, jump to end of syll and break loop
-                        pos.syll_index = syll_index + 1;
-                        pos.seg_index = 0;
-                        return Ok(true)
-                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, forwards, true)? {
-                        pos.syll_index = syll_index + 1;
-                        pos.seg_index = 0;
-                        return Ok(true)
-                    } else { m = false; break; }, 
-                    ParseElement::WEllipsis => if *index == items.len() - 1 {
-                        // if last item, jump to end of syll and break loop
-                        pos.syll_index = syll_index + 1;
-                        pos.seg_index = 0;
-                        return Ok(true)
-                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, forwards, false)? {
-                        pos.syll_index = syll_index + 1;
-                        pos.seg_index = 0;
-                        return Ok(true)
-                    } else { m = false; break; }, 
-                    ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, items[*index].position)? {
-                        pos.increment(word);
-                    } else { m = false; break; },
-                    ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, word, pos, items[*index].position)? {
-                        m = false; break;
-                    },
-                    // since syllables are invalid, passing `forwards` won't matter
-                    ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, word, pos, forwards, items[*index].position, true)? {
-                        m = false; break;
-                    },
-                    ParseElement::Set(set) => if !self.context_match_set(set, word, pos, forwards, true)? {
-                        m = false; break;
-                    },
-                    ParseElement::Optional(states, min, max) => if self.context_match_option(items, index, word, pos, forwards, states, *min, *max, true)? {
-                        // This works i guess
-                        if pos.syll_index == syll_index {
-                            pos.syll_index += 1;
-                            pos.seg_index = 0;
-                        }  
-                        return Ok(true)
-                    } else {m = false; break; },
-                    _ => unreachable!()
-                }
-                *index += 1;
-            }
-            if m {
-                return Ok(true)
-            }
-            *index = back_index;
-            *pos = back_pos;
-            *self.alphas.borrow_mut() = back_alphas;
-            *self.variables.borrow_mut() = back_varlbs;
-            pos.increment(word);
-        }
-
-        Ok(false)
-    }
-
-    fn context_match_ellipsis(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
-        if *state_index >= states.len() {
-            return Ok(true)
-        }
-
-        *state_index += 1;
-        if inc { pos.increment(word) }
-
-        while word.in_bounds(*pos) {
-            let back_pos = *pos;
-            let back_state = *state_index;
-            let back_alphas = self.alphas.borrow().clone();
-            let back_varlbs = self.variables.borrow().clone();
-
-            let mut m = true;
-            while *state_index < states.len() {
-                if !self.context_match(states, state_index, word, pos, forwards, false, false)? {
-                    m = false;
-                    break;
-                }
-                *state_index += 1;
-            }
-            if m {
-                return Ok(true)
-            }
-            *state_index = back_state;
-            *pos = back_pos;
-            *self.alphas.borrow_mut() = back_alphas;
-            *self.variables.borrow_mut() = back_varlbs;
-            pos.increment(word);
-        }
-        
-        Ok(false)
-    }
-
-    fn match_opt_states(&self, opt_states: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        let mut si = 0;
-        while si < opt_states.len() {
-            if !self.context_match(opt_states, &mut si, word, pos, forwards, false, within_struct)? {
-                return Ok(false)
-            }
-            si += 1;
-        }
-        Ok(true)
-    }
-
-    // This is an absolute mess
-    fn context_match_option(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, opt_states: &[ParseItem], match_min: usize, match_max: usize, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        // should work like regex (...){min, max}? 
-        let match_max = if match_max == 0 { None } else { Some(match_max) };
-        let back_pos = *pos;
-        let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
-
-        let start_syll = pos.syll_index;
-
-        // match states min times i.e. (nd, 2:5) matches ndnd minimum
-        let mut index = 0;
-        while index < match_min {
-            if !self.match_opt_states(opt_states, word, pos, forwards, within_struct)? {
-                *pos = back_pos;
-                *self.alphas.borrow_mut() = back_alphas;
-                *self.variables.borrow_mut() = back_varlbs;
-                return Ok(false)
-            }
-            index += 1;
-        }
-
-        // after matching min times, check the surrounding states
-        *state_index += 1;
-        let back_state = *state_index;
-        let back_pos = *pos;
-        let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
-
-        if *state_index >= states.len() && within_struct {
-            if pos.at_syll_end(word) {
-                pos.increment(word);
-                return Ok(true)
-            } else if pos.at_syll_start() {
-                return Ok(true)
-            }
-        } else {
-            let mut m = true;
-            while *state_index < states.len() {
-                if !self.context_match(states, state_index, word, pos, forwards, false, within_struct)? {
-                    m = false;
-                    break;
-                }
-                *state_index += 1;
-            }
-            if m {
-                return Ok(true)
-            } else {
-                *self.alphas.borrow_mut() = back_alphas.clone();
-                *self.variables.borrow_mut() = back_varlbs.clone();
-            }
-        }
-
-        // If no match at this point, try matching max times
-        *pos = back_pos;
-        *state_index = back_state;
-        *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.variables.borrow_mut() = back_varlbs.clone();
-        let max = match_max.unwrap_or(usize::MAX);
-        while index < max {
-            *state_index = back_state;
-            if self.match_opt_states(opt_states, word, pos, forwards, within_struct)? {
-                let mut m = true;
-                while *state_index < states.len() {
-                    if !self.context_match(states, state_index, word, pos, forwards, false, within_struct)? {
-                        m = false;
-                        break;
-                    }
-                    *state_index += 1;
-                }
-                if !within_struct && m {                    
-                    return Ok(true)
-                } else if m {
-                    if pos.at_syll_end(word) || pos.at_syll_start() && pos.syll_index == start_syll + 1 {
-                        return Ok(true)
-                    } else if *state_index >= states.len() && index < max {
-                            index += 1;
-                            *self.alphas.borrow_mut() = back_alphas.clone();
-                            *self.variables.borrow_mut() = back_varlbs.clone();
-                            continue;
-                    } else {
-                        *self.alphas.borrow_mut() = back_alphas.clone();
-                        *self.variables.borrow_mut() = back_varlbs.clone();
-                        return Ok(false)
-                    }
-                } else {
-                    index += 1;
-                    *self.alphas.borrow_mut() = back_alphas.clone();
-                    *self.variables.borrow_mut() = back_varlbs.clone();
-                    continue;
-                }
-            } else {
-                *self.alphas.borrow_mut() = back_alphas.clone();
-                *self.variables.borrow_mut() = back_varlbs.clone();
-                return Ok(false)
-            }
-        }
-
-        *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.variables.borrow_mut() = back_varlbs.clone();
-        Ok(false)
-    }
-
-    fn context_match_set(&self, set: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        let back_pos= *pos;
-        let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
-        
-        for s in set {
-            let res = match &s.kind {
-                ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
-                ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
-                // Since the lexer doesn't allow nesting, this will never happen. But, it's nice to have.
-                ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(s.position)),
-                ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(s.position)),
-
-                ParseElement::Structure(..) => unimplemented!(),
-
-                ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, s.position, within_struct),
-                ParseElement::Ipa(seg, mods) => if self.context_match_ipa(seg, mods, word, *pos, s.position)? {
-                    pos.increment(word);
-                    Ok(true)
-                } else {Ok(false)},
-                ParseElement::Matrix(mods, var) => self.context_match_matrix(mods, var, word, pos, s.position),
-                ParseElement::Syllable(stress, tone, var) => self.context_match_syll(stress, tone, var, word, pos, forwards),
-                ParseElement::WordBound => Ok(word.out_of_bounds(*pos)),
-                ParseElement::SyllBound => Ok(pos.at_syll_start()),
-                _ => unimplemented!(),
-            };
-            if res? {
-                return Ok(true)
-            }
-            *pos = back_pos;
-            // TODO: Deal with these clones
-            *self.alphas.borrow_mut() = back_alphas.clone();
-            *self.variables.borrow_mut() = back_varlbs.clone();
-        }
-        Ok(false)
-    }
-
-    fn context_match_var(&self, vt: &Token, mods: &Option<Modifiers>, word: &Word, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        if let Some(var) = self.variables.borrow_mut().get(&vt.value.parse::<usize>().unwrap()) {
-            match var {
-                VarKind::Segment(s) => if self.context_match_ipa(s, mods, word, *pos, err_pos)? {
-                    pos.increment(word);
-                    Ok(true)
-                } else { Ok(false) },
-                VarKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllVarInsideStruct(vt.position)),
-                VarKind::Syllable(s) => self.context_match_syll_var(s, mods, word, pos, forwards),
-            }            
-        } else {
-            Err(RuleRuntimeError::UnknownVariable(vt.clone()))
-        }
-    }
-
-    fn context_match_syll_var(&self, syll_to_match: &Syllable, mods: &Option<Modifiers>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
-        if !pos.at_syll_start()  {
-            return Ok(false)
-        }
-        let cur_syll = if word.in_bounds(*pos) {
-             &word.syllables[pos.syll_index]
-        } else { return Ok(false) };
-
-        let segs_to_match = if forwards {
-            syll_to_match.segments.clone() // i hate this
-        } else {
-            let mut segs = syll_to_match.segments.clone();
-            segs.make_contiguous().reverse();
-            segs
-        };
-        
-        if let Some(Modifiers { nodes: _, feats: _, suprs }) = mods {
-            if !self.match_stress(&suprs.stress, cur_syll)? {
-                return Ok(false)
-            }
-            if let Some(t) = suprs.tone.as_ref()  {
-                if !self.match_tone(t, cur_syll) {
-                    return Ok(false)
-                }
-            }
-            if cur_syll.segments != syll_to_match.segments {
-                return Ok(false)
-            }
-        } else if cur_syll.segments != segs_to_match || cur_syll.stress != syll_to_match.stress || cur_syll.tone != syll_to_match.tone {
-            return Ok(false)
-        }
-        pos.syll_index += 1;
-        pos.seg_index = 0;
-        Ok(true)
-    }
-
-    fn context_match_syll(&self, stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {        
-        if !pos.at_syll_start() {
-            return Ok(false)
-        }
-        let cur_syll = if word.in_bounds(*pos){ 
-            &word.syllables[pos.syll_index] 
-        } else { return Ok(false) };
-
-        if !self.match_stress(stress, cur_syll)? {
-            return Ok(false)
-        }
-        if let Some(t) = tone.as_ref() {
-            if !self.match_tone(t, cur_syll) {
-                return Ok(false)
-            }
-        }
-        if let Some(v) = var {
-            if forwards {
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(word.syllables[pos.syll_index].clone()));
-            } else {
-                let mut syll = word.syllables[pos.syll_index].clone();
-                syll.segments.make_contiguous().reverse();
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll));
-            }
-        }
-        pos.syll_index += 1;
-        pos.seg_index = 0;
-        Ok(true)
-    }
-
-    fn context_match_matrix(&self, mods: &Modifiers, var: &Option<usize>, word: &Word, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {        
-        if word.out_of_bounds(*pos) {
-            return Ok(false)
-        }
-        if self.match_modifiers(mods, word, pos, err_pos)? {
-            if let Some(v) = var {
-                self.variables.borrow_mut().insert(*v, VarKind::Segment(word.get_seg_at(*pos).unwrap()));
-            }
-            let mut seg_length = word.seg_length_at(*pos);            
-            while seg_length >= 1 {
-                pos.increment(word);
-                seg_length -= 1;
-            }
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
     fn transform(&self, word: &Word, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Word, RuleRuntimeError> {
         match self.rule_type {
             RuleType::Metathesis => {
@@ -918,18 +345,6 @@ impl SubRule {
                 Ok(res_word)
             },
             RuleType::Substitution => self.substitution(word, input, next_pos),
-        }
-    }
-
-    fn context_match_ipa(&self, s: &Segment, mods: &Option<Modifiers>, word: &Word, pos: SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        if word.out_of_bounds(pos) {
-            return Ok(false)
-        }
-        let seg = word.get_seg_at(pos).unwrap();
-        if let Some(m) = mods {
-            Ok(self.match_ipa_with_modifiers(s, m, word, &pos, err_pos)?)
-        } else {
-            Ok(*s == seg)
         }
     }
 
@@ -1714,6 +1129,955 @@ impl SubRule {
         Ok(res_word)
     }
 
+    fn concat_tone(prev: Tone, aft: Tone) -> Tone {
+        if prev == aft {
+            return prev
+        }
+        if prev == 0 || aft == 0 {
+            return prev | aft
+        }
+
+        let new_tone = prev as u64 * 10u64.pow(aft.ilog10()+1) + aft as u64;
+
+        // FIXME: may as well not be doing the above if we're gonna convert to a collection anyway
+        let mut nums = new_tone.to_string()
+            .as_str().bytes()
+            .map(|b| b - b'0')
+            .collect::<Vec<_>>();
+        // i.e. 5225 > 525
+        nums.dedup();
+
+        if nums.len() > 4 {
+            // Somehow meld the two tones together
+            // Guaranteed to have no zeros and no adjacent duplicates
+            // Between 5 and 8 digits
+
+            let mut arr = vec![0,0,0];
+            arr[0] = nums[0];
+            arr[2] = nums[nums.len()-1];
+
+            arr[1] = if nums.len() == 5 && nums[1] == nums[3] { // 1 2541 2
+                nums[2]
+            } else {
+                // Find the mean of the middle values
+                let mut acc = 0;
+                for i in nums.iter().take(nums.len()-1).skip(1) {
+                    acc+=i;
+                }
+                acc / (nums.len()-2) as u8
+            };
+
+            nums = arr;
+        }
+
+        nums.iter().fold(0, |acc, elem| acc * 10 + *elem as Tone)
+    }
+
+    fn match_stress(&self, stress: &[Option<ModKind>; 2], syll: &Syllable) -> Result<bool, RuleRuntimeError> {
+        // ±stress (+ matches prim and sec, - matches unstressed)
+        if let Some(str) = stress[0] {
+            match str {
+                ModKind::Binary(bm) => match bm {
+                    BinMod::Negative => if syll.stress != StressKind::Unstressed { return Ok(false) },
+                    BinMod::Positive => if syll.stress == StressKind::Unstressed { return Ok(false) },
+                },
+                ModKind::Alpha(am) => match am {
+                    AlphaMod::Alpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            let pos = alph.as_binary();
+                            match syll.stress {
+                                StressKind::Primary |
+                                StressKind::Secondary  => if !pos { return Ok(false) },
+                                StressKind::Unstressed => if  pos { return Ok(false) },
+                            }
+                        } else {
+                            let stress = syll.stress != StressKind::Unstressed;
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
+                        }
+                    },
+                    AlphaMod::InvAlpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            let pos = alph.as_binary();
+                            match syll.stress {
+                                StressKind::Primary |
+                                StressKind::Secondary  => if  pos { return Ok(false) },
+                                StressKind::Unstressed => if !pos { return Ok(false) },
+                            }
+                        } else {
+                            let stress = syll.stress == StressKind::Unstressed;
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
+                        }
+                        
+                    },
+                },
+            }
+        }
+        // ±secstress (+ matches sec, - matches prim and unstressed)
+        if let Some(str) = stress[1] {
+            match str {
+                ModKind::Binary(bm) => match bm {
+                    BinMod::Negative => if syll.stress == StressKind::Secondary { return Ok(false) },
+                    BinMod::Positive => if syll.stress != StressKind::Secondary { return Ok(false) },
+                },
+                ModKind::Alpha(am) => match am {
+                    AlphaMod::Alpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            let pos = alph.as_binary();
+                            match syll.stress {
+                                StressKind::Secondary  => if !pos { return Ok(false) },
+                                StressKind::Primary |
+                                StressKind::Unstressed => if  pos { return Ok(false) },
+                            }
+                        } else {
+                            let stress = syll.stress == StressKind::Secondary;
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
+                        }
+                    },
+                    AlphaMod::InvAlpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            let pos = alph.as_binary();
+                            match syll.stress {
+                                StressKind::Secondary  => if  pos { return Ok(false) },
+                                StressKind::Primary |
+                                StressKind::Unstressed => if !pos { return Ok(false) },
+                            }
+                        } else {
+                            let stress = syll.stress != StressKind::Secondary;
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
+                        }
+                    },
+                },
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn match_tone(&self, tone: &Tone, syll: &Syllable) -> bool { *tone == syll.tone }
+
+    fn match_ipa_with_modifiers(&self, seg: &Segment, mods: &Modifiers, word: &Word, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {   
+        let mut joined_mods = seg.as_modifiers();
+        
+        for (i, n) in mods.nodes.iter().enumerate() {
+            if n.is_some() { joined_mods.nodes[i] = *n }
+        }
+        for (i, f) in mods.feats.iter().enumerate() {
+            if f.is_some() { joined_mods.feats[i] = *f }
+        }
+        joined_mods.suprs = mods.suprs;
+
+        self.match_modifiers(&joined_mods, word, pos, err_pos)
+    }
+
+    fn match_modifiers(&self, mods: &Modifiers, word: &Word, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        let seg = word.get_seg_at(*pos).expect("Segment Position should be within bounds");
+        
+        for (i, m) in mods.feats.iter().enumerate() {
+            if !self.match_feat_mod(m, i, seg)? {
+                return Ok(false);
+            }
+        }
+        for (i, m) in mods.nodes.iter().enumerate() {
+            if !self.match_node_mod(m, i, seg, err_pos)? {
+                return Ok(false);
+            }
+        }
+        self.match_supr_mod_seg(word, &mods.suprs, pos)
+    }
+
+    fn match_supr_mod_seg(&self, word: &Word, mods: &SupraSegs, pos: &SegPos) -> Result<bool, RuleRuntimeError> {
+
+        let syll = &word.syllables[pos.syll_index];
+
+        if !self.match_stress(&mods.stress, syll)? { return Ok(false) }
+        if !self.match_seg_length(word, &mods.length, pos)? { return Ok(false) }
+
+        if let Some(t) = mods.tone.as_ref() {
+            return Ok(self.match_tone(t, syll))
+        }
+
+        Ok(true)
+    }
+
+    fn match_seg_length(&self, word: &Word, length: &[Option<ModKind>; 2], pos: &SegPos) -> Result<bool, RuleRuntimeError> {
+        let seg_length = word.seg_length_at(*pos);
+        // +/- long
+        if let Some(len) = length[0] {
+            match len {
+                ModKind::Binary(bm) => match bm {
+                    BinMod::Positive => if seg_length < 2 { return Ok(false) },
+                    BinMod::Negative => if seg_length > 1 { return Ok(false) },
+                },
+                ModKind::Alpha(am) => match am {
+                    AlphaMod::Alpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            match alph.as_binary() {
+                                true  => if seg_length < 2 { return Ok(false) },
+                                false => if seg_length > 1 { return Ok(false) },
+                            }
+                        } else {
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 1));
+                        }
+                    },
+                    AlphaMod::InvAlpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            match !alph.as_binary() {
+                                true  => if seg_length < 2 { return Ok(false) },
+                                false => if seg_length > 1 { return Ok(false) }
+                            }
+                        } else {
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 1));
+                        }
+                    },
+                },
+            }
+        }
+        // +/- overlong
+        if let Some(len) = length[1] {
+            match len {
+                ModKind::Binary(bm) => match bm {
+                    BinMod::Positive => if seg_length < 3 { return Ok(false) },
+                    BinMod::Negative => if seg_length > 2 { return Ok(false) },
+                },
+                ModKind::Alpha(am) => match am {
+                    AlphaMod::Alpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            match alph.as_binary() {
+                                true  => if seg_length < 3 { return Ok(false) },
+                                false => if seg_length > 2 { return Ok(false) },
+                            }
+                        } else {
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 2));
+                        }
+
+                    },
+                    AlphaMod::InvAlpha(ch) => {
+                        if let Some(alph) = self.alphas.borrow().get(&ch) {
+                            match !alph.as_binary() {
+                                true  => if seg_length < 3 { return Ok(false) },
+                                false => if seg_length > 2 { return Ok(false) },
+                            }
+                        } else {
+                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 2));
+                        }
+                    },
+                },
+            }
+        }
+        Ok(true)
+    }
+
+    fn match_node_mod(&self, md:&Option<ModKind>, node_index: usize, seg: Segment, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        if let Some(kind) = md {
+            let node = NodeKind::from_usize(node_index);
+            return self.match_node(seg, node, kind, err_pos)
+        }
+        Ok(true)
+    }
+
+    fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> Result<bool, RuleRuntimeError> {
+        if let Some(kind) = md { 
+            let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
+            return self.match_seg_kind(kind, seg, node, mask)
+        }
+        Ok(true)
+    }
+
+    fn match_node(&self, seg: Segment, node: NodeKind, val: &ModKind, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        match val {
+            ModKind::Binary(bt) => if node == NodeKind::Place {
+                let x = seg.is_place_some();
+                match bt {
+                    BinMod::Positive => Ok(x),
+                    BinMod::Negative => Ok(!x),
+                }
+            } else {
+                match bt {
+                    BinMod::Positive => Ok(seg.get_node(node).is_some()),
+                    BinMod::Negative => Ok(seg.get_node(node).is_none()),
+                }
+            },
+            ModKind::Alpha(am) => match am {
+                AlphaMod::Alpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(ch) {
+                        if let Some((n, m)) = alph.as_node() {
+                            if n == node {
+                                return Ok(seg.node_match(n, m))
+                            } else {
+                                return Err(RuleRuntimeError::AlphaIsNotSameNode(err_pos))
+                            }
+                        } else if let Some(place) = alph.as_place() {
+                            return Ok(
+                                seg.node_match(NodeKind::Labial, place.lab)  &&
+                                seg.node_match(NodeKind::Coronal, place.cor) &&
+                                seg.node_match(NodeKind::Dorsal, place.dor)  &&
+                                seg.node_match(NodeKind::Pharyngeal, place.phr)
+                            )
+                        } else {
+                            return Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
+                        }
+                    }
+                    if node == NodeKind::Place {
+                        let place = PlaceMod::new(
+                            seg.get_node(NodeKind::Labial),
+                            seg.get_node(NodeKind::Coronal),
+                            seg.get_node(NodeKind::Dorsal),
+                            seg.get_node(NodeKind::Pharyngeal),
+                        );
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Place(place)); 
+                    } else {
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Node(node, seg.get_node(node))); 
+                    }
+                    Ok(true)
+                },
+                AlphaMod::InvAlpha(inv_ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(inv_ch) {
+                        if let Some((n, m)) = alph.as_node() {
+                            if n == node {
+                                Ok(!seg.node_match(n, m))
+                            } else {
+                                Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
+                            }
+                        } else if let Some(place) = alph.as_place() {
+                            Ok(
+                                !seg.node_match(NodeKind::Labial, place.lab)  ||
+                                !seg.node_match(NodeKind::Coronal, place.cor) ||
+                                !seg.node_match(NodeKind::Dorsal, place.dor)  ||
+                                !seg.node_match(NodeKind::Pharyngeal, place.phr)
+                            )
+                        } else {
+                            Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
+                        }
+                    } else {
+                        Err(RuleRuntimeError::AlphaUnknownInv(err_pos))
+                    }
+                },
+            },
+        }
+    }
+
+    fn match_seg_kind(&self, kind: &ModKind, seg: Segment, node: NodeKind, mask: u8) -> Result<bool, RuleRuntimeError> {
+        match kind {
+            ModKind::Binary(bt) => match bt {
+                BinMod::Negative => Ok(seg.feat_match(node, mask, false)),
+                BinMod::Positive => Ok(seg.feat_match(node, mask, true)),
+            },
+            ModKind::Alpha(am) => match am {
+                AlphaMod::Alpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(ch) {
+                        Ok(seg.feat_match(node, mask, alph.as_binary()))
+                    } else if let Some(f) = seg.get_feat(node, mask) {
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Feature(f != 0)); 
+                        Ok(true)
+                    } else {
+                        // Maybe err?
+                        Ok(false)
+                    }
+                },
+                AlphaMod::InvAlpha(inv_ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(inv_ch) {
+                        Ok(seg.feat_match(node, mask, !alph.as_binary()))
+                    } else if let Some(f) = seg.get_feat(node, mask) {
+                        self.alphas.borrow_mut().insert(*inv_ch, Alpha::Feature(f == 0));
+                        Ok(true)
+                    } else {
+                        // Maybe err?
+                        Ok(false)
+                    } 
+                },
+            },
+        }
+    }
+}
+
+impl SubRule { // Context Matching
+    fn context_match(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, ins_match_before: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        let state = &states[*state_index];
+        match &state.kind {
+            ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
+            ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
+            ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(state.position)),
+            ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(state.position)),
+
+            ParseElement::WordBound => Ok(word.out_of_bounds(*pos)),
+            ParseElement::SyllBound => if ins_match_before {
+                Ok(!pos.at_word_start() && pos.at_syll_start())
+            } else {
+                Ok(pos.at_syll_start())
+            },
+            ParseElement::Ipa(s, m) => if self.context_match_ipa(s, m, word, *pos, state.position)? {
+                pos.increment(word); 
+                Ok(true)
+            } else { Ok(false) },
+            ParseElement::Matrix(m, v) => self.context_match_matrix(m, v, word, pos, state.position),
+            ParseElement::Syllable(s, t, v) => if ins_match_before {
+                Ok(!pos.at_word_start() && self.context_match_syll(s, t, v, word, pos, forwards)?)
+            } else {
+                self.context_match_syll(s, t, v, word, pos, forwards)
+            },
+            ParseElement::Structure(segs, stress, tone, var) => if ins_match_before {
+                Ok(!pos.at_word_start() && self.context_match_structure(segs, stress, tone, var, word, pos, forwards)?)
+            } else {
+                self.context_match_structure(segs, stress, tone, var, word, pos, forwards)
+            },
+            ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, state.position, within_struct),
+            ParseElement::Set(s) => self.context_match_set(s, word, pos, forwards, within_struct),
+            ParseElement::Optional(opt_states, min, max) => self.context_match_option(states, state_index, word, pos, forwards, opt_states, *min, *max, within_struct),
+            ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, true),
+            ParseElement::WEllipsis => self.context_match_ellipsis(states, state_index, word, pos, forwards, false),
+            
+            ParseElement::EmptySet | ParseElement::Metathesis |
+            ParseElement::Environment(_) => unreachable!(),
+        }
+    }
+
+    fn match_before_env(&self, states: &[ParseItem], word_rev: &Word, pos: &SegPos, ins_match_before: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
+        // NOTE: assumes parent has done reversals
+        let mut start_pos = *pos;
+        start_pos.increment(word_rev);
+        let mut is_match = if is_context {
+            true
+        } else {
+            !states.is_empty()
+        };
+        let mut si = 0;
+        while si < states.len() {
+            if !self.context_match(states, &mut si, word_rev, &mut start_pos, false, ins_match_before, false)? {
+                is_match = false;
+                if is_context { break; }
+            }
+            si += 1;
+        }
+
+        Ok(is_match)
+    }
+
+    fn match_after_env(&self, states: &[ParseItem], word: &Word, pos: &SegPos, ins_match_before: bool, inc: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
+        let mut start_pos = *pos;
+        if inc {
+            start_pos.increment(word);
+        }
+        let mut is_match = if is_context {
+            true
+        } else {
+            !states.is_empty()
+        };
+        let mut si = 0;
+        while si < states.len() {
+            if !self.context_match(states, &mut si, word, &mut start_pos, true, ins_match_before, false)? {
+                is_match = false;
+                if is_context { break; }
+            }
+            si += 1;
+        }
+
+        Ok(is_match)
+    }
+
+    fn match_contexts_and_exceptions(&self, word: &Word, start_pos: SegPos, end_pos: SegPos, inc: bool) -> Result<bool, RuleRuntimeError> {
+        let contexts = self.get_contexts();
+        let exceptions = self.get_exceptions();
+        if contexts.is_empty() && exceptions.is_empty() {
+            return Ok(true)
+        }
+
+        let word_rev = word.reverse();
+        let mut is_cont_match = contexts.is_empty();
+        let mut is_expt_match = false;
+
+        for (bef_cont_states, aft_cont_states) in contexts {
+            let mut bef_cont_states = bef_cont_states.clone();
+            bef_cont_states.reverse();
+            if (bef_cont_states.is_empty() || self.match_before_env(&bef_cont_states, &word_rev, &start_pos.reversed(word), false, true)?) 
+            && (aft_cont_states.is_empty() || self.match_after_env(aft_cont_states, word, &end_pos, false, inc, true)?) {
+                is_cont_match = true;
+                break;
+            }
+        }
+        for (bef_expt_states, aft_expt_states) in exceptions {
+            let mut bef_expt_states = bef_expt_states.clone();
+            bef_expt_states.reverse();
+            if (bef_expt_states.is_empty() || self.match_before_env(&bef_expt_states, &word_rev, &start_pos.reversed(word), false, false)?) 
+            && (aft_expt_states.is_empty() || self.match_after_env(aft_expt_states, word, &end_pos, false, inc, false)?) {
+                is_expt_match = true;
+                break;
+            }
+        }
+        Ok(!is_expt_match && is_cont_match)
+    }
+
+    fn context_match_structure(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+        if items.is_empty() {
+            return self.context_match_syll(stress, tone, var, word, pos, forwards)
+        }
+        if !pos.at_syll_start() {
+            return Ok(false)
+        }
+        let cur_syll = if word.in_bounds(*pos){ 
+            &word.syllables[pos.syll_index] 
+        } else { return Ok(false) };
+        if !self.match_stress(stress, cur_syll)? {
+            return Ok(false)
+        }
+        if let Some(t) = tone.as_ref() {
+            if !self.match_tone(t, cur_syll) {
+                return Ok(false)
+            }
+        }
+
+        let mut items = items.to_vec().clone();
+        if !forwards {
+            items.reverse();
+            for i in &mut items {
+                i.reverse();
+            }
+        }
+
+        let cur_syll_index = pos.syll_index;
+
+        for (mut i, item) in items.iter().enumerate() {
+            if pos.syll_index != cur_syll_index && item.kind != ParseElement::WEllipsis {
+                return Ok(false)
+            }
+            match &item.kind {
+                ParseElement::Ellipsis => if i == items.len() - 1 {
+                    // if last item, jump to end of syll and break loop
+                    pos.syll_index += 1;
+                    pos.seg_index = 0;
+                    break;
+                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, forwards, true)? {
+                    break;
+                } else { return Ok(false) }, 
+                ParseElement::WEllipsis => if i == items.len() - 1 {
+                    // if last item, jump to end of syll and break loop
+                    pos.syll_index += 1;
+                    pos.seg_index = 0;
+                    break;
+                } else if self.context_match_ellipsis_struct(&items, &mut i, word, pos, cur_syll_index, forwards,false)? {
+                    break;
+                } else { 
+                    return Ok(false) },
+                ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, item.position)? {
+                    pos.increment(word);
+                } else { return Ok(false) },
+                ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, word, pos, item.position)? {
+                    return Ok(false) 
+                },
+                // NOTE: since syllables are invalid, passing `forwards` won't matter
+                ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, word, pos, forwards, item.position, true)? {
+                   return Ok(false) 
+                },
+                ParseElement::Set(set) => if !self.context_match_set(set, word, pos, forwards, true)? {
+                    return Ok(false) 
+                },
+                ParseElement::Optional(states, min, max) => if self.context_match_option(&items, &mut i, word, pos, forwards, states, *min, *max, true)? {
+                    // This works i guess
+                    if pos.syll_index == cur_syll_index {
+                        pos.syll_index += 1;
+                        pos.seg_index = 0;
+                    }
+                    debug_assert!(pos.syll_index == cur_syll_index+1);
+                    debug_assert!(pos.seg_index == 0);
+                    break;
+                } else { return Ok(false) },
+                _ => unreachable!()
+            }
+        }
+
+        if pos.seg_index != 0 { return Ok(false) }
+
+        if let Some(v) = var {
+            if forwards {
+                self.variables.borrow_mut().insert(*v, VarKind::Syllable(word.syllables[cur_syll_index].clone()));
+            } else {
+                let mut syll = word.syllables[cur_syll_index].clone();
+                syll.segments.make_contiguous().reverse();
+                self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll));
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, word: &Word, pos: &mut SegPos, syll_index: usize, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
+        if *index >= items.len() {
+            return Ok(true)
+        }
+        
+        *index += 1;
+        if inc { pos.increment(word) }
+
+        while pos.syll_index == syll_index {
+            let back_pos = *pos;
+            let back_index = *index;
+            let back_alphas = self.alphas.borrow().clone();
+            let back_varlbs = self.variables.borrow().clone();
+            
+            let mut m = true;
+            while *index < items.len() {
+                if pos.syll_index != syll_index && items[*index].kind != ParseElement::WEllipsis {
+                    m = false;
+                    break;
+                }
+                match &items[*index].kind {
+                    ParseElement::Ellipsis => if *index == items.len() - 1 {
+                        // if last item, jump to end of syll and break loop
+                        pos.syll_index = syll_index + 1;
+                        pos.seg_index = 0;
+                        return Ok(true)
+                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, forwards, true)? {
+                        pos.syll_index = syll_index + 1;
+                        pos.seg_index = 0;
+                        return Ok(true)
+                    } else { m = false; break; }, 
+                    ParseElement::WEllipsis => if *index == items.len() - 1 {
+                        // if last item, jump to end of syll and break loop
+                        pos.syll_index = syll_index + 1;
+                        pos.seg_index = 0;
+                        return Ok(true)
+                    } else if self.context_match_ellipsis_struct(items, index, word, pos, syll_index, forwards, false)? {
+                        pos.syll_index = syll_index + 1;
+                        pos.seg_index = 0;
+                        return Ok(true)
+                    } else { m = false; break; }, 
+                    ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, word, *pos, items[*index].position)? {
+                        pos.increment(word);
+                    } else { m = false; break; },
+                    ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, word, pos, items[*index].position)? {
+                        m = false; break;
+                    },
+                    // since syllables are invalid, passing `forwards` won't matter
+                    ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, word, pos, forwards, items[*index].position, true)? {
+                        m = false; break;
+                    },
+                    ParseElement::Set(set) => if !self.context_match_set(set, word, pos, forwards, true)? {
+                        m = false; break;
+                    },
+                    ParseElement::Optional(states, min, max) => if self.context_match_option(items, index, word, pos, forwards, states, *min, *max, true)? {
+                        // This works i guess
+                        if pos.syll_index == syll_index {
+                            pos.syll_index += 1;
+                            pos.seg_index = 0;
+                        }  
+                        return Ok(true)
+                    } else {m = false; break; },
+                    _ => unreachable!()
+                }
+                *index += 1;
+            }
+            if m {
+                return Ok(true)
+            }
+            *index = back_index;
+            *pos = back_pos;
+            *self.alphas.borrow_mut() = back_alphas;
+            *self.variables.borrow_mut() = back_varlbs;
+            pos.increment(word);
+        }
+
+        Ok(false)
+    }
+
+    fn context_match_ellipsis(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
+        if *state_index >= states.len() {
+            return Ok(true)
+        }
+
+        *state_index += 1;
+        if inc { pos.increment(word) }
+
+        while word.in_bounds(*pos) {
+            let back_pos = *pos;
+            let back_state = *state_index;
+            let back_alphas = self.alphas.borrow().clone();
+            let back_varlbs = self.variables.borrow().clone();
+
+            let mut m = true;
+            while *state_index < states.len() {
+                if !self.context_match(states, state_index, word, pos, forwards, false, false)? {
+                    m = false;
+                    break;
+                }
+                *state_index += 1;
+            }
+            if m {
+                return Ok(true)
+            }
+            *state_index = back_state;
+            *pos = back_pos;
+            *self.alphas.borrow_mut() = back_alphas;
+            *self.variables.borrow_mut() = back_varlbs;
+            pos.increment(word);
+        }
+        
+        Ok(false)
+    }
+
+    fn match_opt_states(&self, opt_states: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        let mut si = 0;
+        while si < opt_states.len() {
+            if !self.context_match(opt_states, &mut si, word, pos, forwards, false, within_struct)? {
+                return Ok(false)
+            }
+            si += 1;
+        }
+        Ok(true)
+    }
+
+    // This is an absolute mess
+    fn context_match_option(&self, states: &[ParseItem], state_index: &mut usize, word: &Word, pos: &mut SegPos, forwards: bool, opt_states: &[ParseItem], match_min: usize, match_max: usize, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        // should work like regex (...){min, max}? 
+        let match_max = if match_max == 0 { None } else { Some(match_max) };
+        let back_pos = *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
+
+        let start_syll = pos.syll_index;
+
+        // match states min times i.e. (nd, 2:5) matches ndnd minimum
+        let mut index = 0;
+        while index < match_min {
+            if !self.match_opt_states(opt_states, word, pos, forwards, within_struct)? {
+                *pos = back_pos;
+                *self.alphas.borrow_mut() = back_alphas;
+                *self.variables.borrow_mut() = back_varlbs;
+                return Ok(false)
+            }
+            index += 1;
+        }
+
+        // after matching min times, check the surrounding states
+        *state_index += 1;
+        let back_state = *state_index;
+        let back_pos = *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
+
+        if *state_index >= states.len() && within_struct {
+            if pos.at_syll_end(word) {
+                pos.increment(word);
+                return Ok(true)
+            } else if pos.at_syll_start() {
+                return Ok(true)
+            }
+        } else {
+            let mut m = true;
+            while *state_index < states.len() {
+                if !self.context_match(states, state_index, word, pos, forwards, false, within_struct)? {
+                    m = false;
+                    break;
+                }
+                *state_index += 1;
+            }
+            if m {
+                return Ok(true)
+            } else {
+                *self.alphas.borrow_mut() = back_alphas.clone();
+                *self.variables.borrow_mut() = back_varlbs.clone();
+            }
+        }
+
+        // If no match at this point, try matching max times
+        *pos = back_pos;
+        *state_index = back_state;
+        *self.alphas.borrow_mut() = back_alphas.clone();
+        *self.variables.borrow_mut() = back_varlbs.clone();
+        let max = match_max.unwrap_or(usize::MAX);
+        while index < max {
+            *state_index = back_state;
+            if self.match_opt_states(opt_states, word, pos, forwards, within_struct)? {
+                let mut m = true;
+                while *state_index < states.len() {
+                    if !self.context_match(states, state_index, word, pos, forwards, false, within_struct)? {
+                        m = false;
+                        break;
+                    }
+                    *state_index += 1;
+                }
+                if !within_struct && m {                    
+                    return Ok(true)
+                } else if m {
+                    if pos.at_syll_end(word) || pos.at_syll_start() && pos.syll_index == start_syll + 1 {
+                        return Ok(true)
+                    } else if *state_index >= states.len() && index < max {
+                            index += 1;
+                            *self.alphas.borrow_mut() = back_alphas.clone();
+                            *self.variables.borrow_mut() = back_varlbs.clone();
+                            continue;
+                    } else {
+                        *self.alphas.borrow_mut() = back_alphas.clone();
+                        *self.variables.borrow_mut() = back_varlbs.clone();
+                        return Ok(false)
+                    }
+                } else {
+                    index += 1;
+                    *self.alphas.borrow_mut() = back_alphas.clone();
+                    *self.variables.borrow_mut() = back_varlbs.clone();
+                    continue;
+                }
+            } else {
+                *self.alphas.borrow_mut() = back_alphas.clone();
+                *self.variables.borrow_mut() = back_varlbs.clone();
+                return Ok(false)
+            }
+        }
+
+        *self.alphas.borrow_mut() = back_alphas.clone();
+        *self.variables.borrow_mut() = back_varlbs.clone();
+        Ok(false)
+    }
+
+    fn context_match_set(&self, set: &[ParseItem], word: &Word, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        let back_pos= *pos;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
+        
+        for s in set {
+            let res = match &s.kind {
+                ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
+                ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
+                // Since the lexer doesn't allow nesting, this will never happen. But, it's nice to have.
+                ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(s.position)),
+                ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(s.position)),
+
+                ParseElement::Structure(..) => unimplemented!(),
+
+                ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, word, pos, forwards, s.position, within_struct),
+                ParseElement::Ipa(seg, mods) => if self.context_match_ipa(seg, mods, word, *pos, s.position)? {
+                    pos.increment(word);
+                    Ok(true)
+                } else {Ok(false)},
+                ParseElement::Matrix(mods, var) => self.context_match_matrix(mods, var, word, pos, s.position),
+                ParseElement::Syllable(stress, tone, var) => self.context_match_syll(stress, tone, var, word, pos, forwards),
+                ParseElement::WordBound => Ok(word.out_of_bounds(*pos)),
+                ParseElement::SyllBound => Ok(pos.at_syll_start()),
+                _ => unimplemented!(),
+            };
+            if res? {
+                return Ok(true)
+            }
+            *pos = back_pos;
+            // TODO: Deal with these clones
+            *self.alphas.borrow_mut() = back_alphas.clone();
+            *self.variables.borrow_mut() = back_varlbs.clone();
+        }
+        Ok(false)
+    }
+
+    fn context_match_var(&self, vt: &Token, mods: &Option<Modifiers>, word: &Word, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        if let Some(var) = self.variables.borrow_mut().get(&vt.value.parse::<usize>().unwrap()) {
+            match var {
+                VarKind::Segment(s) => if self.context_match_ipa(s, mods, word, *pos, err_pos)? {
+                    pos.increment(word);
+                    Ok(true)
+                } else { Ok(false) },
+                VarKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllVarInsideStruct(vt.position)),
+                VarKind::Syllable(s) => self.context_match_syll_var(s, mods, word, pos, forwards),
+            }            
+        } else {
+            Err(RuleRuntimeError::UnknownVariable(vt.clone()))
+        }
+    }
+
+    fn context_match_syll_var(&self, syll_to_match: &Syllable, mods: &Option<Modifiers>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+        if !pos.at_syll_start()  {
+            return Ok(false)
+        }
+        let cur_syll = if word.in_bounds(*pos) {
+             &word.syllables[pos.syll_index]
+        } else { return Ok(false) };
+
+        let segs_to_match = if forwards {
+            syll_to_match.segments.clone() // i hate this
+        } else {
+            let mut segs = syll_to_match.segments.clone();
+            segs.make_contiguous().reverse();
+            segs
+        };
+        
+        if let Some(Modifiers { nodes: _, feats: _, suprs }) = mods {
+            if !self.match_stress(&suprs.stress, cur_syll)? {
+                return Ok(false)
+            }
+            if let Some(t) = suprs.tone.as_ref()  {
+                if !self.match_tone(t, cur_syll) {
+                    return Ok(false)
+                }
+            }
+            if cur_syll.segments != syll_to_match.segments {
+                return Ok(false)
+            }
+        } else if cur_syll.segments != segs_to_match || cur_syll.stress != syll_to_match.stress || cur_syll.tone != syll_to_match.tone {
+            return Ok(false)
+        }
+        pos.syll_index += 1;
+        pos.seg_index = 0;
+        Ok(true)
+    }
+
+    fn context_match_syll(&self, stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, word: &Word, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {        
+        if !pos.at_syll_start() {
+            return Ok(false)
+        }
+        let cur_syll = if word.in_bounds(*pos){ 
+            &word.syllables[pos.syll_index] 
+        } else { return Ok(false) };
+
+        if !self.match_stress(stress, cur_syll)? {
+            return Ok(false)
+        }
+        if let Some(t) = tone.as_ref() {
+            if !self.match_tone(t, cur_syll) {
+                return Ok(false)
+            }
+        }
+        if let Some(v) = var {
+            if forwards {
+                self.variables.borrow_mut().insert(*v, VarKind::Syllable(word.syllables[pos.syll_index].clone()));
+            } else {
+                let mut syll = word.syllables[pos.syll_index].clone();
+                syll.segments.make_contiguous().reverse();
+                self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll));
+            }
+        }
+        pos.syll_index += 1;
+        pos.seg_index = 0;
+        Ok(true)
+    }
+
+    fn context_match_ipa(&self, s: &Segment, mods: &Option<Modifiers>, word: &Word, pos: SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        if word.out_of_bounds(pos) {
+            return Ok(false)
+        }
+        let seg = word.get_seg_at(pos).unwrap();
+        if let Some(m) = mods {
+            Ok(self.match_ipa_with_modifiers(s, m, word, &pos, err_pos)?)
+        } else {
+            Ok(*s == seg)
+        }
+    }
+
+    fn context_match_matrix(&self, mods: &Modifiers, var: &Option<usize>, word: &Word, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {        
+        if word.out_of_bounds(*pos) {
+            return Ok(false)
+        }
+        if self.match_modifiers(mods, word, pos, err_pos)? {
+            if let Some(v) = var {
+                self.variables.borrow_mut().insert(*v, VarKind::Segment(word.get_seg_at(*pos).unwrap()));
+            }
+            let mut seg_length = word.seg_length_at(*pos);            
+            while seg_length >= 1 {
+                pos.increment(word);
+                seg_length -= 1;
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl SubRule { // Input Matching
     fn input_match_at(&self, word: &Word, start_index: SegPos) -> Result<(Vec<MatchElement>, Option<SegPos>), RuleRuntimeError> {
         let mut cur_index = start_index;
         let mut match_begin = None;
@@ -1967,132 +2331,6 @@ impl SubRule {
         }
     }
 
-    fn concat_tone(prev: Tone, aft: Tone) -> Tone {
-        if prev == aft {
-            return prev
-        }
-        if prev == 0 || aft == 0 {
-            return prev | aft
-        }
-
-        let new_tone = prev as u64 * 10u64.pow(aft.ilog10()+1) + aft as u64;
-
-        // FIXME: may as well not be doing the above if we're gonna convert to a collection anyway
-        let mut nums = new_tone.to_string()
-            .as_str().bytes()
-            .map(|b| b - b'0')
-            .collect::<Vec<_>>();
-        // i.e. 5225 > 525
-        nums.dedup();
-
-        if nums.len() > 4 {
-            // Somehow meld the two tones together
-            // Guaranteed to have no zeros and no adjacent duplicates
-            // Between 5 and 8 digits
-
-            let mut arr = vec![0,0,0];
-            arr[0] = nums[0];
-            arr[2] = nums[nums.len()-1];
-
-            arr[1] = if nums.len() == 5 && nums[1] == nums[3] { // 1 2541 2
-                nums[2]
-            } else {
-                // Find the mean of the middle values
-                let mut acc = 0;
-                for i in nums.iter().take(nums.len()-1).skip(1) {
-                    acc+=i;
-                }
-                acc / (nums.len()-2) as u8
-            };
-
-            nums = arr;
-        }
-
-        nums.iter().fold(0, |acc, elem| acc * 10 + *elem as Tone)
-    }
-
-    fn match_stress(&self, stress: &[Option<ModKind>; 2], syll: &Syllable) -> Result<bool, RuleRuntimeError> {
-        // ±stress (+ matches prim and sec, - matches unstressed)
-        if let Some(str) = stress[0] {
-            match str {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Negative => if syll.stress != StressKind::Unstressed { return Ok(false) },
-                    BinMod::Positive => if syll.stress == StressKind::Unstressed { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Primary |
-                                StressKind::Secondary  => if !pos { return Ok(false) },
-                                StressKind::Unstressed => if  pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress != StressKind::Unstressed;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
-                        }
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Primary |
-                                StressKind::Secondary  => if  pos { return Ok(false) },
-                                StressKind::Unstressed => if !pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress == StressKind::Unstressed;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
-                        }
-                        
-                    },
-                },
-            }
-        }
-        // ±secstress (+ matches sec, - matches prim and unstressed)
-        if let Some(str) = stress[1] {
-            match str {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Negative => if syll.stress == StressKind::Secondary { return Ok(false) },
-                    BinMod::Positive => if syll.stress != StressKind::Secondary { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Secondary  => if !pos { return Ok(false) },
-                                StressKind::Primary |
-                                StressKind::Unstressed => if  pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress == StressKind::Secondary;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
-                        }
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Secondary  => if  pos { return Ok(false) },
-                                StressKind::Primary |
-                                StressKind::Unstressed => if !pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress != StressKind::Secondary;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
-                        }
-                    },
-                },
-            }
-        }
-
-        Ok(true)
-    }
-
-    fn match_tone(&self, tone: &Tone, syll: &Syllable) -> bool { *tone == syll.tone }
-
     fn input_match_syll_bound(&self, captures: &mut Vec<MatchElement>, pos: SegPos) -> bool {
         if pos.seg_index == 0 {
             captures.push(MatchElement::SyllBound(pos.syll_index, None));
@@ -2252,240 +2490,6 @@ impl SubRule {
                 seg_length -= 1;
             }
             Ok(false)
-        }
-    }
-
-    fn match_ipa_with_modifiers(&self, seg: &Segment, mods: &Modifiers, word: &Word, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {   
-        let mut joined_mods = seg.as_modifiers();
-        
-        for (i, n) in mods.nodes.iter().enumerate() {
-            if n.is_some() { joined_mods.nodes[i] = *n }
-        }
-        for (i, f) in mods.feats.iter().enumerate() {
-            if f.is_some() { joined_mods.feats[i] = *f }
-        }
-        joined_mods.suprs = mods.suprs;
-
-        self.match_modifiers(&joined_mods, word, pos, err_pos)
-    }
-
-    fn match_modifiers(&self, mods: &Modifiers, word: &Word, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        let seg = word.get_seg_at(*pos).expect("Segment Position should be within bounds");
-        
-        for (i, m) in mods.feats.iter().enumerate() {
-            if !self.match_feat_mod(m, i, seg)? {
-                return Ok(false);
-            }
-        }
-        for (i, m) in mods.nodes.iter().enumerate() {
-            if !self.match_node_mod(m, i, seg, err_pos)? {
-                return Ok(false);
-            }
-        }
-        self.match_supr_mod_seg(word, &mods.suprs, pos)
-    }
-
-    fn match_supr_mod_seg(&self, word: &Word, mods: &SupraSegs, pos: &SegPos) -> Result<bool, RuleRuntimeError> {
-
-        let syll = &word.syllables[pos.syll_index];
-
-        if !self.match_stress(&mods.stress, syll)? { return Ok(false) }
-        if !self.match_seg_length(word, &mods.length, pos)? { return Ok(false) }
-
-        if let Some(t) = mods.tone.as_ref() {
-            return Ok(self.match_tone(t, syll))
-        }
-
-        Ok(true)
-    }
-
-    fn match_seg_length(&self, word: &Word, length: &[Option<ModKind>; 2], pos: &SegPos) -> Result<bool, RuleRuntimeError> {
-        let seg_length = word.seg_length_at(*pos);
-        // +/- long
-        if let Some(len) = length[0] {
-            match len {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => if seg_length < 2 { return Ok(false) },
-                    BinMod::Negative => if seg_length > 1 { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match alph.as_binary() {
-                                true  => if seg_length < 2 { return Ok(false) },
-                                false => if seg_length > 1 { return Ok(false) },
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 1));
-                        }
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match !alph.as_binary() {
-                                true  => if seg_length < 2 { return Ok(false) },
-                                false => if seg_length > 1 { return Ok(false) }
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 1));
-                        }
-                    },
-                },
-            }
-        }
-        // +/- overlong
-        if let Some(len) = length[1] {
-            match len {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => if seg_length < 3 { return Ok(false) },
-                    BinMod::Negative => if seg_length > 2 { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match alph.as_binary() {
-                                true  => if seg_length < 3 { return Ok(false) },
-                                false => if seg_length > 2 { return Ok(false) },
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 2));
-                        }
-
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match !alph.as_binary() {
-                                true  => if seg_length < 3 { return Ok(false) },
-                                false => if seg_length > 2 { return Ok(false) },
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 2));
-                        }
-                    },
-                },
-            }
-        }
-        Ok(true)
-    }
-
-    fn match_node_mod(&self, md:&Option<ModKind>, node_index: usize, seg: Segment, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        if let Some(kind) = md {
-            let node = NodeKind::from_usize(node_index);
-            return self.match_node(seg, node, kind, err_pos)
-        }
-        Ok(true)
-    }
-
-    fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize, seg: Segment) -> Result<bool, RuleRuntimeError> {
-        if let Some(kind) = md { 
-            let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
-            return self.match_seg_kind(kind, seg, node, mask)
-        }
-        Ok(true)
-    }
-
-    fn match_node(&self, seg: Segment, node: NodeKind, val: &ModKind, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        match val {
-            ModKind::Binary(bt) => if node == NodeKind::Place {
-                let x = seg.is_place_some();
-                match bt {
-                    BinMod::Positive => Ok(x),
-                    BinMod::Negative => Ok(!x),
-                }
-            } else {
-                match bt {
-                    BinMod::Positive => Ok(seg.get_node(node).is_some()),
-                    BinMod::Negative => Ok(seg.get_node(node).is_none()),
-                }
-            },
-            ModKind::Alpha(am) => match am {
-                AlphaMod::Alpha(ch) => {
-                    if let Some(alph) = self.alphas.borrow().get(ch) {
-                        if let Some((n, m)) = alph.as_node() {
-                            if n == node {
-                                return Ok(seg.node_match(n, m))
-                            } else {
-                                return Err(RuleRuntimeError::AlphaIsNotSameNode(err_pos))
-                            }
-                        } else if let Some(place) = alph.as_place() {
-                            return Ok(
-                                seg.node_match(NodeKind::Labial, place.lab)  &&
-                                seg.node_match(NodeKind::Coronal, place.cor) &&
-                                seg.node_match(NodeKind::Dorsal, place.dor)  &&
-                                seg.node_match(NodeKind::Pharyngeal, place.phr)
-                            )
-                        } else {
-                            return Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
-                        }
-                    }
-                    if node == NodeKind::Place {
-                        let place = PlaceMod::new(
-                            seg.get_node(NodeKind::Labial),
-                            seg.get_node(NodeKind::Coronal),
-                            seg.get_node(NodeKind::Dorsal),
-                            seg.get_node(NodeKind::Pharyngeal),
-                        );
-                        self.alphas.borrow_mut().insert(*ch, Alpha::Place(place)); 
-                    } else {
-                        self.alphas.borrow_mut().insert(*ch, Alpha::Node(node, seg.get_node(node))); 
-                    }
-                    Ok(true)
-                },
-                AlphaMod::InvAlpha(inv_ch) => {
-                    if let Some(alph) = self.alphas.borrow().get(inv_ch) {
-                        if let Some((n, m)) = alph.as_node() {
-                            if n == node {
-                                Ok(!seg.node_match(n, m))
-                            } else {
-                                Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
-                            }
-                        } else if let Some(place) = alph.as_place() {
-                            Ok(
-                                !seg.node_match(NodeKind::Labial, place.lab)  ||
-                                !seg.node_match(NodeKind::Coronal, place.cor) ||
-                                !seg.node_match(NodeKind::Dorsal, place.dor)  ||
-                                !seg.node_match(NodeKind::Pharyngeal, place.phr)
-                            )
-                        } else {
-                            Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
-                        }
-                    } else {
-                        Err(RuleRuntimeError::AlphaUnknownInv(err_pos))
-                    }
-                },
-            },
-        }
-    }
-
-    fn match_seg_kind(&self, kind: &ModKind, seg: Segment, node: NodeKind, mask: u8) -> Result<bool, RuleRuntimeError> {
-        match kind {
-            ModKind::Binary(bt) => match bt {
-                BinMod::Negative => Ok(seg.feat_match(node, mask, false)),
-                BinMod::Positive => Ok(seg.feat_match(node, mask, true)),
-            },
-            ModKind::Alpha(am) => match am {
-                AlphaMod::Alpha(ch) => {
-                    if let Some(alph) = self.alphas.borrow().get(ch) {
-                        Ok(seg.feat_match(node, mask, alph.as_binary()))
-                    } else if let Some(f) = seg.get_feat(node, mask) {
-                        self.alphas.borrow_mut().insert(*ch, Alpha::Feature(f != 0)); 
-                        Ok(true)
-                    } else {
-                        // Maybe err?
-                        Ok(false)
-                    }
-                },
-                AlphaMod::InvAlpha(inv_ch) => {
-                    if let Some(alph) = self.alphas.borrow().get(inv_ch) {
-                        Ok(seg.feat_match(node, mask, !alph.as_binary()))
-                    } else if let Some(f) = seg.get_feat(node, mask) {
-                        self.alphas.borrow_mut().insert(*inv_ch, Alpha::Feature(f == 0));
-                        Ok(true)
-                    } else {
-                        // Maybe err?
-                        Ok(false)
-                    } 
-                },
-            },
         }
     }
 }
