@@ -1420,9 +1420,15 @@ impl SubRule {
         // therefore we must keep track of a change in a syllable's length and update the SegPositions accordingly
         let mut total_len_change: Vec<i8> = vec![0; word.syllables.len()];
         let mut last_pos = SegPos::new(0, 0);
+
+        let mut ell_count_input = 0;
         
         let mut res_word = word.clone();
-        for (state_index, (in_state, out_state)) in self.input.iter().zip(&self.output).enumerate() {
+        for (si, (in_state, out_state)) in self.input.iter().zip(&self.output).enumerate() {
+            // FIXME: I don't know how we're gonna do this for t
+            if in_state.kind == ParseElement::Ellipsis || in_state.kind == ParseElement::WEllipsis { ell_count_input +=1 }
+            let state_index = si - ell_count_input;
+
             match &out_state.kind {
                 ParseElement::Syllable(..) => return Err(RuleRuntimeError::SubstitutionSyll(out_state.position)),
                 ParseElement::Structure(items, stress, tone, var) => {
