@@ -529,7 +529,7 @@ mod rule_tests {
 
     #[test]
     fn test_optional_unbounded() {
-        let test_rule = setup_rule("V > [-back, +front, +tense] / _([],0) V:[+hi, -back]");
+        let test_rule = setup_rule("V > [-back, +front, +tense] / _(..) V:[+hi, -back]");
         let test_word = setup_word("aki");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "æki");
         let test_word = setup_word("ak.k.k.ki");
@@ -714,6 +714,14 @@ mod rule_tests {
         let test_word = setup_word("pa.ta.ka");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ta.ka");
     }
+
+    // #[test]
+    // fn test_addad() {
+    //     let test_rule = setup_rule("p...t > x x");
+    //     let test_word = setup_word("pa.ta.ka");
+    //     assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "xa.xa.ka");
+    // }
+
 
     #[test]
     fn test_del_syll() {
@@ -1463,7 +1471,7 @@ mod rule_tests {
     // }
 
     #[test]
-    fn test_prop() {
+    fn test_prop_ltr() {
 
         // V > [α front, β back] > V:[α front, β back]C_	
         // /sinotehu/ becomes /sinøtehy/, not /sinøtɤhy/
@@ -1480,19 +1488,19 @@ mod rule_tests {
         // V > [α front, β back] / _...V:[α front, β back]#
         // /sinotehu/ becomes /sɯnotɤhu/, as expected
         
-        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]#");
+        let test_rule = setup_rule("V > [α front, β back] / _ (..) V:[α front, β back]#");
         assert_eq!(test_rule.apply(setup_word("si.no.te.hu")).unwrap().render(&[]).0, "sɯ.no.tɤ.hu");
         assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]).0, "sɯ.no.tɤ.sɤ.hu");
 
         // blocking
-        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) P ([],0) V:[α front, β back]#");
+        let test_rule = setup_rule("V > [α front, β back] / _ (..) V:[α front, β back]# | _ (..) P (..) V:[α front, β back]#");
         assert_eq!(test_rule.apply(setup_word("si.no.te.hu")).unwrap().render(&[]).0, "si.no.tɤ.hu");
         assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]).0, "si.no.tɤ.sɤ.hu");
 
-        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) h ([],0) V:[α front, β back]#");
+        let test_rule = setup_rule("V > [α front, β back] / _ (..) V:[α front, β back]# | _ (..) h (..) V:[α front, β back]#");
         assert_eq!(test_rule.apply(setup_word("si.no.te.hu")).unwrap().render(&[]).0, "si.no.te.hu");
 
-        let test_rule = setup_rule("V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) s ([],0) V:[α front, β back]#");
+        let test_rule = setup_rule("V > [α front, β back] / _ (..) V:[α front, β back]# | _ (..) s (..) V:[α front, β back]#");
         assert_eq!(test_rule.apply(setup_word("si.no.te.se.hu")).unwrap().render(&[]).0, "si.no.te.sɤ.hu");
 
         // // Nasal harmony with blocking 
