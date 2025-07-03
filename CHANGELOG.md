@@ -1,3 +1,12 @@
+0.8.3
+==================
+[0.8.2...0.8.3](https://github.com/Girv98/asca-rust/compare/0.8.2...0.8.3)
+
+Features:
+* Lib: 
+    * Sets and Options now allowed within non-output Structures
+    * Ellipses can now be wrapped in brackets `(..)` to skip 'zero or more' segments instead of 'one or more' segments.
+
 0.8.2
 ==================
 [0.8.1...0.8.2](https://github.com/Girv98/asca-rust/compare/0.8.1...0.8.2)
