@@ -401,18 +401,15 @@ Spanish Hyperthesis (Old Spanish parabla => Spanish palabra)
 r...l > &
 ```
 
-Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule. 
-
-<!-- TODO: We can achieve both long-range and short-range metathesis by using `(..)`. This denotes skipping 'zero or more' segments.
+Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule.
+We can achieve both long-range and short-range metathesis by wrapping the ellipsis in brackets `(..)`. This denotes skipping 'zero or more' segments.
 
 ```
 r (...) l > &
 
 parabla => palabra
-arla > alra
-
-
-``` -->
+arla => alra
+```
 
 ### Condensed Rules
 Multiple rules can be condensed into one line. This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments.
@@ -739,7 +736,7 @@ Insertion with a Variable (see below)
 ```
 Insertion with Structure Matching (see below)
 
-* > 1 / ⟨..V:[-long]⟩:[+str] _ ⟨C=1...⟩ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1...⟩ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
 ```
 
 
@@ -750,7 +747,7 @@ S = the segment(s) to be repeated
 M = the minimum number of iterations (optional, default = 0)
 N = the maximum number of iterations (inclusive). N must be greater than or equal to M.
 ```
-For example, ```(C,5)_```  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
+For example, `(C,5)_`  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
 
 `(C,3:5)` matches `CCC_`, `CCCC_`, and `CCCCC_`.
 
@@ -760,7 +757,8 @@ For example, ```(C,5)_```  matches up to 5 consonants preceding the target. This
 
 `([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard (.?)
 
-`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard (.*?)
+`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard (.*?). 
+This can be considered the matching equivalent to `(..)`.
 
 ## Alpha Notation
 
@@ -845,29 +843,34 @@ Despite the name, variables cannot be reassigned. However, they can be modified 
 
 Sometimes it can be useful to match a syllable based on the segments within. We can do this by using a Structure. 
 
-Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-than signs `< >`. They can contain segments, matrices, variables, or ellipses.
-Ellipses are useful for only matching a certain part of the syllable, such as the onset or coda.
+Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-than signs `< >`. They can contain segments, matrices, variables, sets, options, or ellipses.
+Ellipses are useful for matching a certain part of the syllable, such as the onset or coda.
 ```
 ⟨..P:[-voi]⟩ => [tone: 35]
 (A closed syllable ending with a voiceless plosive gains rising tone)
 ```
 
 ```
+⟨(..)r(..)⟩ => [tone: 51]
+(A syllable that contains an /r/ anywhere gains falling tone)
+```
+
+```
 Example: Latin Stress Rule using Structures
 
-% > [+str] / #_#                (If there is only one syllable, it is stressed)
-⟨...V[+long]⟩ > [+stress] / _%# (A penult syllable ending with a long vowel becomes stressed)
-⟨...VC⟩ > [+stress] / _%#       (A penult syllable ending with a consonant becomes stressed)
-% > [+stress] / _ %:[-str]%#    (If the penult is unstressed, the antepenult becomes stressed)
+% > [+str] / #_#                 (If there is only one syllable, it is stressed)
+⟨(..)V[+long]⟩ > [+stress] / _%# (A penult syllable ending with a long vowel becomes stressed)
+⟨(..)VC⟩ > [+stress] / _%#       (A penult syllable ending with a consonant becomes stressed)
+% > [+stress] / _ %:[-str]%#     (If the penult is unstressed, the antepenult becomes stressed)
 
 (Like the previous Latin stress example, rules 2 and 3 can be condensed, but slightly differently)
 
-⟨...V[+long]⟩, ⟨...VC⟩ > [+stress] / _%#
+⟨(..)V[+long]⟩, ⟨(..)VC⟩ > [+stress] / _%#
 ```
 
 Structures can also be used to insert whole syllables:
 ```
-Example: Expletive infixation
+Example: Expletive Infixation
 
 * > ⟨blʉw⟩:[+sec.stress] ⟨mɪn⟩ / %_%:[+stress] (absolutely => abso-bloomin'-lutely)
 ```
@@ -902,24 +905,14 @@ V > [α front, β back] > V:[α front, β back] (C) _ (Vowels assimilate in back
 
 ### Faux Right-to-left Propagation
 
-To achieve right to left harmonies in a "left-to-right" context, we can use a fixed harmonic trigger, which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `...` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
+To achieve right to left harmonies in a "left-to-right" context, we can use a fixed harmonic trigger, which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `(..)` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
 ```
 V > [α front, β back] / _CV:[α front, β back]
 /ki.to.le.nu/ becomes /kɯ.tø.lɤ.nu/, no propagation
 
-V > [α front, β back] / _...V:[α front, β back]#
+V > [α front, β back] / _(..)V:[α front, β back]#
 /ki.to.le.nu/ becomes /kɯ.to.lɤ.nu/, as expected
-```
-
-This works for the above example, where there is at least one non-matching segment between the trigger and the last matching segment. However, if the /h/ were not present, the /e/ would not assimilate. This is because `...` matches *at least* one segment. Using the special zero-or-more [optional](#optional-segments) `([],0)` in its place, we can match in the case of zero intermediate segments as well.
-
-```
-V > [α front, β back] / _...V:[α front, β back]#
-/ki.to.leu/ becomes /kɯ.to.leu/
-
-V > [α front, β back] / _ ([],0) V:[α front, β back]#
-/ki.to.leu/ becomes /kɯ.to.lɤu/
 ```
 
 ### True Right-to-left Propagation
@@ -953,7 +946,7 @@ We can achieve blocking with an exception clause. For this example, plosives wil
 ```
 Faux Right-to-Left:
 
-V > [α front, β back] / _ ([],0) V:[α front, β back]# | _ ([],0) P ([],0) V:[α front, β back]#
+V > [α front, β back] / _ (..) V:[α front, β back]# | _ (..) P (..) V:[α front, β back]#
 
 /ki.to.le.nu/ becomes /ki.to.lɤ.nu/
 ```
