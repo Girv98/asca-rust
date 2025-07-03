@@ -921,395 +921,6 @@ impl SubRule {
         }
     }
 
-    fn insertion_match_exceptions(&self, word: &Word, ins_pos: SegPos) -> Result<bool, RuleRuntimeError> {
-        let empty = Vec::new();
-        let exceptions = self.get_exceptions();
-
-        let (before_expt, after_expt) = match exceptions.len().cmp(&1) {
-            std::cmp::Ordering::Less => (&empty, &empty),
-            std::cmp::Ordering::Equal => exceptions[0],
-            std::cmp::Ordering::Greater => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
-        };
-        let mut before_expt = before_expt.clone();
-        before_expt.reverse();
-
-        match (before_expt.is_empty(), after_expt.is_empty()) {
-            // _
-            (true, true) => Ok(false),
-            (false, true) => {
-                // #_
-                let word_rev = &word.reverse();
-                let pos_rev = ins_pos.reversed(word);
-                let match_bef = self.match_before_env(&before_expt, word_rev, &pos_rev, false, false)?;
-                Ok(match_bef)
-            },
-            (true, false) => {
-                // _#
-                // edge case for when insertion position is out of bounds but not at the word end
-                if after_expt.len() == 1 && after_expt[0].kind == ParseElement::WordBound && !ins_pos.at_word_end(word) {
-                    return Ok(false)
-                }
-                let match_aft = self.match_after_env(after_expt, word, &ins_pos, true, false, false)?;
-                Ok(match_aft)
-            },
-            // #_#
-            (false, false) => {
-                let word_rev = &word.reverse();
-                let pos_rev = ins_pos.reversed(word);
-                let match_bef = self.match_before_env(&before_expt, word_rev, &pos_rev, false, false)?;
-                let match_aft = self.match_after_env(after_expt, word, &ins_pos, false, false, false)?;
-
-                Ok(match_bef && match_aft)
-            },
-        }
-    }
-
-    fn insertion_match(&self, word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
-        let empty = Vec::new();
-        let context = self.get_contexts();
-        let exceptions = self.get_exceptions();
-
-        let ((before_cont, after_cont), (before_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
-            (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &empty)),
-            (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
-            (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &empty), exceptions[0]),
-            (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
-            (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
-            (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
-        };
-
-        if before_cont.is_empty() && after_cont.is_empty() && before_expt.is_empty() && after_expt.is_empty() {
-            return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
-        }
-
-        let maybe_ins = match (before_cont.is_empty(), after_cont.is_empty()) {
-            (true, true) => Some(start_pos), // _
-            (false, true) => self.insertion_after(before_cont, word, start_pos)?, // #_
-            (true, false) => self.insertion_before(after_cont, word, start_pos)?, // _#
-            (false, false) => self.insertion_between(before_cont, after_cont, word, start_pos)?, // #_#
-        };
-
-        Ok(maybe_ins)
-    }
-
-    fn insertion_between(&self, bef_states: &[ParseItem], aft_states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
-        let mut start_pos = start_pos;
-        
-        // FIXME: This is scuffed
-        'outer: while word.in_bounds(start_pos) {
-            match self.insertion_after(bef_states, word, start_pos)? {
-                Some(mut ins_pos) => {
-                    let mut pos = ins_pos;
-                    let mut state_index = 0;
-                    start_pos = ins_pos;
-                    while state_index < aft_states.len() {
-                        if !self.context_match(aft_states, &mut state_index, word, &mut pos, true, false, false)? {
-                            match bef_states.last().unwrap().kind {
-                                ParseElement::WordBound => return Ok(None),
-                                ParseElement::SyllBound => start_pos.increment(word),
-                                _ => {}
-                            }
-                            continue 'outer;
-                        }
-                        state_index +=1;
-                    }
-                    // Fix for insertion before a mid-word syllable boundary
-                    if let ParseElement::SyllBound | ParseElement::Structure(..) = aft_states[0].kind {
-                        if ins_pos.at_syll_start() {
-                            ins_pos.decrement(word);
-                            ins_pos.seg_index += 1;
-                        }
-                    }
-                    return Ok(Some(ins_pos)) 
-                },
-                None => return Ok(None),
-            }
-        }
-
-        Ok(None)
-    }
-
-    fn insertion_after(&self, states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
-        // i.e. #_
-        let mut cur_pos = start_pos;
-        let mut state_index = 0;
-        let mut match_begin = None;
-
-        if states[0].kind == ParseElement::WordBound {
-            if !start_pos.at_word_start() {
-                return Ok(None)
-            }
-            if states.len() == 1 {
-                return Ok(Some(start_pos))
-            }
-            state_index = 1;
-        }
-
-        while word.in_bounds(cur_pos) {
-            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, false, false)? {
-                if state_index >= states.len() - 1 {
-                    return Ok(Some(cur_pos))
-                }
-                if match_begin.is_none() {
-                    match_begin = Some(cur_pos);
-                }
-                state_index += 1;
-            } else if let Some(mb) = match_begin{
-                cur_pos = mb;
-                cur_pos.increment(word);
-                state_index = 0;
-                match_begin = None;
-                self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
-            } else {
-                cur_pos.increment(word);
-                self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
-                state_index = 0;
-            }
-        }
-
-        if match_begin.is_none() {
-            if let ParseElement::SyllBound = states.last().unwrap().kind {
-                let sy = word.syllables.len() - 1;
-                let sg = word.syllables[sy].segments.len();
-                Ok(Some(SegPos::new(sy, sg)))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn insertion_before(&self, states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
-        // i.e. _#
-        let mut cur_pos = start_pos;
-        let mut state_index = 0;
-        let mut match_begin = None;
-
-        while word.in_bounds(cur_pos) {
-            let before_pos = cur_pos;
-            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, true, false)? {
-                if match_begin.is_none() {
-                    let mut sp = before_pos;
-                    if let ParseElement::Syllable(..) | ParseElement::SyllBound = states.first().unwrap().kind {
-                        sp.decrement(word);
-                        sp.seg_index +=1;
-                    }
-                    match_begin = Some(sp);
-                }
-                if state_index >= states.len() - 1 {
-                    return Ok(match_begin)
-                }
-                state_index += 1;
-            } else if let Some(mb) = match_begin{
-                cur_pos = mb;
-                cur_pos.increment(word);
-                state_index = 0;
-                match_begin = None;
-                self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
-            } else {
-                cur_pos.increment(word);
-                self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
-                state_index = 0;
-            }
-        }
-
-        if match_begin.is_none() {
-            if let ParseElement::WordBound | ParseElement::SyllBound | ParseElement::Structure(..) = states.first().unwrap().kind {
-                let sy = word.syllables.len() - 1;
-                let sg = word.syllables[sy].segments.len();
-                Ok(Some(SegPos::new(sy, sg)))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn insert(&self, word: &Word, pos: SegPos, is_context_after: bool) -> Result<(Word, Option<SegPos>), RuleRuntimeError> {
-        let mut res_word = word.clone();
-        let mut pos = pos;
-        for state in &self.output {
-            match &state.kind {
-                ParseElement::Ipa(seg, mods) => {
-                    if let Some(syll) = res_word.syllables.get_mut(pos.syll_index) { 
-                        let lc = syll.insert_segment(pos.seg_index, seg, mods, &self.alphas, state.position)?;
-                        if lc > 0 {
-                            pos.seg_index += lc.unsigned_abs() as usize;
-                        }
-                    } else {
-                        res_word.syllables.last_mut().unwrap().segments.push_back(*seg);
-                        if let Some(m) = mods {
-                            let lc = res_word.apply_seg_mods(&self.alphas, m, pos, state.position)?;
-                            if lc > 0 {
-                                pos.seg_index += lc.unsigned_abs() as usize;
-                            }
-                        } 
-                    };
-                    pos.increment(&res_word);
-                },
-                ParseElement::SyllBound => {
-                    // FIXME(girv): Issue
-                    // if we are part sequence of rules that are inserting a new syllable to the start of the word
-                    // then we want the original syllable (which in this case will become the second syllable) to have the stress/tone
-                    // however, this edge case is not possible to discern from
-
-                    if pos.at_syll_start() {
-                        // NOTE: Possible unintended behaviour
-                        // i.e "* > $ka / _#" on /de.su/ would return /de.suka/
-                        continue;
-                    }
-                    // split current syll into two at pos
-                    let mut second_syll = Syllable::new();
-                    let first_syll = res_word.syllables.get_mut(pos.syll_index).unwrap();
-
-                    while first_syll.segments.len() > pos.seg_index {
-                        second_syll.segments.push_front(first_syll.segments.pop_back().unwrap());
-                    }
-
-                    res_word.syllables.insert(pos.syll_index+1, second_syll);
-
-                    pos.syll_index += 1;
-                    pos.seg_index = 0;
-                },
-                ParseElement::Syllable(stress, tone, var) => {
-                    if pos.at_syll_start() {
-                        // apply mods to current syllable, possibly not a good idea
-                        if let Some(syll) = res_word.syllables.get_mut(pos.syll_index) {
-                            syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
-                            if let Some(v) = var {
-                                self.variables.borrow_mut().insert(*v, VarKind::Syllable(res_word.syllables[pos.syll_index].clone()));
-                            }
-                            continue;
-                        } else {
-                            // NOTE: Same behaviour as SyllBound above
-                            continue;
-                        }
-                    } 
-                    // split current syll into two at insert_pos
-                    // Apply mods to second syll
-                    let mut new_syll = Syllable::new();
-                    new_syll.apply_syll_mods(&self.alphas, /*&self.variables,*/ &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
-
-                    let syll = res_word.syllables.get_mut(pos.syll_index).expect("pos should not be out of bounds");
-
-                    while syll.segments.len() > pos.seg_index {
-                        new_syll.segments.push_front(syll.segments.pop_back().unwrap());
-                    }
-                    res_word.syllables.insert(pos.syll_index+1, new_syll);
-
-                    pos.syll_index += 2;
-                    pos.seg_index = 0;
-
-                    if let Some(v) = var {
-                        self.variables.borrow_mut().insert(*v, VarKind::Syllable(res_word.syllables[pos.syll_index -1].clone()));
-                    }
-                },
-                ParseElement::Structure(items, stress, tone, var) => {
-                    let insert_syll = self.gen_syll_from_struct(items, stress, tone, var, state.position, true)?;
-
-                    if pos.at_syll_start() {
-                        res_word.syllables.insert(pos.syll_index, insert_syll);
-                        pos.syll_index += 1;
-                        pos.seg_index = 0;
-                        continue;
-                    }
-
-                    let old_syll = res_word.syllables.get_mut(pos.syll_index).expect("pos should not be out of bounds");
-                    
-                    let mut new_syll = Syllable::new();
-                    new_syll.stress = old_syll.stress;
-                    new_syll.tone = old_syll.tone;
-
-                    while old_syll.segments.len() > pos.seg_index {
-                        new_syll.segments.push_front(old_syll.segments.pop_back().unwrap());
-                    }
-
-                    let mut adjustment = 0;
-                    if old_syll.segments.is_empty() {
-                        *old_syll = insert_syll;
-                    } else {
-                        res_word.syllables.insert(pos.syll_index+1, insert_syll);
-                        adjustment = 1;
-                    }
-                    
-                    if !new_syll.segments.is_empty() {
-                        res_word.syllables.insert(pos.syll_index+1+adjustment, new_syll);
-                        pos.syll_index += 2 + adjustment;
-                    } else {
-                        pos.syll_index += 1 + adjustment;
-                    }
-                    
-                    pos.seg_index = 0;
-                },
-                ParseElement::Variable(num, mods) => {
-                    if let Some(var) = self.variables.borrow().get(&num.value.parse().unwrap()) {
-                        match var {
-                            VarKind::Segment(seg) => {
-                                if let Some(syll) = res_word.syllables.get_mut(pos.syll_index) { 
-                                    let lc = syll.insert_segment(pos.seg_index, seg, mods, &self.alphas, state.position)?;
-                                    if lc > 0 {
-                                        pos.seg_index += lc.unsigned_abs() as usize;
-                                    }
-                                } else {
-                                    res_word.syllables.last_mut().unwrap().segments.push_back(*seg);
-                                    if let Some(m) = mods {
-                                        let lc = res_word.apply_seg_mods(&self.alphas, m, pos, state.position)?;
-                                        if lc > 0 {
-                                            pos.seg_index += lc.unsigned_abs() as usize;
-                                        }
-                                    } 
-                                };
-                                pos.increment(&res_word);
-                            },
-                            VarKind::Syllable(syll) => {
-                                let mut new_syll = syll.clone();
-                                if let Some(m) = mods {
-                                    new_syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?;
-                                }
-                                if pos.at_syll_start() {
-                                    res_word.syllables.insert(pos.syll_index, new_syll.clone());
-                                    pos.syll_index += 1;
-                                } else {
-                                    // split current syllable in two, insert var_syll in between them
-                                    let before_syll = res_word.syllables.get_mut(pos.syll_index).unwrap();
-                                    let mut after_syll = Syllable::new();
-                                    while before_syll.segments.len() > pos.seg_index {
-                                        after_syll.segments.push_front(before_syll.segments.pop_back().unwrap());
-                                    }
-                                    res_word.syllables.insert(pos.syll_index+1, after_syll);
-                                    res_word.syllables.insert(pos.syll_index+1, new_syll);
-
-                                    pos.syll_index += 3;
-                                    pos.seg_index = 0;
-                                }
-                            },
-                        }
-                    } else {
-                        return Err(RuleRuntimeError::UnknownVariable(num.clone()))
-                    }
-                },
-
-                ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(state.position)),
-                ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(state.position)),
-                ParseElement::EmptySet  | ParseElement::Metathesis | 
-                ParseElement::Ellipsis  | ParseElement::Optional(..) | ParseElement::WEllipsis | 
-                ParseElement::WordBound | ParseElement::Environment(..) => unreachable!(),
-            }
-        }
-
-        if is_context_after {
-            pos.increment(&res_word);
-        }
-        
-        Ok((res_word, Some(pos)))
-    }
-
     fn context_match_ipa(&self, s: &Segment, mods: &Option<Modifiers>, word: &Word, pos: SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
         if word.out_of_bounds(pos) {
             return Ok(false)
@@ -2480,9 +2091,7 @@ impl SubRule {
         Ok(true)
     }
 
-    fn match_tone(&self, tone: &Tone, syll: &Syllable) -> bool {        
-        *tone == syll.tone
-    }
+    fn match_tone(&self, tone: &Tone, syll: &Syllable) -> bool { *tone == syll.tone }
 
     fn input_match_syll_bound(&self, captures: &mut Vec<MatchElement>, pos: SegPos) -> bool {
         if pos.seg_index == 0 {
@@ -2881,37 +2490,393 @@ impl SubRule {
     }
 }
 
-// struct RevIf<I> {
-//     iter: I,
-//     rev: bool,
-// }
+impl SubRule { // Insertion
+    fn insert(&self, word: &Word, pos: SegPos, is_context_after: bool) -> Result<(Word, Option<SegPos>), RuleRuntimeError> {
+        let mut res_word = word.clone();
+        let mut pos = pos;
+        for state in &self.output {
+            match &state.kind {
+                ParseElement::Ipa(seg, mods) => {
+                    if let Some(syll) = res_word.syllables.get_mut(pos.syll_index) { 
+                        let lc = syll.insert_segment(pos.seg_index, seg, mods, &self.alphas, state.position)?;
+                        if lc > 0 {
+                            pos.seg_index += lc.unsigned_abs() as usize;
+                        }
+                    } else {
+                        res_word.syllables.last_mut().unwrap().segments.push_back(*seg);
+                        if let Some(m) = mods {
+                            let lc = res_word.apply_seg_mods(&self.alphas, m, pos, state.position)?;
+                            if lc > 0 {
+                                pos.seg_index += lc.unsigned_abs() as usize;
+                            }
+                        } 
+                    };
+                    pos.increment(&res_word);
+                },
+                ParseElement::SyllBound => {
+                    // FIXME(girv): Issue
+                    // if we are part sequence of rules that are inserting a new syllable to the start of the word
+                    // then we want the original syllable (which in this case will become the second syllable) to have the stress/tone
+                    // however, this edge case is not possible to discern from
 
-// impl<I: DoubleEndedIterator> Iterator for RevIf<I> {
-//     type Item = I::Item;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.rev {
-//             self.iter.next_back()
-//         } else {
-//             self.iter.next()
-//         }
-//     }
-// }
+                    if pos.at_syll_start() {
+                        // NOTE: Possible unintended behaviour
+                        // i.e "* > $ka / _#" on /de.su/ would return /de.suka/
+                        continue;
+                    }
+                    // split current syll into two at pos
+                    let mut second_syll = Syllable::new();
+                    let first_syll = res_word.syllables.get_mut(pos.syll_index).unwrap();
 
-// impl<I: DoubleEndedIterator> DoubleEndedIterator for RevIf<I> {
-//     fn next_back(&mut self) -> Option<Self::Item> {
-//         if self.rev {
-//             self.iter.next()
-//         } else {
-//             self.iter.next_back()
-//         }
-//     }
-// }
+                    while first_syll.segments.len() > pos.seg_index {
+                        second_syll.segments.push_front(first_syll.segments.pop_back().unwrap());
+                    }
 
-// trait IterExt: Sized {
-//     fn rev_if(self, rev: bool) -> RevIf<Self>;
-// }
-// impl<I: Iterator> IterExt for I {
-//     fn rev_if(self, rev: bool) -> RevIf<Self> {
-//         RevIf { iter: self, rev }
-//     }
-// }
+                    res_word.syllables.insert(pos.syll_index+1, second_syll);
+
+                    pos.syll_index += 1;
+                    pos.seg_index = 0;
+                },
+                ParseElement::Syllable(stress, tone, var) => {
+                    if pos.at_syll_start() {
+                        // apply mods to current syllable, possibly not a good idea
+                        if let Some(syll) = res_word.syllables.get_mut(pos.syll_index) {
+                            syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
+                            if let Some(v) = var {
+                                self.variables.borrow_mut().insert(*v, VarKind::Syllable(res_word.syllables[pos.syll_index].clone()));
+                            }
+                            continue;
+                        } else {
+                            // NOTE: Same behaviour as SyllBound above
+                            continue;
+                        }
+                    } 
+                    // split current syll into two at insert_pos
+                    // Apply mods to second syll
+                    let mut new_syll = Syllable::new();
+                    new_syll.apply_syll_mods(&self.alphas, /*&self.variables,*/ &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
+
+                    let syll = res_word.syllables.get_mut(pos.syll_index).expect("pos should not be out of bounds");
+
+                    while syll.segments.len() > pos.seg_index {
+                        new_syll.segments.push_front(syll.segments.pop_back().unwrap());
+                    }
+                    res_word.syllables.insert(pos.syll_index+1, new_syll);
+
+                    pos.syll_index += 2;
+                    pos.seg_index = 0;
+
+                    if let Some(v) = var {
+                        self.variables.borrow_mut().insert(*v, VarKind::Syllable(res_word.syllables[pos.syll_index -1].clone()));
+                    }
+                },
+                ParseElement::Structure(items, stress, tone, var) => {
+                    let insert_syll = self.gen_syll_from_struct(items, stress, tone, var, state.position, true)?;
+
+                    if pos.at_syll_start() {
+                        res_word.syllables.insert(pos.syll_index, insert_syll);
+                        pos.syll_index += 1;
+                        pos.seg_index = 0;
+                        continue;
+                    }
+
+                    let old_syll = res_word.syllables.get_mut(pos.syll_index).expect("pos should not be out of bounds");
+                    
+                    let mut new_syll = Syllable::new();
+                    new_syll.stress = old_syll.stress;
+                    new_syll.tone = old_syll.tone;
+
+                    while old_syll.segments.len() > pos.seg_index {
+                        new_syll.segments.push_front(old_syll.segments.pop_back().unwrap());
+                    }
+
+                    let mut adjustment = 0;
+                    if old_syll.segments.is_empty() {
+                        *old_syll = insert_syll;
+                    } else {
+                        res_word.syllables.insert(pos.syll_index+1, insert_syll);
+                        adjustment = 1;
+                    }
+                    
+                    if !new_syll.segments.is_empty() {
+                        res_word.syllables.insert(pos.syll_index+1+adjustment, new_syll);
+                        pos.syll_index += 2 + adjustment;
+                    } else {
+                        pos.syll_index += 1 + adjustment;
+                    }
+                    
+                    pos.seg_index = 0;
+                },
+                ParseElement::Variable(num, mods) => {
+                    if let Some(var) = self.variables.borrow().get(&num.value.parse().unwrap()) {
+                        match var {
+                            VarKind::Segment(seg) => {
+                                if let Some(syll) = res_word.syllables.get_mut(pos.syll_index) { 
+                                    let lc = syll.insert_segment(pos.seg_index, seg, mods, &self.alphas, state.position)?;
+                                    if lc > 0 {
+                                        pos.seg_index += lc.unsigned_abs() as usize;
+                                    }
+                                } else {
+                                    res_word.syllables.last_mut().unwrap().segments.push_back(*seg);
+                                    if let Some(m) = mods {
+                                        let lc = res_word.apply_seg_mods(&self.alphas, m, pos, state.position)?;
+                                        if lc > 0 {
+                                            pos.seg_index += lc.unsigned_abs() as usize;
+                                        }
+                                    } 
+                                };
+                                pos.increment(&res_word);
+                            },
+                            VarKind::Syllable(syll) => {
+                                let mut new_syll = syll.clone();
+                                if let Some(m) = mods {
+                                    new_syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?;
+                                }
+                                if pos.at_syll_start() {
+                                    res_word.syllables.insert(pos.syll_index, new_syll.clone());
+                                    pos.syll_index += 1;
+                                } else {
+                                    // split current syllable in two, insert var_syll in between them
+                                    let before_syll = res_word.syllables.get_mut(pos.syll_index).unwrap();
+                                    let mut after_syll = Syllable::new();
+                                    while before_syll.segments.len() > pos.seg_index {
+                                        after_syll.segments.push_front(before_syll.segments.pop_back().unwrap());
+                                    }
+                                    res_word.syllables.insert(pos.syll_index+1, after_syll);
+                                    res_word.syllables.insert(pos.syll_index+1, new_syll);
+
+                                    pos.syll_index += 3;
+                                    pos.seg_index = 0;
+                                }
+                            },
+                        }
+                    } else {
+                        return Err(RuleRuntimeError::UnknownVariable(num.clone()))
+                    }
+                },
+
+                ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(state.position)),
+                ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(state.position)),
+                ParseElement::EmptySet  | ParseElement::Metathesis | 
+                ParseElement::Ellipsis  | ParseElement::Optional(..) | ParseElement::WEllipsis | 
+                ParseElement::WordBound | ParseElement::Environment(..) => unreachable!(),
+            }
+        }
+
+        if is_context_after {
+            pos.increment(&res_word);
+        }
+        
+        Ok((res_word, Some(pos)))
+    }
+
+    fn insertion_match_exceptions(&self, word: &Word, ins_pos: SegPos) -> Result<bool, RuleRuntimeError> {
+        let empty = Vec::new();
+        let exceptions = self.get_exceptions();
+
+        let (before_expt, after_expt) = match exceptions.len().cmp(&1) {
+            std::cmp::Ordering::Less => (&empty, &empty),
+            std::cmp::Ordering::Equal => exceptions[0],
+            std::cmp::Ordering::Greater => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
+        };
+        let mut before_expt = before_expt.clone();
+        before_expt.reverse();
+
+        match (before_expt.is_empty(), after_expt.is_empty()) {
+            // _
+            (true, true) => Ok(false),
+            (false, true) => {
+                // #_
+                let word_rev = &word.reverse();
+                let pos_rev = ins_pos.reversed(word);
+                let match_bef = self.match_before_env(&before_expt, word_rev, &pos_rev, false, false)?;
+                Ok(match_bef)
+            },
+            (true, false) => {
+                // _#
+                // edge case for when insertion position is out of bounds but not at the word end
+                if after_expt.len() == 1 && after_expt[0].kind == ParseElement::WordBound && !ins_pos.at_word_end(word) {
+                    return Ok(false)
+                }
+                let match_aft = self.match_after_env(after_expt, word, &ins_pos, true, false, false)?;
+                Ok(match_aft)
+            },
+            // #_#
+            (false, false) => {
+                let word_rev = &word.reverse();
+                let pos_rev = ins_pos.reversed(word);
+                let match_bef = self.match_before_env(&before_expt, word_rev, &pos_rev, false, false)?;
+                let match_aft = self.match_after_env(after_expt, word, &ins_pos, false, false, false)?;
+
+                Ok(match_bef && match_aft)
+            },
+        }
+    }
+
+    fn insertion_match(&self, word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+        let empty = Vec::new();
+        let context = self.get_contexts();
+        let exceptions = self.get_exceptions();
+
+        let ((before_cont, after_cont), (before_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
+            (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &empty)),
+            (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
+            (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &empty), exceptions[0]),
+            (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
+            (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
+            (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
+        };
+
+        if before_cont.is_empty() && after_cont.is_empty() && before_expt.is_empty() && after_expt.is_empty() {
+            return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
+        }
+
+        let maybe_ins = match (before_cont.is_empty(), after_cont.is_empty()) {
+            (true, true) => Some(start_pos), // _
+            (false, true) => self.insertion_after(before_cont, word, start_pos)?, // #_
+            (true, false) => self.insertion_before(after_cont, word, start_pos)?, // _#
+            (false, false) => self.insertion_between(before_cont, after_cont, word, start_pos)?, // #_#
+        };
+
+        Ok(maybe_ins)
+    }
+
+    fn insertion_between(&self, bef_states: &[ParseItem], aft_states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+        let mut start_pos = start_pos;
+        
+        // FIXME: This is scuffed
+        'outer: while word.in_bounds(start_pos) {
+            match self.insertion_after(bef_states, word, start_pos)? {
+                Some(mut ins_pos) => {
+                    let mut pos = ins_pos;
+                    let mut state_index = 0;
+                    start_pos = ins_pos;
+                    while state_index < aft_states.len() {
+                        if !self.context_match(aft_states, &mut state_index, word, &mut pos, true, false, false)? {
+                            match bef_states.last().unwrap().kind {
+                                ParseElement::WordBound => return Ok(None),
+                                ParseElement::SyllBound => start_pos.increment(word),
+                                _ => {}
+                            }
+                            continue 'outer;
+                        }
+                        state_index +=1;
+                    }
+                    // Fix for insertion before a mid-word syllable boundary
+                    if let ParseElement::SyllBound | ParseElement::Structure(..) = aft_states[0].kind {
+                        if ins_pos.at_syll_start() {
+                            ins_pos.decrement(word);
+                            ins_pos.seg_index += 1;
+                        }
+                    }
+                    return Ok(Some(ins_pos)) 
+                },
+                None => return Ok(None),
+            }
+        }
+
+        Ok(None)
+    }
+
+    fn insertion_after(&self, states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+        // i.e. #_
+        let mut cur_pos = start_pos;
+        let mut state_index = 0;
+        let mut match_begin = None;
+
+        if states[0].kind == ParseElement::WordBound {
+            if !start_pos.at_word_start() {
+                return Ok(None)
+            }
+            if states.len() == 1 {
+                return Ok(Some(start_pos))
+            }
+            state_index = 1;
+        }
+
+        while word.in_bounds(cur_pos) {
+            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, false, false)? {
+                if state_index >= states.len() - 1 {
+                    return Ok(Some(cur_pos))
+                }
+                if match_begin.is_none() {
+                    match_begin = Some(cur_pos);
+                }
+                state_index += 1;
+            } else if let Some(mb) = match_begin{
+                cur_pos = mb;
+                cur_pos.increment(word);
+                state_index = 0;
+                match_begin = None;
+                self.alphas.borrow_mut().clear();
+                self.variables.borrow_mut().clear();
+            } else {
+                cur_pos.increment(word);
+                self.alphas.borrow_mut().clear();
+                self.variables.borrow_mut().clear();
+                state_index = 0;
+            }
+        }
+
+        if match_begin.is_none() {
+            if let ParseElement::SyllBound = states.last().unwrap().kind {
+                let sy = word.syllables.len() - 1;
+                let sg = word.syllables[sy].segments.len();
+                Ok(Some(SegPos::new(sy, sg)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn insertion_before(&self, states: &[ParseItem], word: &Word, start_pos: SegPos) -> Result<Option<SegPos>, RuleRuntimeError> {
+        // i.e. _#
+        let mut cur_pos = start_pos;
+        let mut state_index = 0;
+        let mut match_begin = None;
+
+        while word.in_bounds(cur_pos) {
+            let before_pos = cur_pos;
+            if self.context_match(states, &mut state_index, word, &mut cur_pos, true, true, false)? {
+                if match_begin.is_none() {
+                    let mut sp = before_pos;
+                    if let ParseElement::Syllable(..) | ParseElement::SyllBound = states.first().unwrap().kind {
+                        sp.decrement(word);
+                        sp.seg_index +=1;
+                    }
+                    match_begin = Some(sp);
+                }
+                if state_index >= states.len() - 1 {
+                    return Ok(match_begin)
+                }
+                state_index += 1;
+            } else if let Some(mb) = match_begin{
+                cur_pos = mb;
+                cur_pos.increment(word);
+                state_index = 0;
+                match_begin = None;
+                self.alphas.borrow_mut().clear();
+                self.variables.borrow_mut().clear();
+            } else {
+                cur_pos.increment(word);
+                self.alphas.borrow_mut().clear();
+                self.variables.borrow_mut().clear();
+                state_index = 0;
+            }
+        }
+
+        if match_begin.is_none() {
+            if let ParseElement::WordBound | ParseElement::SyllBound | ParseElement::Structure(..) = states.first().unwrap().kind {
+                let sy = word.syllables.len() - 1;
+                let sg = word.syllables[sy].segments.len();
+                Ok(Some(SegPos::new(sy, sg)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+}
