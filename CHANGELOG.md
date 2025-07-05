@@ -1,9 +1,16 @@
+Upcoming Changes
+==================
+[0.8.3...latest](https://github.com/Girv98/asca-rust/compare/0.8.3...master)
+
+Fixes:
+* Lib: `[-long]` matrices match correctly after an ellipsis
+
 0.8.3
 ==================
 [0.8.2...0.8.3](https://github.com/Girv98/asca-rust/compare/0.8.2...0.8.3)
 
 Features:
-* Lib: 
+* Lib:
     * Sets and Options now allowed within non-output Structures
     * Ellipses can now be wrapped in brackets `(..)` to skip 'zero or more' segments instead of 'one or more' segments.
 
