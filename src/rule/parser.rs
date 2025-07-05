@@ -331,16 +331,16 @@ impl Parser {
 
         debug_assert_eq!(pstn, self.pos - 1);
         if !self.expect(TokenKind::Comma) {
-            self.pos -=2;
-            self.advance();
+            self.pos = pstn;
+            self.curr_tkn = self.token_list[self.pos].clone();
             return Ok(None)
         }
 
         let x = self.get_env_elements(false)?;
 
         if self.expect(TokenKind::Underline) {
-            self.pos = pstn-1;
-            self.advance();
+            self.pos = pstn;
+            self.curr_tkn = self.token_list[self.pos].clone();
             return Ok(None)
         }
 
@@ -1109,6 +1109,7 @@ mod parser_tests {
             },
         } 
     }
+    
     #[test]
     fn test_floating_diacritic() {
         let maybe_result = Parser:: new(setup("a, \"H > \"h"), 0, 0).parse();
@@ -1277,6 +1278,12 @@ mod parser_tests {
         assert!(maybe_result.is_ok());
         assert!(maybe_result.unwrap().is_none());
 
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).parse();
+        assert!(maybe_result.is_ok());
+
+        let maybe_result = Parser:: new(setup("ə > * / _ ;; unstressed schwa deletes"), 0, 0).parse();
+        assert!(maybe_result.is_ok());
+
 
         let maybe_result = Parser::new(setup("%;;:[tone: 123] > [tone: 321]"), 0, 0).parse();
         assert!(maybe_result.is_err());
@@ -1301,9 +1308,6 @@ mod parser_tests {
         let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
-
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).parse();
-        assert!(maybe_result.is_ok());
     }
 
 
