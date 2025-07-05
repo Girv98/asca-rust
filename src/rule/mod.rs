@@ -794,56 +794,56 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_except_before_simple_ipa() {
+    fn test_except_after_simple_ipa() {
         let test_rule = setup_rule(" i > e | c_");
         let test_word = setup_word("ki.ci");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ke.ci");
     }
 
     #[test]
-    fn test_except_before_ipa() {
+    fn test_except_after_ipa() {
         let test_rule = setup_rule(" i > e | c:[+long] _");
         let test_word = setup_word("ki.cːi");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ke.cːi");
     }
 
     #[test]
-    fn test_except_before_ipa_bound() {
+    fn test_except_after_ipa_bound() {
         let test_rule = setup_rule(" i > e | cc_");
         let test_word = setup_word("kic.ci");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "kec.ci");
     }
 
     #[test]
-    fn test_except_after_simple_ipa() {
+    fn test_except_before_simple_ipa() {
         let test_rule = setup_rule(" i > e | _c");
         let test_word = setup_word("ki.ci");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ki.ce");
     }
 
     #[test]
-    fn test_except_after_ipa() {
+    fn test_except_before_ipa() {
         let test_rule = setup_rule(" i > e | _cc");
         let test_word = setup_word("ki.cːi");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ki.cːe");
     }
 
     #[test]
-    fn test_except_after_ipa_bound() {
+    fn test_except_before_ipa_bound() {
         let test_rule = setup_rule(" i > e | _cc");
         let test_word = setup_word("kic.ci");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "kic.ce");
     }
 
     #[test]
-    fn test_except_before_ipa_bound_false() {
+    fn test_except_after_ipa_bound_false() {
         let test_rule = setup_rule(" i > e | cc_");
         let test_word = setup_word("ki.ci");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ke.ce");
     }
 
     #[test]
-    fn test_except_after_ipa_bound_false() {
+    fn test_except_before_ipa_bound_false() {
         let test_rule = setup_rule(" i > e | _cc");
         let test_word = setup_word("ki.ci");
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "ke.ce");
@@ -868,6 +868,32 @@ mod rule_tests {
         assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "eki.eci");
     }
 
+    #[test]
+    fn test_context_matrices() {
+        let test_rule = setup_rule("i > e / _(..)V:[-long]#");
+        let test_word = setup_word("si.haː");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "si.haː");
+
+        let test_rule = setup_rule("i ~ e / _(..)V:[-long]#");
+        let test_word = setup_word("si.haː");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "si.haː");
+
+        let test_rule = setup_rule("i > e / _(..)V:[+long]#");
+        let test_word = setup_word("si.haː");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "se.haː");
+
+        let test_rule = setup_rule("i ~ e / _(..)V:[+long]#");
+        let test_word = setup_word("si.haː");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "se.haː");
+
+        let test_rule = setup_rule("i > 1 / _(..)V:[+long]=1#");
+        let test_word = setup_word("si.haː");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "sa.haː");
+
+        let test_rule = setup_rule("i ~ 1 / _(..)V:[+long]=1#");
+        let test_word = setup_word("si.haː");
+        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "sa.haː");
+    }
 
     #[test]
     fn test_context_set() {

@@ -1488,6 +1488,15 @@ impl SubRule {
             },
         }
     }
+
+    fn matrix_increment(&self, word: &Word, pos: &mut SegPos) {
+        // the way we implement `long` vowels means we need to do this
+        let mut seg_length = word.seg_length_at(*pos);      
+        while seg_length > 1 {
+            pos.increment(word);
+            seg_length -= 1;
+        }
+    }
 }
 
 impl SubRule { // Context Matching
@@ -1707,11 +1716,10 @@ impl SubRule { // Context Matching
         *index += 1;
         if inc { pos.increment(word) }
 
+        let back_index = *index;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
         while pos.syll_index == syll_index {
-            let back_pos = *pos;
-            let back_index = *index;
-            let back_alphas = self.alphas.borrow().clone();
-            let back_varlbs = self.variables.borrow().clone();
             
             let mut m = true;
             while *index < items.len() {
@@ -1769,9 +1777,8 @@ impl SubRule { // Context Matching
                 return Ok(true)
             }
             *index = back_index;
-            *pos = back_pos;
-            *self.alphas.borrow_mut() = back_alphas;
-            *self.variables.borrow_mut() = back_varlbs;
+            *self.alphas.borrow_mut() = back_alphas.clone();
+            *self.variables.borrow_mut() = back_varlbs.clone();
             pos.increment(word);
         }
 
@@ -1786,12 +1793,11 @@ impl SubRule { // Context Matching
         *state_index += 1;
         if inc { pos.increment(word) }
 
+        let back_state = *state_index;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
         while word.in_bounds(*pos) {
-            let back_pos = *pos;
-            let back_state = *state_index;
-            let back_alphas = self.alphas.borrow().clone();
-            let back_varlbs = self.variables.borrow().clone();
-
+            *state_index = back_state;
             let mut m = true;
             while *state_index < states.len() {
                 if !self.context_match(states, state_index, word, pos, forwards, false, false)? {
@@ -1800,16 +1806,14 @@ impl SubRule { // Context Matching
                 }
                 *state_index += 1;
             }
-            if m {
-                return Ok(true)
-            }
-            *state_index = back_state;
-            *pos = back_pos;
-            *self.alphas.borrow_mut() = back_alphas;
-            *self.variables.borrow_mut() = back_varlbs;
+            if m { return Ok(true) }
+            *self.alphas.borrow_mut() = back_alphas.clone();
+            *self.variables.borrow_mut() = back_varlbs.clone();
             pos.increment(word);
         }
         
+        *self.alphas.borrow_mut() = back_alphas.clone();
+        *self.variables.borrow_mut() = back_varlbs.clone();
         Ok(false)
     }
 
@@ -2058,20 +2062,16 @@ impl SubRule { // Context Matching
     }
 
     fn context_match_matrix(&self, mods: &Modifiers, var: &Option<usize>, word: &Word, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {        
-        if word.out_of_bounds(*pos) {
-            return Ok(false)
-        }
+        if word.out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, word, pos, err_pos)? {
             if let Some(v) = var {
                 self.variables.borrow_mut().insert(*v, VarKind::Segment(word.get_seg_at(*pos).unwrap()));
             }
-            let mut seg_length = word.seg_length_at(*pos);            
-            while seg_length >= 1 {
-                pos.increment(word);
-                seg_length -= 1;
-            }
+            self.matrix_increment(word, pos);
+            pos.increment(word);
             Ok(true)
         } else {
+            self.matrix_increment(word, pos);
             Ok(false)
         }
     }
@@ -2470,25 +2470,16 @@ impl SubRule { // Input Matching
     }
 
     fn input_match_matrix(&self, captures: &mut Vec<MatchElement>, mods: &Modifiers, var: &Option<usize>, word: &Word, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> { 
+        if word.out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, word, pos, err_pos)? {
             if let Some(v) = var {
                 self.variables.borrow_mut().insert(*v, VarKind::Segment(word.get_seg_at(*pos).unwrap()));
             }
             captures.push(MatchElement::Segment(*pos, None));
-            // the way we implement `long` vowels means we need to do this
-            let mut seg_length = word.seg_length_at(*pos);            
-            while seg_length > 1 {
-                pos.increment(word);
-                seg_length -= 1;
-            }
+            self.matrix_increment(word, pos);
             Ok(true)
         } else {
-            // the way we implement `long` vowels means we need to do this
-            let mut seg_length = word.seg_length_at(*pos);            
-            while seg_length > 1 {
-                pos.increment(word);
-                seg_length -= 1;
-            }
+            self.matrix_increment(word, pos);
             Ok(false)
         }
     }
