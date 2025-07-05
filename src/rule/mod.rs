@@ -871,28 +871,22 @@ mod rule_tests {
     #[test]
     fn test_context_matrices() {
         let test_rule = setup_rule("i > e / _(..)V:[-long]#");
-        let test_word = setup_word("si.haː");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "si.haː");
+        assert_eq!(test_rule.apply(setup_word("si.haː")).unwrap().render(&[]).0, "si.haː");
 
         let test_rule = setup_rule("i ~ e / _(..)V:[-long]#");
-        let test_word = setup_word("si.haː");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "si.haː");
+        assert_eq!(test_rule.apply(setup_word("si.haː")).unwrap().render(&[]).0, "si.haː");
 
         let test_rule = setup_rule("i > e / _(..)V:[+long]#");
-        let test_word = setup_word("si.haː");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "se.haː");
+        assert_eq!(test_rule.apply(setup_word("si.haː")).unwrap().render(&[]).0, "se.haː");
 
         let test_rule = setup_rule("i ~ e / _(..)V:[+long]#");
-        let test_word = setup_word("si.haː");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "se.haː");
+        assert_eq!(test_rule.apply(setup_word("si.haː")).unwrap().render(&[]).0, "se.haː");
 
         let test_rule = setup_rule("i > 1 / _(..)V:[+long]=1#");
-        let test_word = setup_word("si.haː");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "sa.haː");
+        assert_eq!(test_rule.apply(setup_word("si.haː")).unwrap().render(&[]).0, "sa.haː");
 
         let test_rule = setup_rule("i ~ 1 / _(..)V:[+long]=1#");
-        let test_word = setup_word("si.haː");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]).0, "sa.haː");
+        assert_eq!(test_rule.apply(setup_word("si.haː")).unwrap().render(&[]).0, "sa.haː");
     }
 
     #[test]
