@@ -1003,7 +1003,7 @@ impl Parser {
             // Metathesis
             if let Some(el) = self.eat_expect(TokenKind::Ampersand) {
                 outputs.push(vec![ParseItem::new(ParseElement::Metathesis, el.position)]);
-                if !self.expect(TokenKind::Comma) && (!self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) && !self.peek_expect(TokenKind::Eol)) {
+                if !self.expect(TokenKind::Comma) && (!self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) && !self.peek_expect(TokenKind::Eol)) && !self.peek_expect(TokenKind::Comment) {
                     return Err(RuleSyntaxError::MetathErr(self.curr_tkn.clone()))
                 }
                 continue;
@@ -1011,7 +1011,7 @@ impl Parser {
             // Deletion
             if let Some(empty) = self.get_empty() {
                 outputs.push(vec![empty]);
-                if !self.expect(TokenKind::Comma) && !self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) && !self.peek_expect(TokenKind::Eol) {
+                if !self.expect(TokenKind::Comma) && !self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) && !self.peek_expect(TokenKind::Eol) && !self.peek_expect(TokenKind::Comment) {
                     return Err(RuleSyntaxError::DeleteErr(self.curr_tkn.clone()))
                 }
                 continue;
