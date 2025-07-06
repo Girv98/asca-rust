@@ -1,6 +1,6 @@
-Upcoming Changes
+0.8.4
 ==================
-[0.8.3...latest](https://github.com/Girv98/asca-rust/compare/0.8.3...master)
+[0.8.3...0.8.4](https://github.com/Girv98/asca-rust/compare/0.8.3...0.8.4)
 
 Fixes:
 * Lib:
