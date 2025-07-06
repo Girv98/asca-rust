@@ -3,7 +3,10 @@ Upcoming Changes
 [0.8.3...latest](https://github.com/Girv98/asca-rust/compare/0.8.3...master)
 
 Fixes:
-* Lib: `[-long]` matrices match correctly after an ellipsis
+* Lib:
+    * `[-long]` matrices match correctly after an ellipsis
+    * A comment after a deletion rule with no environment no longer errors
+    * Special environment checking works properly with a following comment
 
 0.8.3
 ==================
