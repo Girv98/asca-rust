@@ -91,6 +91,18 @@ impl Segment {
         }
     }
 
+    #[allow(clippy::unusual_byte_groupings)]
+    fn try_edge_cases(&self) -> Option<String> {
+        match *self {
+            // i̯
+            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101010_00)) } => Some("i̯".to_string()),
+            // u̯
+            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011010_00)) } => Some("u̯".to_string()),
+            // nˡ TODO
+            _ => None
+        }
+    }
+
     /// Returns the segment as a string in IPA form
     /// 
     /// Returns `None`, if the segment value cannot be converted
@@ -110,9 +122,10 @@ impl Segment {
         // iterate and match starting from smallest difference
 
         // Because CARDINALS_MAP's order is random, this can lead to random edge cases
-        // TODO(girv): test, test, test
+        // e.g. w͈ instead of u̯ and j͈ instead of i̯
+        if let Some(m) = self.try_edge_cases() { return Some(m) }
 
-        let mut candidates = Vec::new();
+        let mut candidates = Vec::with_capacity(256);
 
         for c_grapheme in CARDINALS_VEC.iter() {
             let seg: Segment = *CARDINALS_MAP.get(c_grapheme).unwrap();
@@ -122,22 +135,15 @@ impl Segment {
             }
         }
 
-        // let mut candidates = CARDINALS_VEC.iter().filter_map(|grapheme| {
-        //     let seg = *CARDINALS_MAP.get(grapheme).unwrap();
-        //     let diff_count = self.diff_count(&seg);
-        //     if diff_count < 8 {
-        //         Some((seg, grapheme, diff_count))
-        //     } else {
-        //         None
-        //     }
-        // }).collect::<Vec<_>>();
-
         candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
 
+        // let x = candidates[0].2;
         // for (a,_, b) in &candidates {
-        //     eprintln!("{} {}", a.get_as_grapheme().unwrap(), b);
+        //     if *b == x {
+        //         eprint!("{} {} ", a.get_as_grapheme().unwrap(), b);
+        //     }
         // }
-        // eprintln!("{}", candidates.len());
+        // println!();
         
         for (cand_seg , cand_graph, _) in candidates {
             let mut buf_seg = cand_seg;
@@ -162,7 +168,6 @@ impl Segment {
             }
         }
 
-        // "�".to_string()
         None
     }
 
