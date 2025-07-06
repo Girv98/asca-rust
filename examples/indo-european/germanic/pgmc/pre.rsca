@@ -1,70 +1,71 @@
 
 @ S-Insertion
     * > s / P:[+cor]_P:[+cor]
-#
+# /s/ is inserted to brake up clusters of coronal plosives e.g. tt > tst
 
 @ Laryngeal colouring
     e > a / _,x
     e > o / _,ɣʷ
-#
+# Assuming h₁ = h, h₂ = x, h₃ = ɣʷ
+# 
 # /xe/ > /xa/ — *h₂énti 'in front' > *h₂ánti > *andi 'in addition'
 # /ex/ > /ax/ — *meh₂tḗr 'mother' > *mah₂tḗr > *mōdēr
 # /ɣʷe/ > /ɣʷo/ — *h₃érō 'eagle' > *h₃órō > *arô
 # /eɣʷ/ > /oɣʷ/ — *bʰléh₃mō 'flower' > *bʰlóh₃mō > *blōmô
 
 @ Centumisation
-    P:[-fr, +bk, -hi, -lo] > [+hi]
-#
+    P:[-fr, +bk, -hi, -lo] > [+hi] ;; q, ɢ, ɢʱ > k, ɡ, ɡʱ 
+
+    n:[Asyll] > ŋ:[Asyll, Brnd] / _C:[+dor, Brnd] ;; assimilation of n before (labio)velars
+# This list of sound changes assumes uvular theory and therefore Centumisation is a merger of uvular consonants to velar. 
+# e.g. kápros 'goat' (pronounced ˈqa.pros) > ˈka.pros 
 
 @ U-Epenthesis
-    * > u / _[+cons, +son, +syll] 
-    [+cons, +son, +syll] > [-syll]
-# i.e. *km̥tóm > *kumtóm
+    [+cons, +son, +syll]=1 > u 1:[-syll]
+# Syllabic sonorants become non-syllabic and are preceded by /u/ (e.g. *km̥tóm > *kumtóm)
 
 @ Dental Cluster Simplification
-    P:[+cor] > * / VP:[+cor] s_
-    P:[+cor] > s / V_s
-#
+    P:[+cor] > *, s / VP:[+cor] s_,  V_s
+# tst > ss (e.g. *káydstis > *káyssis)
 
 @ Long Vowel Degemination
     C=1 > * / {C,G, V:[+long]}_1
 # Geminate consonants are shortened after a consonant or a long vowel
-# i.e. *káyssis > *káysis
+# e.g. *káyssis > *káysis
 
 @ Overlong Vowel Genesis
     V:[+long] > [+overlong] / _#
 # Word-final long vowels are lengthened to overlong vowels
-# i.e. *séh₁mō > *séh₁mô
+# e.g. *séh₁mō > *séh₁mô
 
 @ Initial Loss of laryngeals
-    {h, x, ɣʷ} > * / #_
-    V:[+long] > [+overlong] / _{h, x, ɣʷ} | _$
-    V:[-long] > [+long] / _{h, x, ɣʷ} |  _$
-    {h, x, ɣʷ} > * / V_
-    
-    V:[+hi] > G:[-tense] / V_$
+    {h, x, ɣʷ} > * / #_                         ;; Lost word initial
+    V:[+long], V:[-long] > [+overlong], [+long] / _{h, x, ɣʷ} | _$  
+    {h, x, ɣʷ} > * / V_                         ;; Lost after vowels with comp. lenghtening above
+    V:[+hi] > G:[-tense] / V_$                  ;; u, i > w, j after vowels in the same syll.
     $G > & / _$
-#
+# Lost of laryngeals word-initially and after vowels, with compensatory lengthening
 
 @ Cowgill's Law 
     {ɣʷ, x} > g / S_w
-# h₃ /ɣʷ/ (and possibly h₂ /x/) is strengthened to /g/ between a sonorant and /w/
+# h₃ /ɣʷ/ and h₂ /x/ are strengthened to /g/ between a sonorant and /w/
 
 @ Laryngeal Vocalisation
     {h:[+syl], x:[+syl], ɣʷ:[+syl]} > ə
     {h, x, ɣʷ} > *
     $ > * / V_V
-#
+# Syllabic laryngeals become schwa. Remaining laryngeals delete
+
 @ Velar Labialisation
-    C:[+hi, +bk] > [+rnd] / _w
-    w > * / C:[+hi, +bk, +rnd]_
-# Velars are labialised by following /w/
+    C:[+hi, +bk]=1 w > 1:[+rnd] ;; Pw > Pʷ
+# Velars are merge and labialise with following /w/
 
 @ Velar Delabialisation (Boukólos rule)
-    O:[+hi, +bk, +rnd] > [-lab] / _{u,t}, uN_
-# Labiovelars are delabialised next to /u/ (or /un/) or before /t/:
+    O:[+hi, +bk, +rnd] > [-lab] / _{u,t}
+    ŋʷ O:[+hi, +bk, +rnd] > [-lab] [-lab] / u_ ;; e.g. uŋʷɡʷ > uŋɡ
+# Labiovelars are delabialised next to /u/ (or /un/) or before /t/
 
 @ Irregular Labial Assimilation
     O:[+dor, +round] > [-round, -dor] / #{[+lab, -dor], w}..._
     [+nasal] > [Aplace] / _O:[Aplace, +lab, -rnd]
-# i.e. penkwe > pempe, wlkwos > wulfaz
+# e.g. penkwe > pempe, wlkwos > wulfaz

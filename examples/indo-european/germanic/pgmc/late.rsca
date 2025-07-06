@@ -1,62 +1,65 @@
 @ Nasal Merger
     m > n / _{#,[+cor]}
-#
+# /m/ > /n/ word finally or before dental consonants e.g. *ḱm̥tóm > *hundan
 
 @ Word-final nasalisation
-    V:[-str] > [+nasal] / _n#
-    n > * / V:[+nasal]_# 
-#
+    V:[-str]=1 n > 1:[+nasal] / _#
+# Word-final /n/ is lost after unstressed syllables, and the preceding vowel is nasalised 
+# e.g. *hundan > *hundą
 
 @ Nasal Vowel Lowering
     e:[+nasal, Along, Bvlong] > ɑ:[+nasal, Along, Bvlong]
-#
+# /ẽː/ is lowered to /ɑ̃ː/ e.g. *dedę̄ > *dedą̄
 
 @ Schwa Elimination
-    ə:[-str] > * 
+    ə:[-str] > *      ;; unstressed schwa deletes
+    ə > ɑ             ;; stressed schwa becomes /ɑ/
+    ;; Syllable Fixing
     $C > & / _$O, _#
     C$ > & / $_{V, G}
-
-    ə > ɑ
 # Unstressed schwa deletes
 # Stressed schwa becomes ɑ
 
 @ Sonorant Elimination
-    w > n / n_
-    n > l / l_
-    z > m / _m
+    w > n / n_ ;; nw > nn
+    n > l / l_ ;; ln > ll
+    z > m / _m ;; zm > mm
 #
 
 @ Loss of word-final t
     t:[-str] > * / _#
-#
+# e.g. *tehunt > *tehun
 
-@
+@ ɣʷ > w
    ɣʷ > w
-#
+# e.g. *snaygʷaz > *snaiwaz, *hʷegʷlā > *hʷewlā
 
 @ Long-A Raising
     ɑ:[+vlong, Anasal] > ɔ:[+vlong, Anasal]
     ɑ:[+long, Anasal] > ɔ:[+long, Anasal]
-#
+# e.g. *sēmâ > *sēmô
 
 @ Early i-mutation
     e:[-long] > i / _([], 0:2){i, j}
     j > i / i_ | $_
-#
+# /e/ > /i/ when followed by /i/ or /j/ in the same or next syllable
+# Any coda /ej/ becomes /i:/
 
-@ 
-    e:[-long] > i / _N$
-#
+@ Nasal Raising
+    e:[-long] > i / _N(C)$
+# /e/ > /i/ when followed by a coda nasal
 
-@ 
-    $j > * / V_V | i_
-#
+@ Loss of intervocalic /j/
+    $j > * / V_V | {i, w}_ ;; a.ji.ri > ai.ri
+    i > j / V_$            ;;   ai.ri > aj.ri
+# /j/ is lost between vowels except after /i/ and /w/
 
-@
-    V > [+long, +nasal] / _Nx
-    N > * / _x
-#
+@ Nasal Fricative Cluster Simplification
+    V=1 N > 1:[+long, +nasal] / _x
+# /n/ is lost before /x/, causing compensatory lengthening and nasalisation of the preceding vowel 
+# e.g. *ḱónketi > *hanhidi [ˈxɑ̃ːxiði]
 
-@ Diphthong Cleanup
-#    G > [+tense] / V_$
-#
+@ Diphthong Representation
+    ;; G > [+tense] / V_(C)$
+# Uncomment to optionally make all vowel/coda-glide sequences vowel/non-syllabic-vowel 
+# e.g. ew > eu̯

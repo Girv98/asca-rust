@@ -1,12 +1,10 @@
 @ Loss of Word-final non-high short vowels 
-    % > [+str] / _(C,0) V:[-hi, +str, -long]#
-    % > [-str] / %:[+str]_#
+    ;; The below moves stress onto the previous syllable if the word-final vowel is stressed
+    % <(..)V:[-hi, +str, -long]> > [+str] [-str] / _#
 
-    G > * / _V:[-hi, -str, -long]#
-    V:[-hi, -str, -long] > * / _#
-
-    $C > & / _#
-    $C > & / _#
+    G ~ * / _V:[-hi, -str, -long]# ;; Any preceding glide deletes
+    V:[-hi, -str, -long] ~ * / _#  ;; The vowel itself deletes
+    $C ~ & / _# ;; Syllable repair
 #
 
 @ Grimm's Law 
@@ -32,8 +30,8 @@
 #
 
 @ Initial Stress Shift 
-    % > [+str] / #_ (%,0) %:[+str]
-    %:[+str] > [-str] | #_
+    % > [+str] / #_ (..) %:[+str] ;; If there is any stress, the initial syll is stressed
+    %:[+str] > [-str] | #_        ;; Any non-initial stressed syll is unstressed
 # Preserves unstressed words
 
 @ Word-initial gw > b
@@ -43,14 +41,22 @@
 @ W-loss
     $w > * / o:[-str]_o:[-str]
 #
+
+@ ew > ow
+    e:[-stress, -long] > o / _w{#,C}
+# Unstressed /ew/ > /ow/ before a consonant or word-finally e.g. *-ews > *-owz
+
 @ E-Raising
     e:[-stress, -long] > i | _r
-    j > i / i:[-str]_ 
-#
+    j > i / i:[-str]_ | $_
+# Unstressed /e/ > /i/ except before /r/ e.g. *-eþā > *-iþā
+# Any unstressed coda /ej/ becomes /i:/
+
 @ Unstressed ji > i
     j > * / _i:[-str]
     $ > * / V_i:[-str]
-#
+# Unstressed /ji/ > /i/ e.g. *legyidi > *ligiþi
+
 @ Non-High Back Vowel Merger
     {o:[Along, Boverlong], a:[Along, Boverlong]} > ɑ:[Along, Boverlong]
-#
+# Merging of /o/ and /a/ into /ɑ/ e.g. *kápros > *hafraz
