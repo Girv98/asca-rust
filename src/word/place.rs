@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// * `Dorsal` -  `[front, back, high, low, tense, reduced]`
 /// * `Pharyngeal` - `[atr, rtr]`
 #[derive(Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Place(Option<u16>);
+pub struct Place(pub Option<u16>);
 
 impl fmt::Debug for Place {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
