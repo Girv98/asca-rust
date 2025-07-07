@@ -4,6 +4,7 @@ pub mod rule;
 pub mod error;
 mod alias;
 
+use indexmap::IndexMap;
 use serde::Deserialize;
 use std::collections::HashMap;
 use lazy_static::lazy_static;
@@ -18,7 +19,7 @@ use rule  :: { trace::Change, BinMod, ModKind, Rule, RuleGroup };
 const CARDINALS_FILE: &str = include_str!("cardinals.json");
 const DIACRITIC_FILE: &str = include_str!("diacritics.json");
 lazy_static! {
-    static ref CARDINALS_MAP: HashMap<String, Segment> = serde_json::from_str(CARDINALS_FILE).unwrap();
+    static ref CARDINALS_MAP: IndexMap<String, Segment> = serde_json::from_str(CARDINALS_FILE).unwrap();
     static ref DIACRITS: Vec<Diacritic> = {
         // this seems very unnecessary, but I don't know enough about serde
         // at least it works
