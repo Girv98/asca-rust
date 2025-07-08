@@ -161,7 +161,7 @@ impl Place {
     /// Returns value of the coronal subnode
     pub fn get_coronal(&self) -> Option<u8> {
         if self.coronal_is_some() {
-            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::COR_OFF) & Self::COR_MSK)as u8)
+            Some(((unsafe { self.0.unwrap_unchecked() } >> Self::COR_OFF) & Self::COR_MSK) as u8)
         } else {
             None
         }
@@ -243,7 +243,7 @@ impl Place {
         if matches!(self.0, Some(0)) { self.0 = None; } 
     }
     
-    /// Sets the pharyngeaal subnode to the input value 
+    /// Sets the pharyngeal subnode to the input value 
     /// # Panics
     /// Mask values above 3 `0b11` are not used and will panic in debug
     pub fn set_pharyngeal(&mut self, bits: Option<u8>) {
