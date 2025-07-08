@@ -3,7 +3,7 @@
     "name": "denti-alveolar",
     "diacrit": "\u032a",
     "prereqs": { "Coronal": true },
-    "payload": { "Anterior": true, "Distributed": true }
+    "payload": { "Coronal": true , "Anterior": true, "Distributed": true }
   },
   {
     "name": "frictionalised",
