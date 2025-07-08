@@ -1,1 +1,204 @@
-[{"name":"denti-alveolar","diacrit":"\u032a","prereqs":{"Coronal":true},"payload":{"Anterior":true,"Distributed":true}},{"name":"frictionalised","diacrit":"\u031d","prereqs":{"Consonantal":true,"Sonorant":false},"payload":{"Continuant":true,"Approximant":false}},{"name":"approximant","diacrit":"\u031e","prereqs":null,"payload":{"Approximant":true}},{"name":"atr","diacrit":"\u0318","prereqs":null,"payload":{"AdvancedTongueRoot":true,"RetractedTongueRoot":false}},{"name":"rtr","diacrit":"\u0319","prereqs":{"Consonantal":false,"Sonorant":true,"Syllabic":true,"Continuant":true,"Approximant":true},"payload":{"AdvancedTongueRoot":false,"RetractedTongueRoot":true}},{"name":"creaky","diacrit":"\u0330","prereqs":{"Voice":true},"payload":{"SpreadGlottis":false,"ConstrGlottis":true}},{"name":"breathy sonorant","diacrit":"\u0324","prereqs":{"Consonantal":false,"Sonorant":true,"Voice":true},"payload":{"SpreadGlottis":true,"ConstrGlottis":false}},{"name":"voiced","diacrit":"\u032c","prereqs":null,"payload":{"Voice":true,"SpreadGlottis":false,"ConstrGlottis":false}},{"name":"voiceless","diacrit":"\u0325","prereqs":null,"payload":{"Voice":false,"SpreadGlottis":false,"ConstrGlottis":false}},{"name":"syllabic","diacrit":"\u0329","prereqs":null,"payload":{"Syllabic":true}},{"name":"non-syllabic","diacrit":"\u032F","prereqs":null,"payload":{"Syllabic":false}},{"name":"tense","diacrit":"\u0348","prereqs":null,"payload":{"Tense":true}},{"name":"nasalised","diacrit":"\u0303","prereqs":null,"payload":{"Nasal":true}},{"name":"rhotacised","diacrit":"\u02de","prereqs":null,"payload":{"Rhotic":true}},{"name":"retroflex","diacrit":"\u02B5","prereqs":{"Coronal":true},"payload":{"Anterior":false,"Distributed":false}},{"name":"lateralised","diacrit":"\u02e1","prereqs":null,"payload":{"Lateral":true}},{"name":"Voiced Strident Consonant","diacrit":"\u1dbb","prereqs":{"Syllabic":false,"Voice":true},"payload":{"Strident":true}},{"name":"Voiceless Strident Consonant","diacrit":"\u02e2","prereqs":{"Syllabic":false,"Voice":false},"payload":{"Strident":true}},{"name":"labio-palatalised","diacrit":"\u1da3","prereqs":null,"payload":{"Round":true,"Back":false,"High":true}},{"name":"labialised","diacrit":"\u02b7","prereqs":null,"payload":{"Round":true}},{"name":"labiodentalised","diacrit":"\u1DB9","prereqs":null,"payload":{"Labiodental":true}},{"name":"palatalised","diacrit":"\u02b2","prereqs":null,"payload":{"Back":false,"High":true}},{"name":"velarised","diacrit":"\u02e0","prereqs":null,"payload":{"Back":true,"High":true}},{"name":"voiceless-uvularised","diacrit":"\u1d61","prereqs":{"Voice":false},"payload":{"Back":true,"High":false}},{"name":"voiced-uvularised","diacrit":"\u02b6","prereqs":{"Voice":true},"payload":{"Back":true,"High":false}},{"name":"pharyngealised","diacrit":"\u02e4","prereqs":null,"payload":{"AdvancedTongueRoot":false,"RetractedTongueRoot":true}},{"name":"glottalised","diacrit":"\u02c0","prereqs":{"Sonorant":true},"payload":{"Voice":false,"SpreadGlottis":false,"ConstrGlottis":true}},{"name":"reduced","diacrit":"\u1D4A","prereqs":null,"payload":{"Reduced":true}},{"name":"aspirated","diacrit":"\u02b0","prereqs":{"Voice":false},"payload":{"Voice":false,"SpreadGlottis":true,"ConstrGlottis":false}},{"name":"breathy consonant","diacrit":"\u02b1","prereqs":{"Consonantal":true,"Voice":true},"payload":{"SpreadGlottis":true,"ConstrGlottis":false}},{"name":"ejective","diacrit":"\u02bc","prereqs":{"Sonorant":false,"Voice":false},"payload":{"SpreadGlottis":false,"ConstrGlottis":true}},{"name":"strident vowel","diacrit":"\u2248","prereqs":{"Syllabic":true},"payload":{"Strident":true}}]
+[
+  {
+    "name": "denti-alveolar",
+    "diacrit": "\u032a",
+    "prereqs": { "Coronal": true },
+    "payload": { "Anterior": true, "Distributed": true }
+  },
+  {
+    "name": "frictionalised",
+    "diacrit": "\u031d",
+    "prereqs": { "Consonantal": true, "Sonorant": false },
+    "payload": { "Continuant": true, "Approximant": false }
+  },
+  {
+    "name": "approximant",
+    "diacrit": "\u031e",
+    "prereqs": null,
+    "payload": { "Approximant": true }
+  },
+  {
+    "name": "atr",
+    "diacrit": "\u0318",
+    "prereqs": null,
+    "payload": { "AdvancedTongueRoot": true, "RetractedTongueRoot": false }
+  },
+  {
+    "name": "rtr",
+    "diacrit": "\u0319",
+    "prereqs": {
+      "Consonantal": false,
+      "Sonorant": true,
+      "Syllabic": true,
+      "Continuant": true,
+      "Approximant": true
+    },
+    "payload": { "AdvancedTongueRoot": false, "RetractedTongueRoot": true }
+  },
+  {
+    "name": "creaky",
+    "diacrit": "\u0330",
+    "prereqs": { "Voice": true },
+    "payload": { "SpreadGlottis": false, "ConstrGlottis": true }
+  },
+  {
+    "name": "breathy sonorant",
+    "diacrit": "\u0324",
+    "prereqs": { "Consonantal": false, "Sonorant": true, "Voice": true },
+    "payload": { "SpreadGlottis": true, "ConstrGlottis": false }
+  },
+  {
+    "name": "voiced",
+    "diacrit": "\u032c",
+    "prereqs": null,
+    "payload": { "Voice": true, "SpreadGlottis": false, "ConstrGlottis": false }
+  },
+  {
+    "name": "voiceless",
+    "diacrit": "\u0325",
+    "prereqs": null,
+    "payload": {
+      "Voice": false,
+      "SpreadGlottis": false,
+      "ConstrGlottis": false
+    }
+  },
+  {
+    "name": "syllabic",
+    "diacrit": "\u0329",
+    "prereqs": null,
+    "payload": { "Syllabic": true }
+  },
+  {
+    "name": "non-syllabic",
+    "diacrit": "\u032F",
+    "prereqs": null,
+    "payload": { "Syllabic": false }
+  },
+  {
+    "name": "tense",
+    "diacrit": "\u0348",
+    "prereqs": null,
+    "payload": { "Tense": true }
+  },
+  {
+    "name": "nasalised",
+    "diacrit": "\u0303",
+    "prereqs": null,
+    "payload": { "Nasal": true }
+  },
+  {
+    "name": "rhotacised",
+    "diacrit": "\u02de",
+    "prereqs": null,
+    "payload": { "Rhotic": true }
+  },
+  {
+    "name": "retroflex",
+    "diacrit": "\u02B5",
+    "prereqs": null,
+    "payload": { "Coronal": true, "Anterior": false, "Distributed": false }
+  },
+  {
+    "name": "lateralised",
+    "diacrit": "\u02e1",
+    "prereqs": null,
+    "payload": { "Lateral": true }
+  },
+  {
+    "name": "Voiced Strident Consonant",
+    "diacrit": "\u1dbb",
+    "prereqs": { "Syllabic": false, "Voice": true },
+    "payload": { "Strident": true }
+  },
+  {
+    "name": "Voiceless Strident Consonant",
+    "diacrit": "\u02e2",
+    "prereqs": { "Syllabic": false, "Voice": false },
+    "payload": { "Strident": true }
+  },
+  {
+    "name": "labio-palatalised",
+    "diacrit": "\u1da3",
+    "prereqs": null,
+    "payload": { "Round": true, "Back": false, "High": true }
+  },
+  {
+    "name": "labialised",
+    "diacrit": "\u02b7",
+    "prereqs": null,
+    "payload": { "Round": true }
+  },
+  {
+    "name": "labiodentalised",
+    "diacrit": "\u1DB9",
+    "prereqs": null,
+    "payload": { "Labiodental": true }
+  },
+  {
+    "name": "palatalised",
+    "diacrit": "\u02b2",
+    "prereqs": null,
+    "payload": { "Back": false, "High": true }
+  },
+  {
+    "name": "velarised",
+    "diacrit": "\u02e0",
+    "prereqs": null,
+    "payload": { "Back": true, "High": true }
+  },
+  {
+    "name": "voiceless-uvularised",
+    "diacrit": "\u1d61",
+    "prereqs": { "Voice": false },
+    "payload": { "Back": true, "High": false }
+  },
+  {
+    "name": "voiced-uvularised",
+    "diacrit": "\u02b6",
+    "prereqs": { "Voice": true },
+    "payload": { "Back": true, "High": false }
+  },
+  {
+    "name": "pharyngealised",
+    "diacrit": "\u02e4",
+    "prereqs": null,
+    "payload": { "AdvancedTongueRoot": false, "RetractedTongueRoot": true }
+  },
+  {
+    "name": "glottalised",
+    "diacrit": "\u02c0",
+    "prereqs": { "Sonorant": true },
+    "payload": { "Voice": false, "SpreadGlottis": false, "ConstrGlottis": true }
+  },
+  {
+    "name": "reduced",
+    "diacrit": "\u1D4A",
+    "prereqs": null,
+    "payload": { "Reduced": true }
+  },
+  {
+    "name": "aspirated",
+    "diacrit": "\u02b0",
+    "prereqs": { "Voice": false },
+    "payload": { "Voice": false, "SpreadGlottis": true, "ConstrGlottis": false }
+  },
+  {
+    "name": "breathy consonant",
+    "diacrit": "\u02b1",
+    "prereqs": { "Consonantal": true, "Voice": true },
+    "payload": { "SpreadGlottis": true, "ConstrGlottis": false }
+  },
+  {
+    "name": "ejective",
+    "diacrit": "\u02bc",
+    "prereqs": { "Sonorant": false, "Voice": false },
+    "payload": { "SpreadGlottis": false, "ConstrGlottis": true }
+  },
+  {
+    "name": "strident vowel",
+    "diacrit": "\u2248",
+    "prereqs": { "Syllabic": true },
+    "payload": { "Strident": true }
+  }
+]
