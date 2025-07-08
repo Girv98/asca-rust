@@ -156,25 +156,20 @@ impl Segment {
         // }
         // println!();
         
-        for (cand_seg , cand_graph, _) in candidates {
-            let mut buf_seg = cand_seg;
-            let mut buf_str = cand_graph.clone();
+        for (candidate_segment , cand_graph, _) in candidates {
+            let mut current_segment = candidate_segment;
+            let mut buffer = cand_graph.clone();
             for d in DIACRITS.iter() {
                 if self.match_modifiers(&d.prereqs).is_ok() && self.match_modifiers(&d.payload).is_ok() {
-                    let before = buf_seg;
-                    buf_seg.apply_diacritic_payload(&d.payload);
-                    if buf_seg == before {
-                        buf_seg = before;
+                    let before = current_segment;
+                    current_segment.apply_diacritic_payload(&d.payload);
+                    if current_segment == before || current_segment == candidate_segment {
                         continue;
-                    }
-                    if buf_seg == cand_seg {
-                        continue;
-                    } else {
-                        buf_str.push(d.diacrit);
-                    }
+                    } 
+                    buffer.push(d.diacrit);
                 }
-                if buf_seg == *self { 
-                    return Some(buf_str);
+                if current_segment == *self { 
+                    return Some(buffer);
                 }
             }
         }
