@@ -184,14 +184,10 @@ impl Segment {
 
     pub(crate) fn match_modifiers(&self, mods: &DiaMods) -> Result<(), (usize, bool)> {
         for (i, m) in mods.feats.iter().enumerate() {
-            if !self.match_feat_mod(m, i) {
-                return Err((i, false))
-            }
+            if !self.match_feat_mod(m, i) { return Err((i, false)) }
         }
         for (i, m) in mods.nodes.iter().enumerate() {
-            if !self.match_node_mod(m, i) {
-                return Err((i, true))
-            }
+            if !self.match_node_mod(m, i) { return Err((i, true)) }
         }
         Ok(())
     }
