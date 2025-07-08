@@ -51,14 +51,28 @@ impl fmt::Debug for Segment {
 }
 
 impl Segment {
-    pub(crate) fn get_nearest_grapheme(&self) -> String {
-        // test against all cardinal values for a match
-        for c_grapheme in CARDINALS_VEC.iter() {
-            let x = CARDINALS_MAP.get(c_grapheme).unwrap();
-            if *x == *self { return c_grapheme.to_string() }
-        }
+    fn sort_and_filter_candidates(&self, candidates: Vec<(Segment, &String, usize)>) -> String {   
+        debug_assert!(candidates.len() > 1);     
+        let mut candidates = candidates;
+        
+        candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
 
-        let mut candidates = Vec::new();
+        return candidates[0].1.to_string()
+
+        // TODO
+
+        // let best_diff = candidates[0].2;
+
+        // candidates.retain(| (.., diff) | *diff == best_diff);
+
+        // if candidates.len() == 1 { return candidates[0].1.to_string() }
+
+        // && candidates[0].2 == candidates[1].2 
+
+    }
+
+    fn create_candidates(&self) -> Vec<(Segment, &String, usize)> {
+        let mut candidates = Vec::with_capacity(256);
         for c_grapheme in CARDINALS_VEC.iter() {
             let seg: Segment = *CARDINALS_MAP.get(c_grapheme).unwrap();
             let diff_count = self.diff_count(&seg);
@@ -66,18 +80,23 @@ impl Segment {
                 candidates.push((seg, c_grapheme, diff_count))
             }
         }
-        
-        // If differences are two numerous, fall back to diacritics
-        // Won't happen when using diff_count < 8, but guarantees
-        // that indexing into candidates doesn't error
-        if candidates.is_empty() {
-            return self.get_as_grapheme().unwrap_or("�".to_owned())
+        candidates
+    }
+
+    pub(crate) fn get_nearest_grapheme(&self) -> String {
+        // test against all cardinal values for a match
+        for c_grapheme in CARDINALS_VEC.iter() {
+            let x = CARDINALS_MAP.get(c_grapheme).unwrap();
+            if *x == *self { return c_grapheme.to_string() }
         }
-        // Get best candidate
-        // TODO(girv): suffers from same bug as get_as_grapheme where
-        // equal distance candidates are randomly ordered
-        candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
-        candidates[0].1.to_string()
+
+        let candidates = self.create_candidates();
+                
+        match candidates.len().cmp(&1) {
+            std::cmp::Ordering::Greater => self.sort_and_filter_candidates(candidates),
+            std::cmp::Ordering::Less => self.get_as_grapheme().unwrap_or("�".to_owned()),
+            std::cmp::Ordering::Equal => candidates[0].1.to_string(),
+        }
     }
 
     /// Returns the segment as a string in IPA form
@@ -134,16 +153,7 @@ impl Segment {
 
         // if let Some(m) = self.try_edge_cases() { return Some(m) }
 
-        let mut candidates = Vec::with_capacity(256);
-
-        for c_grapheme in CARDINALS_VEC.iter() {
-            let seg: Segment = *CARDINALS_MAP.get(c_grapheme).unwrap();
-            let diff_count = self.diff_count(&seg);
-            if diff_count < 8 {
-                candidates.push((seg, c_grapheme, diff_count))
-            }
-        }
-
+        let mut candidates = self.create_candidates();
         candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
 
         // let x = candidates[0].2;
