@@ -91,28 +91,28 @@ impl Segment {
         }
     }
 
-    #[allow(clippy::unusual_byte_groupings)]
-    fn try_edge_cases(&self) -> Option<String> {
-        match *self {
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101010_00)) } => Some("i̯".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_101010_00)) } => Some("y̯".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101011_00)) } => Some("i̯ᵊ".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_101011_00)) } => Some("y̯ᵊ".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_011010_00)) } => Some("ɯ̯".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011010_00)) } => Some("u̯".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_011011_00)) } => Some("ɯ̯ᵊ".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011011_00)) } => Some("u̯ᵊ".to_string()),
-            // æʷ̯ > æ̯ʷ, æʷ̯ᵊ > æ̯ʷᵊ
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_100110_00)) } => Some("æ̯ʷ".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_100111_00)) } => Some("æ̯ʷᵊ".to_string()),
-            // ɐʷ̯ > ɐ̯ʷ, ɐʷ̯ᵊ > ɐ̯ʷᵊ
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_000110_00)) } => Some("ɐ̯ʷ".to_string()),
-            Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_000111_00)) } => Some("ɐ̯ʷᵊ".to_string()),
-            // ɺ̃ > nˡ
-            Segment { root: 0b110, manner: 0b00110000, laryngeal: 0b100, place: Place(Some(0b0100_00_10_000000_00)) } => Some("nˡ".to_string()),
-            _ => None
-        }
-    }
+    // #[allow(clippy::unusual_byte_groupings)]
+    // fn try_edge_cases(&self) -> Option<String> {
+    //     match *self {
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101010_00)) } => Some("i̯".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_101010_00)) } => Some("y̯".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101011_00)) } => Some("i̯ᵊ".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_101011_00)) } => Some("y̯ᵊ".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_011010_00)) } => Some("ɯ̯".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011010_00)) } => Some("u̯".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_011011_00)) } => Some("ɯ̯ᵊ".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011011_00)) } => Some("u̯ᵊ".to_string()),
+    //         æʷ̯ > æ̯ʷ, æʷ̯ᵊ > æ̯ʷᵊ
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_100110_00)) } => Some("æ̯ʷ".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_100111_00)) } => Some("æ̯ʷᵊ".to_string()),
+    //         ɐʷ̯ > ɐ̯ʷ, ɐʷ̯ᵊ > ɐ̯ʷᵊ
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_000110_00)) } => Some("ɐ̯ʷ".to_string()),
+    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_000111_00)) } => Some("ɐ̯ʷᵊ".to_string()),
+    //         ɺ̃ > nˡ
+    //         Segment { root: 0b110, manner: 0b00110000, laryngeal: 0b100, place: Place(Some(0b0100_00_10_000000_00)) } => Some("nˡ".to_string()),
+    //         _ => None
+    //     }
+    // }
 
     /// Returns the segment as a string in IPA form
     /// 
@@ -132,9 +132,7 @@ impl Segment {
         // Sort by difference (filter out diff >= 8 to cut on size)
         // iterate and match starting from smallest difference
 
-        // Because CARDINALS_MAP's order is random, this can lead to random edge cases
-        // e.g. w͈ instead of u̯ and j͈ instead of i̯
-        if let Some(m) = self.try_edge_cases() { return Some(m) }
+        // if let Some(m) = self.try_edge_cases() { return Some(m) }
 
         let mut candidates = Vec::with_capacity(256);
 
