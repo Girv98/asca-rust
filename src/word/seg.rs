@@ -419,7 +419,8 @@ impl Segment {
                 match kind {
                     ModKind::Binary(b) => match b {
                         BinMod::Negative => self.set_node(node, None),
-                        BinMod::Positive => self.set_node(node, Some(0))
+                        BinMod::Positive if self.is_node_none(node) => self.set_node(node, Some(0)),
+                        BinMod::Positive => { /* Don't override it */ },
                     },
                     ModKind::Alpha(_) => unreachable!(),
                 }
@@ -465,8 +466,8 @@ impl Segment {
                             NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeSome("Largyneal".to_owned(), err_pos)),
                             NodeKind::Place     => return Err(RuleRuntimeError::NodeCannotBeSome("Place".to_owned(), err_pos)),
                             // preserve node if already positive
-                            _ if self.get_node(node).is_none() => self.set_node(node, Some(0)),
-                            _ => {}
+                            _ if self.is_node_none(node) => self.set_node(node, Some(0)),
+                            _ => { /* Don't override it */ }
                         },
                     },
                     ModKind::Alpha(am) => match am {
