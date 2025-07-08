@@ -205,6 +205,7 @@ impl Word {
                     's' => { *index += 1; 'ˢ' },
                     'z' => { *index += 1; 'ᶻ' },
                     'l' => { *index += 1; 'ˡ' },
+                    'r' => { *index += 1; 'ʵ' },
                     
                     'm' => { *index += 1; 'ᵐ' },
                     'n' => { *index += 1; 'ⁿ' },
@@ -1060,8 +1061,8 @@ mod word_tests {
 
     #[test]
     fn test_render_aliases() {
-        match Word::new("'\"NGAN;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a", &[]) {
-            Ok(w) => assert_eq!(w.render(&[]).0, "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼa"),
+        match Word::new("'\"NGAN;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a\"r", &[]) {
+            Ok(w) => assert_eq!(w.render(&[]).0, "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼaʵ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);

@@ -438,6 +438,7 @@ impl<'a> Lexer<'a> {
                 's' => { self.advance(); 'ˢ' },
                 'z' => { self.advance(); 'ᶻ' },
                 'l' => { self.advance(); 'ˡ' },
+                'r' => { self.advance(); 'ʵ'},
                 
                 'm' => { self.advance(); 'ᵐ' },
                 'n' => { self.advance(); 'ⁿ' },
