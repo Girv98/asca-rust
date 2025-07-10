@@ -90,32 +90,20 @@ fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phra
     let mut transformed_phrases: Vec<Phrase> = Vec::with_capacity(phrases.len());
 
     for phrase in phrases {
-        let mut transformed_phrase = Phrase::with_capacity(phrase.len());
-        for word in phrase.iter() {
-            let mut res_word = word.clone();
-            for rule_group in rules {
-                for rule in rule_group {
-                    res_word = rule.apply(res_word)?;
-                }
-            }
-            transformed_phrase.push(res_word);
-        }
-        transformed_phrases.push(transformed_phrase);
+        transformed_phrases.push(phrase.apply_all(rules)?);
     }
 
     Ok(transformed_phrases)
 }
 
-fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, ASCAError> {
+fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>, ASCAError> {   
     let mut changes: Vec<Change> = Vec::new();
 
     let mut res_phrase = phrase.clone();
     for (i, rule_group) in rules.iter().enumerate() {
         let res_step = res_phrase.clone();
-        for (j, _) in phrase.iter().enumerate() {
-            for rule in rule_group {
-                res_phrase[j] = rule.apply(res_phrase[j].clone())?;
-            }
+        for rule in rule_group {
+            res_phrase = rule.apply(res_phrase)?;
         }
         if res_phrase != res_step {
             changes.push(Change { rule_index: i, after: res_phrase.clone() });

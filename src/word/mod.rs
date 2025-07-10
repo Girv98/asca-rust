@@ -31,6 +31,7 @@ use crate  :: alias :: {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct SegPos {
+    pub word_index: usize,
     pub syll_index: usize,
     pub seg_index: usize
 }
@@ -42,64 +43,91 @@ impl fmt::Debug for SegPos {
 }
 
 impl SegPos {
-    pub fn new(syll_index: usize, seg_index: usize) -> Self {
-        Self { syll_index, seg_index }
+    pub fn new(word_index: usize, syll_index: usize, seg_index: usize) -> Self {
+        Self { word_index, syll_index, seg_index }
     }
 
     pub(crate) fn reversed(&self, word: &Word) -> Self {
         debug_assert!(word.in_bounds(*self));
         SegPos::new(
+            self.word_index,
             word.syllables.len() - 1 - self.syll_index, 
             word.syllables[self.syll_index].segments.len() - 1 - self.seg_index
         )
     }
 
-    pub(crate) fn increment(&mut self, word: &Word) {
+    pub(crate) fn increment(&mut self, phrase: &Phrase) {
         // NOTE: Does not guarantee that the resulting position is within the bounds of the word
         // debug_assert!(self.syll_index < word.syllables.len(), "error incrementing");
 
-        if self.syll_index >= word.syllables.len() {
-            return
-        }
+        if self.syll_index >= phrase[self.word_index].syllables.len() { return }
 
         self.seg_index += 1;
-        if self.seg_index >= word.syllables[self.syll_index].segments.len() {
+        if self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() {
             self.seg_index = 0;
             self.syll_index += 1;
         }
     }
 
-    pub(crate) fn decrement(&mut self, word: &Word) {
+    pub(crate) fn word_increment(&mut self, phrase: &Phrase) {
+        if self.word_index >= phrase.len() { return }
+        self.word_index += 1;
+        self.syll_index = 0;
+        self.seg_index = 0;
+
+    }
+
+    pub(crate) fn word_decrement(&mut self, phrase: &Phrase) {
+        if self.word_index == 0 { return }
+
+        if self.word_index > phrase.len() {
+            self.word_index = phrase.len() - 1;
+        }
+
+        self.word_index -= 1;
+        self.syll_index = phrase[self.word_index].syllables.len() - 1;
+        self.seg_index = phrase[self.word_index].syllables[self.syll_index].segments.len() - 1;
+    }
+
+    pub(crate) fn decrement(&mut self, phrase: &Phrase) {
         // debug_assert!(self.syll_index < word.syllables.len(), "error decrementing");
 
-        if self.syll_index > word.syllables.len() {
-            self.syll_index = word.syllables.len() - 1;
-            self.seg_index = word.syllables[self.syll_index].segments.len() - 1;
+        if self.syll_index > phrase[self.word_index].syllables.len() {
+            self.syll_index = phrase[self.word_index].syllables.len() - 1;
+            self.seg_index = phrase[self.word_index].syllables[self.syll_index].segments.len() - 1;
         } else if self.seg_index > 0 {
             self.seg_index -= 1;
         } else if self.syll_index > 0 {
             self.syll_index -= 1;
-            self.seg_index = word.syllables[self.syll_index].segments.len() - 1;
+            self.seg_index = phrase[self.word_index].syllables[self.syll_index].segments.len() - 1;
         }
         // if 0:0, do nothing
+    }
+
+    pub(crate) fn at_phrase_start(&self) -> bool {
+        self.word_index == 0 && self.syll_index == 0 && self.seg_index == 0
+    }
+
+    pub(crate) fn at_phrase_end(&self, phrase: &Phrase) -> bool {
+        self.word_index == phrase.len() - 1 && self.at_word_end(phrase)
     }
 
     pub(crate) fn at_word_start(&self) -> bool {
         self.syll_index == 0 && self.seg_index == 0
     }
 
-    pub(crate) fn at_word_end(&self, word: &Word) -> bool {
-        self.syll_index == word.syllables.len() - 1 && self.seg_index >= word.syllables[self.syll_index].segments.len() - 1
+    pub(crate) fn at_word_end(&self, phrase: &Phrase) -> bool {
+        self.syll_index == phrase[self.word_index].syllables.len() - 1 && self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() - 1
     }
 
     pub(crate) fn at_syll_start(&self) -> bool {
         // NOTE: does not account for out_of_bounds
         self.seg_index == 0
     }
-    #[allow(unused)]
-    pub(crate) fn at_syll_end(&self, word: &Word) -> bool {
+    
+    pub(crate) fn at_syll_end(&self, phrase: &Phrase) -> bool {
         // NOTE: returns false if out_of_bounds
-        self.syll_index < word.syllables.len() && self.seg_index >= word.syllables[self.syll_index].segments.len() - 1
+        self.syll_index < phrase[self.word_index].syllables.len() && self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() - 1
     }
 }
 
@@ -690,7 +718,7 @@ impl Word {
     }
 
     fn alias_match_seg_length(&self, length: &[Option<ModKind>; 2], syll_index: usize, seg_index: usize) -> (bool, Option<usize>) {
-        let seg_length = self.seg_length_at(SegPos { syll_index, seg_index });
+        let seg_length = self.seg_length_at(SegPos { word_index: 0, syll_index, seg_index });
         let mut matched_len = false;
         if let Some(len) = length[0] {
             matched_len = true;
