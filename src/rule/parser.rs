@@ -27,11 +27,24 @@ impl Env {
         self.before = self.after.clone();
         self.after = temp;
     }
+
+    pub(crate) fn contains_external(&self) -> bool {
+        for b in &self.before {
+            if b.kind == ParseElement::ExtlBound { return true }
+        }
+
+        for a in &self.after {
+            if a.kind == ParseElement::ExtlBound { return true }
+        }
+
+        false
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ParseElement {
     EmptySet    ,
+    ExtlBound   ,
     WordBound   ,
     SyllBound   ,
     WEllipsis   ,
@@ -61,7 +74,7 @@ impl ParseElement {
             Self::EmptySet   | Self::WordBound    | Self::SyllBound | 
             Self::Ellipsis   | Self::Metathesis   | Self::Ipa(..)   | 
             Self::Matrix(..) | Self::Variable(..) | Self::Syllable(..) | 
-            Self::WEllipsis => {},
+            Self::WEllipsis  | Self::ExtlBound => {},
             
             Self::Optional(items, ..) | Self::Structure(items, ..) | 
             Self::Set(items) => {
@@ -85,6 +98,7 @@ impl fmt::Display for ParseElement {
                 write!(f, "{tk:#?} = {p:#?}")
             },
             Self::EmptySet   => write!(f, "∅"),
+            Self::ExtlBound  => write!(f, "##"),
             Self::WordBound  => write!(f, "#"),
             Self::SyllBound  => write!(f, "$"),
             Self::Ellipsis   => write!(f, "…"),
@@ -176,6 +190,8 @@ pub(crate) struct Parser {
     line: usize,
     pos: usize,
     curr_tkn: Token,
+    contains_external_in_input: bool,
+    contains_external_in_env: bool,
 }
 
 impl Parser {
@@ -187,6 +203,8 @@ impl Parser {
             line,
             pos: 0, 
             curr_tkn,
+            contains_external_in_input: false,
+            contains_external_in_env: false,
         }
     }
 
@@ -250,6 +268,13 @@ impl Parser {
         None
     }
 
+    fn get_extl_bound(&mut self) -> Option<ParseItem> {
+        if let Some(token) = self.eat_expect(TokenKind::ExternBoundary) {
+            return Some(ParseItem::new(ParseElement::ExtlBound, token.position))
+        }
+        None
+    }
+
     fn get_env_elements(&mut self, is_after: bool) -> Result<Vec<ParseItem>, RuleSyntaxError> {
         // returns (('WBOUND')? ( SBOUND / W_ELLIP / ELLIPSS / OPT / TERM )+) / (( SBOUND / W_ELLIP / ELLIPSS / OPT / TERM )+ ('WBOUND')?)
         let mut els = Vec::new();
@@ -266,6 +291,13 @@ impl Parser {
                 contains_word_bound = true;
                 continue;
             }
+
+            if let Some(x) = self.get_extl_bound() {
+                els.push(x);
+                self.contains_external_in_env = true;
+                continue;
+            }
+
             if let Some(x) = self.get_syll_bound() {
                 els.push(x);
                 continue;
@@ -914,6 +946,9 @@ impl Parser {
                 els.push(ParseItem::new(ParseElement::WEllipsis, w_el.position))
             } else if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
                 els.push(ParseItem::new(ParseElement::Ellipsis, el.position));
+            } else if let Some(x_bound) = self.get_extl_bound() {
+                els.push(x_bound);
+                self.contains_external_in_input = true;
             } else if let Some(s_bound) = self.get_syll_bound() {
                 els.push(s_bound);
             } else if let Some(trm) = self.get_term()? {
@@ -1059,7 +1094,7 @@ impl Parser {
         let output = self.get_output()?;
 
         if self.expect(TokenKind::Eol) || self.expect(TokenKind::Comment) {
-            return Ok(Rule::new(input, output, Vec::new(), Vec::new(), prov_rev))
+            return Ok(Rule::new(input, output, Vec::new(), Vec::new(), prov_rev, self.contains_external_in_input, false))
         }
         if let TokenKind::Slash | TokenKind::Pipe = self.curr_tkn.kind {} else {
             return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
@@ -1073,7 +1108,7 @@ impl Parser {
             return Err(RuleSyntaxError::ExpectedEndLine(self.curr_tkn.clone()))
         }
         
-        Ok(Rule::new(input, output, context, except, prov_rev))
+        Ok(Rule::new(input, output, context, except, prov_rev, self.contains_external_in_input, self.contains_external_in_env))
 
     }
     
