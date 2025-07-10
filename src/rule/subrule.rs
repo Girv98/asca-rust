@@ -135,13 +135,17 @@ impl SubRule {
             let (res, mut next_index) = self.input_match_at(&phrase, cur_index)?;
             if !res.is_empty() {
                 let start = match res[0] {
-                    MatchElement::WordBound(_) => todo!(),
                     MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => sp,
                     MatchElement::Syllable(wp, s, _)  |
                     MatchElement::SyllBound(wp, s, _) => SegPos::new(wp, s, 0),
+                    MatchElement::WordBound(wp) => SegPos::new(wp+1, 0, 0),
                 };
                 let end = match *res.last().unwrap() {
-                    MatchElement::WordBound(_) => todo!(),
+                    MatchElement::WordBound(wp) => {
+                        let mut pos = SegPos::new(wp+1, 0, 0);
+                        pos.word_decrement(&phrase);
+                        pos
+                    },
                     MatchElement::Segment(mut sp, _) | MatchElement::LongSegment(mut sp, _)  => {
                         // So that long vowels work
                         let mut seg_len = phrase.seg_length_at(sp);
@@ -210,22 +214,60 @@ impl SubRule {
                     // FIXME: If we swap syllables or boundaries then do this, these SegPos may not be correct
                     let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
                     let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
-                    let tmp = sl;
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = tmp;
+                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
                 },
                 (MatchElement::Segment(li, _), MatchElement::LongSegment(ri, _)) => {
-                    // FIXME: If we swap syllables or boundaries then do this, these SegPos may not be correct
-                    todo!()
+                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
+                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sr_length = res_phrase.seg_length_at(ri);
+
+                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
+                    for _ in 0..sr_length-1 {
+                        res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr);
+                    }
+                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
+                    for _ in 0..sr_length-1 {
+                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index+1);
+                    }
                 },
                 (MatchElement::LongSegment(li, _), MatchElement::Segment(ri, _)) => {
-                    // FIXME: If we swap syllables or boundaries then do this, these SegPos may not be correct
-                    todo!()
-                },
+                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
+                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sl_length = res_phrase.seg_length_at(li);
 
+                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
+                    for _ in 0..sl_length-1 {
+                        res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index+1);
+                    }
+                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
+                    for _ in 0..sl_length-1 {
+                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl);
+                    }
+                },
                 (MatchElement::LongSegment(li, _), MatchElement::LongSegment(ri, _)) => {
-                    // FIXME: If we swap syllables or boundaries then do this, these SegPos may not be correct
-                    todo!()
+                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
+                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sl_length = res_phrase.seg_length_at(li);
+                    let sr_length = res_phrase.seg_length_at(ri);
+
+                    // Swap initial segments
+                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
+                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
+                    // Remove long
+                    for _ in 0..sl_length-1 {
+                        res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index+1);
+                    }
+                    for _ in 0..sr_length-1 {
+                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index+1);
+                    }
+                    // Add long
+                    for _ in 0..sr_length-1 {
+                        res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr);
+                    }
+                    for _ in 0..sl_length-1 {
+                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl);
+                    }
                 },
                 (MatchElement::Syllable(lw, ls, _), MatchElement::Syllable(rw, rs, _)) => {
                     res_phrase.swap_sylls(lw, ls, rw, rs);
@@ -234,48 +276,92 @@ impl SubRule {
                 (MatchElement::Segment(si, _), MatchElement::SyllBound(wp, bi, _)) => {
                     // FIXME(girv): this won't work for rules with `...`, it may be necessary to disallow `$` in `...` rules
                     let seg = res_phrase[si.word_index].syllables[si.syll_index].segments[si.seg_index];
+                    // If before word end
                     if bi < res_phrase[wp].syllables.len() {
                         res_phrase[wp].syllables[bi].segments.push_front(seg);
                         res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index); // pop_back()                                
-                    } else {
+                    } else { // if at word end
                         res_phrase[wp].syllables.push(Syllable { segments: VecDeque::new(), stress: StressKind::Unstressed, tone: 0 });
                         res_phrase[wp].syllables.last_mut().unwrap().segments.push_front(seg);
                         res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index); // pop_back()
                     }                 
-
+                    // Remove syllable if empty
                     if res_phrase[si.word_index].syllables[si.syll_index].segments.is_empty() {
                         res_phrase[si.word_index].syllables.remove(si.syll_index);
                     }
                 },
-                (MatchElement::LongSegment(si, _), MatchElement::SyllBound(wp, bi, _)) => { todo!() },
+                (MatchElement::LongSegment(si, _), MatchElement::SyllBound(wp, bi, _)) => { 
+                    let seg = res_phrase[si.word_index].syllables[si.syll_index].segments[si.seg_index];
+                    let seg_length = res_phrase.seg_length_at(si);
+                    // If before word end
+                    if bi < res_phrase[wp].syllables.len() {
+                        for _ in 0..seg_length {
+                            res_phrase[wp].syllables[bi].segments.push_front(seg);
+                            res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index);
+                        }
+                    } else { // if at word end
+                        res_phrase[wp].syllables.push(Syllable { segments: VecDeque::new(), stress: StressKind::Unstressed, tone: 0 });
+                        for _ in 0..seg_length {
+                            res_phrase[wp].syllables.last_mut().unwrap().segments.push_front(seg);
+                            res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index); // pop_back()
+                        }
+                    }
+                    // Remove syllable if empty
+                    if res_phrase[si.word_index].syllables[si.syll_index].segments.is_empty() {
+                        res_phrase[si.word_index].syllables.remove(si.syll_index);
+                    }
+                },
                 (MatchElement::SyllBound(wp, bi, _), MatchElement::Segment(si, _)) => {
                     // FIXME(girv): this won't work for rules with `...`, it may be necessary to disallow `$` in `...` rules
                     let seg = res_phrase[si.word_index].syllables[si.syll_index].segments[si.seg_index];
+                    // If after word start
                     if bi > 0 {
                         res_phrase[wp].syllables[bi-1].segments.push_back(seg);
                         res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index); // pop_front()                                
-                    } else {
+                    } else { // if at word start
                         res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index); // pop_front()
                         res_phrase[wp].syllables.insert(0, Syllable { segments: VecDeque::new(), stress: StressKind::Unstressed, tone: 0 });
-                        res_phrase[wp].syllables.first_mut().unwrap().segments.push_front(seg);
+                        res_phrase[wp].syllables.first_mut().unwrap().segments.push_back(seg);
+                    }
+                    // Remove syllable if empty
+                    if res_phrase[si.word_index].syllables[si.syll_index].segments.is_empty() {
+                        res_phrase[si.word_index].syllables.remove(si.syll_index);
+                    }
+                },
+                (MatchElement::SyllBound(wp, bi, _), MatchElement::LongSegment(si, _)) => {
+                    let seg = res_phrase[si.word_index].syllables[si.syll_index].segments[si.seg_index];
+                    let seg_length = res_phrase.seg_length_at(si);
+                    if bi > 0 {
+                        for _ in 0..seg_length {
+                            res_phrase[wp].syllables[bi-1].segments.push_back(seg);
+                            res_phrase[si.word_index].syllables[si.syll_index].segments.remove(si.seg_index); // pop_front()                                
+                        }
+                    } else {
+                        res_phrase[wp].syllables.insert(0, Syllable { segments: VecDeque::new(), stress: StressKind::Unstressed, tone: 0 });
+                        for _ in 0..seg_length {
+                            res_phrase[si.word_index].syllables[si.syll_index+1].segments.remove(si.seg_index); // pop_front()
+                            res_phrase[wp].syllables.first_mut().unwrap().segments.push_back(seg);
+                        }
                     }
                     if res_phrase[si.word_index].syllables[si.syll_index].segments.is_empty() {
                         res_phrase[si.word_index].syllables.remove(si.syll_index);
                     }
                 },
-                (MatchElement::SyllBound(wp, bi, _), MatchElement::LongSegment(si, _)) => {},
                 
+                // TODO: move a segment from one word to another i.e. a napron => an apron
                 (MatchElement::WordBound(_), MatchElement::Segment(..)) => todo!(),
-                (MatchElement::WordBound(_), MatchElement::LongSegment(..)) => todo!(),
-                (MatchElement::WordBound(_), MatchElement::Syllable(..)) => todo!(),
-                (MatchElement::WordBound(_), MatchElement::SyllBound(..)) => todo!(),
-
                 (MatchElement::Segment(..), MatchElement::WordBound(_)) => todo!(),
+                
+                (MatchElement::WordBound(_), MatchElement::LongSegment(..)) => todo!(),
                 (MatchElement::LongSegment(..), MatchElement::WordBound(_)) => todo!(),
+                
+                // TODO: move a syllable from one word to another
+                (MatchElement::WordBound(_), MatchElement::Syllable(..)) => todo!(),
                 (MatchElement::Syllable(..), MatchElement::WordBound(_)) => todo!(),
-                (MatchElement::SyllBound(..), MatchElement::WordBound(_)) => todo!(),
-
-                (MatchElement::WordBound(_), MatchElement::WordBound(_)) => todo!("err"),
+                
+                (MatchElement::SyllBound(..), MatchElement::WordBound(_)) |
+                (MatchElement::WordBound(_), MatchElement::SyllBound(..)) => todo!("err: Cannot swap a word boundary and syllable boundary"),
+                (MatchElement::WordBound(_), MatchElement::WordBound(_)) => todo!("err: Cannot swap two word boundaries"),
                 // I think we're just gonna disallow these, I can't think of a valid rule where these make sense
                 (MatchElement::Segment(..), MatchElement::Syllable(..)) |
                 (MatchElement::LongSegment(..), MatchElement::Syllable(..)) |
@@ -1609,7 +1695,7 @@ impl SubRule {
 
     fn matrix_increment(&self, phrase: &Phrase, pos: &mut SegPos) {
         // the way we implement `long` vowels means we need to do this
-        let mut seg_length = phrase.seg_length_at(*pos);      
+        let mut seg_length = phrase.seg_length_at(*pos);
         while seg_length > 1 {
             pos.increment(phrase);
             seg_length -= 1;
@@ -2217,9 +2303,12 @@ impl SubRule { // Input Matching
                 }
                 if match_begin.is_none() { 
                     // if we haven't started matching, we have now
-                    match captures.last().expect("") {
+                    match captures.last().unwrap() {
                         MatchElement::Segment(sp, _) => match_begin = Some(*sp),
-                        MatchElement::LongSegment(sp, _) => match_begin = Some(*sp),
+                        MatchElement::LongSegment(sp, _) => {
+                            let len = phrase.seg_length_at(*sp);
+                            match_begin = Some(SegPos { word_index: sp.word_index, syll_index: sp.syll_index, seg_index: sp.seg_index + len - 1 })
+                        },
                         MatchElement::Syllable(wp, sp, _) |
                         MatchElement::SyllBound(wp, sp, _) => match_begin = Some(SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 }),
                         MatchElement::WordBound(_) => todo!()
@@ -2380,7 +2469,7 @@ impl SubRule { // Input Matching
         *state_index += 1;
         Ok(true)
     }
-    
+
     fn input_match_ellipsis(&self, captures: &mut Vec<MatchElement>, phrase: &Phrase, pos: &mut SegPos, states: &[ParseItem], state_index: &mut usize, inc: bool) -> Result<bool, RuleRuntimeError> {
         // should work akin to '.+?' or '.*?' in Regex, that is, a lazy-match of one-or-more elements or lazy-match of zero-or-more elements
         // increment seg_pos
@@ -2398,11 +2487,11 @@ impl SubRule { // Input Matching
         *state_index += 1;
         if inc { pos.increment(phrase) }
 
+        let back_state = *state_index;
+        let back_alphas = self.alphas.borrow().clone();
+        let back_varlbs = self.variables.borrow().clone();
         while phrase.in_bounds(*pos) {
-            let back_pos = *pos;
-            let back_state = *state_index;
-            let back_alphas = self.alphas.borrow().clone();
-            let back_varlbs = self.variables.borrow().clone();
+            // let back_pos = *pos;
 
             let mut m = true;
             while *state_index < states.len() {
@@ -2415,13 +2504,15 @@ impl SubRule { // Input Matching
             if m {
                 return Ok(true)
             }
-            *state_index = back_state;
-            *pos = back_pos;
-            *self.alphas.borrow_mut() = back_alphas;
-            *self.variables.borrow_mut() = back_varlbs;
+            // *state_index = back_state;
+            // *pos = back_pos;
+            *self.alphas.borrow_mut() = back_alphas.clone();
+            *self.variables.borrow_mut() = back_varlbs.clone();
             pos.increment(phrase);
         }
         
+        *self.alphas.borrow_mut() = back_alphas.clone();
+        *self.variables.borrow_mut() = back_varlbs.clone();
         Ok(false)
     }
 
@@ -2585,7 +2676,7 @@ impl SubRule { // Input Matching
                 [None, None] => captures.push(MatchElement::Segment(*pos, None)),
                 _            => captures.push(MatchElement::LongSegment(*pos, None))
             }
-            
+
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
