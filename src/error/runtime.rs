@@ -64,7 +64,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::SubstitutionSylltoSeg   (..) => write!(f, "Segments cannot be substituted by a syllable or a boundary"),
             // Self::SubstitutionSegtoSyll   (..) write!(f, => "Segments cannot be substituted by a syllable or a boundary"),
             Self::SubstitutionBoundMod    (..) => write!(f, "Syllable boundaries cannot be modified by a matrix."),
-            Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable"),
+            Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable boundary"),
             Self::MetathSyllSegment       (..) => write!(f, "Cannot swap a syllable with a segment"),
             Self::UnevenSet               (..) => write!(f, "Two matched sets must have the same number of elements"),
             Self::NodeCannotBeSome(node, _) => write!(f, "{node} node cannot arbitrarily positive"),
