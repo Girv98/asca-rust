@@ -28,6 +28,7 @@ pub(crate) enum TokenKind {
     Reverse,          // ~ or ~>
     Comma,            // ,
     Colon,            // :
+    ExternBoundary,   // ##
     WordBoundary,     // #
     SyllBoundary,     // $
     Syllable,         // %
@@ -78,6 +79,7 @@ impl Display for TokenKind {
             TokenKind::Reverse         => write!(f, "Reverse"),
             TokenKind::Comma           => write!(f, "Comma"),
             TokenKind::Colon           => write!(f, "Colon"),
+            TokenKind::ExternBoundary  => write!(f, "XBound"),
             TokenKind::WordBoundary    => write!(f, "WBound"),
             TokenKind::SyllBoundary    => write!(f, "SBound"),
             TokenKind::Syllable        => write!(f, "Syll"),
@@ -339,7 +341,10 @@ impl<'a> Lexer<'a> {
         
         let value = match self.curr_char() {
             ',' => { tokenkind = TokenKind::Comma;        self.chop(1) },
-            '#' => { tokenkind = TokenKind::WordBoundary; self.chop(1) },
+            '#' => match self.next_char() {
+                '#' => { tokenkind = TokenKind::ExternBoundary; self.chop(2) },
+                 _  => { tokenkind = TokenKind::WordBoundary;   self.chop(1) },
+            },
             '$' => { tokenkind = TokenKind::SyllBoundary; self.chop(1) },
             '%' => { tokenkind = TokenKind::Syllable;     self.chop(1) },
             '*' => { tokenkind = TokenKind::Star;         self.chop(1) },
@@ -983,6 +988,51 @@ mod lexer_tests {
             Token::new(TokenKind::RightColCurly, "}:", 0, 0, 21, 23),
             Token::new(TokenKind::Eol,             "", 0, 0, 23, 24),
         ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn test_external_boundary() {
+        // Deletion
+        let test_input= String::from("## > *");
+
+        let expected_result = vec![
+            Token::new(TokenKind::ExternBoundary, "##", 0, 0,  0,  2),
+            Token::new(TokenKind::GreaterThan,     ">", 0, 0,  3,  4),
+            Token::new(TokenKind::Star,            "*", 0, 0,  5,  6),
+            Token::new(TokenKind::Eol,              "", 0, 0,  6,  7),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+
+        // Environment
+        let test_input= String::from("O > F / V ## _ V");
+
+        let expected_result = vec![
+            Token::new(TokenKind::Group,           "O", 0, 0,  0,  1),
+            Token::new(TokenKind::GreaterThan,     ">", 0, 0,  2,  3),
+            Token::new(TokenKind::Group,           "F", 0, 0,  4,  5),
+            Token::new(TokenKind::Slash,           "/", 0, 0,  6,  7),
+            Token::new(TokenKind::Group,           "V", 0, 0,  8,  9),
+            Token::new(TokenKind::ExternBoundary, "##", 0, 0, 10, 12),
+            Token::new(TokenKind::Underline,       "_", 0, 0, 13, 14),
+            Token::new(TokenKind::Group,           "V", 0, 0, 15, 16),
+            Token::new(TokenKind::Eol,              "", 0, 0, 16, 17),
+        ];
+
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
 
