@@ -70,7 +70,7 @@ impl SegPos {
     }
 
     pub(crate) fn word_increment(&mut self, phrase: &Phrase) {
-        if self.word_index >= phrase.len() { return }
+        if self.word_index >= phrase.len() - 1 { return }
         self.word_index += 1;
         self.syll_index = 0;
         self.seg_index = 0;
