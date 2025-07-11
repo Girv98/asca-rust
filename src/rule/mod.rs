@@ -728,8 +728,7 @@ mod rule_tests {
     #[test]
     fn test_met_ident() {
         let test_rule = setup_rule("V > &");
-        let test_word = setup_word("saus");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "saus");
+        assert_eq!(test_rule.apply_word(setup_word("saus")).unwrap().render(&[]).0, "saus");
     }
 
     #[test]
@@ -743,6 +742,23 @@ mod rule_tests {
         // But does not match different consecutive vowels
         let test_word = setup_word("lau.ri");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "lau.ri");
+    }
+
+    #[test]
+    fn test_met_long_segments() {
+        let test_rule = setup_rule("a:[Along] .. i:[Blong] > &");
+        assert_eq!(test_rule.apply(setup_phrase("raː.li")).unwrap().render(&[]).0, "ri.laː");
+        assert_eq!(test_rule.apply(setup_phrase("ra.liː")).unwrap().render(&[]).0, "riː.la");
+        assert_eq!(test_rule.apply(setup_phrase("raː.liː")).unwrap().render(&[]).0, "riː.laː");
+    }
+
+    #[test]
+    fn test_met_cross_bound() {
+        assert_eq!(setup_rule("## n > &").apply(setup_phrase("a nej.prun")).unwrap().render(&[]).0, "an ej.prun");
+        assert_eq!(setup_rule("n ## > &").apply(setup_phrase("an ej.prun")).unwrap().render(&[]).0, "a nej.prun");
+
+        assert_eq!(setup_rule("## n:[+long] > &").apply(setup_phrase("a n:ej.prun")).unwrap().render(&[]).0, "anː ej.prun");
+        assert_eq!(setup_rule("n:[+long] ## > &").apply(setup_phrase("an: ej.prun")).unwrap().render(&[]).0, "a nːej.prun");
     }
 
     #[test]
@@ -2166,20 +2182,20 @@ mod rule_tests {
 
     #[test]
     fn test_word_boundary_deletion() {
-        // let test_rule = setup_rule("## > *");
-        // assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
-        // assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a.nif.te");
+        let test_rule = setup_rule("## > *");
+        assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
+        assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a.nif.te");
 
-        // let test_rule = setup_rule("## > * | _n");
-        // assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a nif");
-        // assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a nif.te");
+        let test_rule = setup_rule("## > * | _n");
+        assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a nif");
+        assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a nif.te");
         
-        // let test_rule = setup_rule("a## > *");
-        // assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "nif te");
-        // assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "d.nif te");
+        let test_rule = setup_rule("a## > *");
+        assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "nif te");
+        assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "d.nif te");
         
-        // let test_rule = setup_rule("<..a>## > *");
-        // assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "nif te");
+        let test_rule = setup_rule("<..a>## > *");
+        assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "nif te");
 
         let test_rule = setup_rule("##<..i..> > *");
         assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");

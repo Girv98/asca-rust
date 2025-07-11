@@ -311,7 +311,7 @@ impl SubRule {
                     }
                 },
                 
-                // TODO: move a segment from one word to another i.e. a napron => an apron
+                // Move a segment from one word to another i.e. a napron => an apron
                 (MatchElement::WordBound(wp), MatchElement::Segment(sp, _)) => {
                     debug_assert!(wp < sp.word_index);
                     let seg = res_phrase[sp.word_index].syllables[sp.syll_index].segments[sp.seg_index];
@@ -334,8 +334,7 @@ impl SubRule {
                     } else { // if at phrase end
                         let mut new_syll = Syllable::new();
                         new_syll.segments.push_front(seg);
-                        let new_word = Word { syllables: vec![new_syll] };
-                        res_phrase.push(new_word);
+                        res_phrase.push(Word { syllables: vec![new_syll] });
                         res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
                     }
                     // Remove syllable if empty
@@ -343,17 +342,51 @@ impl SubRule {
                         res_phrase[sp.word_index].syllables.remove(sp.syll_index);
                     }
                 },
-                
-                (MatchElement::WordBound(_), MatchElement::LongSegment(..)) => todo!(),
-                (MatchElement::LongSegment(..), MatchElement::WordBound(_)) => todo!(),
-                
+                (MatchElement::WordBound(wp), MatchElement::LongSegment(sp, _)) => {
+                    debug_assert!(wp < sp.word_index);
+                    let seg = res_phrase[sp.word_index].syllables[sp.syll_index].segments[sp.seg_index];
+                    let seg_length = res_phrase.seg_length_at(sp);
+
+                    let syll_len = res_phrase[wp].syllables.len()-1;
+                    for _ in 0..seg_length {
+                        res_phrase[wp].syllables[syll_len].segments.push_back(seg);
+                        res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
+                    }
+                    // Remove syllable if empty
+                    if res_phrase[sp.word_index].syllables[sp.syll_index].segments.is_empty() {
+                        res_phrase[sp.word_index].syllables.remove(sp.syll_index);
+                    }
+                },
+                (MatchElement::LongSegment(sp, _), MatchElement::WordBound(wp)) => {
+                    debug_assert!(sp.word_index <= wp);
+                    let seg = res_phrase[sp.word_index].syllables[sp.syll_index].segments[sp.seg_index];
+                    let seg_length = res_phrase.seg_length_at(sp);
+                    // if not at phrase end
+                    if wp < res_phrase.len() - 1 {
+                        for _ in 0..seg_length {
+                            res_phrase[wp+1].syllables[0].segments.push_front(seg);
+                            res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
+                        }
+                    } else { // if at phrase end
+                        let mut new_syll = Syllable::new();
+                        for _ in 0..seg_length {
+                            new_syll.segments.push_front(seg);
+                            res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
+                        }
+                        res_phrase.push(Word { syllables: vec![new_syll] });
+                    }   
+                    // Remove syllable if empty
+                    if res_phrase[sp.word_index].syllables[sp.syll_index].segments.is_empty() {
+                        res_phrase[sp.word_index].syllables.remove(sp.syll_index);
+                    }
+                },
                 // TODO: move a syllable from one word to another
                 (MatchElement::WordBound(_), MatchElement::Syllable(..)) => todo!(),
                 (MatchElement::Syllable(..), MatchElement::WordBound(_)) => todo!(),
                 
                 (MatchElement::SyllBound(..), MatchElement::WordBound(_)) |
                 (MatchElement::WordBound(_), MatchElement::SyllBound(..)) => todo!("err: Cannot swap a word boundary and syllable boundary"),
-                (MatchElement::WordBound(_), MatchElement::WordBound(_)) => todo!("err: Cannot swap two word boundaries"),
+                (MatchElement::WordBound(_), MatchElement::WordBound(_)) => {/* Do nothing */},
                 // I think we're just gonna disallow these, I can't think of a valid rule where these make sense
                 (MatchElement::Segment(..), MatchElement::Syllable(..)) |
                 (MatchElement::LongSegment(..), MatchElement::Syllable(..)) |
