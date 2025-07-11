@@ -2354,7 +2354,7 @@ impl SubRule { // Input Matching
             }
         }
 
-        if let Some(pi) = self.input.get(state_index) && pi.kind == ParseElement::ExtlBound {
+        if let Some(pi) = self.input.get(state_index) && pi.kind == ParseElement::ExtlBound && !cur_index.at_phrase_end(phrase) {
             cur_index.decrement(phrase);
             let (res, next_index) = self.input_match_at(phrase, cur_index, state_index)?;
             captures.extend(res);
