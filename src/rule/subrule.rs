@@ -821,6 +821,8 @@ impl SubRule {
                 ParseElement::Variable(num, mods) => {
                     if let Some(var) = self.variables.borrow_mut().get(&num.value.parse().unwrap()) {
                         match (input[state_index], var) {
+                            // TODO: LongSegment 
+                            (MatchElement::LongSegment(mut sp, _), VarKind::Segment(seg)) |
                             (MatchElement::Segment(mut sp, _), VarKind::Segment(seg)) => {
                                 match total_len_change[sp.syll_index].cmp(&0) {
                                     std::cmp::Ordering::Greater => sp.seg_index += total_len_change[sp.syll_index].unsigned_abs() as usize,
@@ -845,8 +847,6 @@ impl SubRule {
                                     last_pos.seg_index +=1;
                                 }
                             },
-                            (MatchElement::LongSegment(mut sp, _), VarKind::Segment(seg)) => todo!(),
-                            (MatchElement::LongSegment(mut sp, _), VarKind::Syllable(syll)) => todo!(),
                             (MatchElement::WordBound(_), _) => todo!("Err"),
                             (MatchElement::Syllable(wp, sp, _), VarKind::Syllable(syll)) => {
                                 res_phrase[wp].syllables[sp] = syll.clone();
@@ -856,6 +856,8 @@ impl SubRule {
                                     res_phrase[wp].syllables[sp].apply_syll_mods(&self.alphas, &m.suprs, num.position)?;
                                 }
                             },
+                            // TODO: LongSegment 
+                            (MatchElement::LongSegment(sp, _), VarKind::Syllable(insert_syll)) |
                             (MatchElement::Segment(sp, _), VarKind::Syllable(insert_syll)) => {
                                 // Remove segment and then insert syllable in its place
                                 let old_syll = res_phrase[sp.word_index].syllables.get_mut(sp.syll_index).unwrap();
