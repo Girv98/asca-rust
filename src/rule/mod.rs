@@ -145,9 +145,7 @@ impl Rule {
                     x
                 }
             } else { false };
-            if cross_bound_inp && rule_type != RuleType::Deletion { todo!("Err") }
             
-
             let cross_bound_env = if self.cross_bound_env { 
                 if self.context.len() == 1 && self.except.len() == 1 {
                     true
