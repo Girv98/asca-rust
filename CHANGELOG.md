@@ -1,3 +1,22 @@
+Next
+==================
+[0.8.4...Next](https://github.com/Girv98/asca-rust/compare/0.8.4...master)
+
+Features:
+* Lib: 
+    * Cross Boundary Interactions with `##` allowing for:
+        * Word Boundary Metathesis/Rebracketing e.g. `/ə ˈnei.pɹən/ > /ən ˈei.pɹən/`
+        * Affixation e.g. `/pəɹ ˈsɛnt/ > /pəɹˈsɛnt/`
+        * External Sandhi e.g. `an bean > an bhean`
+    * Added Retroflex diacritic alias `"r`
+
+Fixes:
+* Lib: 
+    * Removed edge cases in segment rendering
+    * Retroflex diacritic works as expected
+    * Diacritic payload is applied correctly
+    * Long segments are correctly deleted and metathesised
+
 0.8.4
 ==================
 [0.8.3...0.8.4](https://github.com/Girv98/asca-rust/compare/0.8.3...0.8.4)
