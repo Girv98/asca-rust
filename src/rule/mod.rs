@@ -762,6 +762,12 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_met_cross_bound_syll() {
+        assert_eq!(setup_rule("## % > &").apply(setup_phrase("a nej.prun")).unwrap().render(&[]).0, "a.nej prun");
+        assert_eq!(setup_rule("% ## > &").apply(setup_phrase("a.nej prun")).unwrap().render(&[]).0, "a nej.prun");
+    }
+
+    #[test]
     fn test_del_simple_ipa() {
         let test_rule = setup_rule("o > *");
         let test_word = setup_word("o.so.on.o");

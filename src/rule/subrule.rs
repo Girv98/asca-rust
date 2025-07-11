@@ -315,10 +315,10 @@ impl SubRule {
                 (MatchElement::WordBound(wp), MatchElement::Segment(sp, _)) => {
                     debug_assert!(wp < sp.word_index);
                     let seg = res_phrase[sp.word_index].syllables[sp.syll_index].segments[sp.seg_index];
-
+                    // Move seg to end of previous word
                     res_phrase[wp].syllables.last_mut().unwrap().segments.push_back(seg);
                     res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
-
+                    // Remove segment's syllable if now empty
                     if res_phrase[sp.word_index].syllables[sp.syll_index].segments.is_empty() {
                         res_phrase[sp.word_index].syllables.remove(sp.syll_index);
                     }
@@ -337,7 +337,7 @@ impl SubRule {
                         res_phrase.push(Word { syllables: vec![new_syll] });
                         res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
                     }
-                    // Remove syllable if empty
+                    // Remove segment's syllable if now empty
                     if res_phrase[sp.word_index].syllables[sp.syll_index].segments.is_empty() {
                         res_phrase[sp.word_index].syllables.remove(sp.syll_index);
                     }
@@ -380,10 +380,31 @@ impl SubRule {
                         res_phrase[sp.word_index].syllables.remove(sp.syll_index);
                     }
                 },
-                // TODO: move a syllable from one word to another
-                (MatchElement::WordBound(_), MatchElement::Syllable(..)) => todo!(),
-                (MatchElement::Syllable(..), MatchElement::WordBound(_)) => todo!(),
-                
+                // Move a syllable from one word to another
+                (MatchElement::WordBound(wp), MatchElement::Syllable(swp, sp, _)) => {
+                    debug_assert!(wp < swp);
+                    let syll = res_phrase[swp].syllables[sp].clone();
+                    // Move syll to end of previous word
+                    res_phrase[wp].syllables.push(syll);
+                    res_phrase[swp].syllables.remove(sp);
+                    // Remove word that syllable was in if now empty
+                    if res_phrase[swp].syllables.is_empty() {
+                        res_phrase.remove(swp);
+                    }
+                },
+                (MatchElement::Syllable(swp, sp, _), MatchElement::WordBound(wp)) => {
+                    debug_assert!(swp <= wp);
+                    let syll = res_phrase[swp].syllables[sp].clone();
+                    // if not at phrase end
+                    if wp < res_phrase.len() - 1 {
+                        res_phrase[wp+1].syllables.insert(0, syll);
+                        res_phrase[swp].syllables.remove(sp);
+                    } else { // if at phrase end
+                        res_phrase.push(Word { syllables: vec![syll] });
+                        res_phrase[swp].syllables.remove(sp);
+                    }
+
+                },
                 (MatchElement::SyllBound(..), MatchElement::WordBound(_)) |
                 (MatchElement::WordBound(_), MatchElement::SyllBound(..)) => todo!("err: Cannot swap a word boundary and syllable boundary"),
                 (MatchElement::WordBound(_), MatchElement::WordBound(_)) => {/* Do nothing */},
