@@ -55,7 +55,8 @@ pub(crate) struct SubRule {
     pub(crate) variables  : RefCell<HashMap<usize, VarKind>>,
     pub(crate) alphas     : RefCell<HashMap<char, Alpha>>,
     pub(crate) is_rev     : bool,
-    pub(crate) cross_bound: bool,
+    pub(crate) inp_x_bound: bool,
+    pub(crate) env_x_bound: bool,
 }
 
 impl SubRule {
@@ -81,11 +82,13 @@ impl SubRule {
         }
     }
 
+    fn is_cross_bound(&self) -> bool { self.inp_x_bound || self.env_x_bound }
+
     pub(crate) fn apply(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
         if phrase.is_empty() || phrase[0].syllables.is_empty() { return Ok(phrase) }
 
         // 'cross_bound' will not match if there's less that 2 words, 
-        if self.cross_bound && phrase.len() < 2 { return Ok(phrase) }
+        if self.is_cross_bound() && phrase.len() < 2 { return Ok(phrase) }
 
         let res = self.apply_phrase(if self.is_rev { phrase.rev() } else { phrase })?;
 
@@ -100,31 +103,6 @@ impl SubRule {
         }
     }
 
-    // pub(crate) fn apply_word(&self, word: Word) -> Result<Word, RuleRuntimeError> {
-    //     // RuleType::Substitution  => {/* input>env>output */},
-    //     // RuleType::Metathesis    => {/* skip calc output */},
-    //     // RuleType::Deletion      => {/* skip calc output */},
-    //     // RuleType::Insertion     => {/* skip match input */},
-    //
-    //     if word.syllables.is_empty() {
-    //         return Ok(word)
-    //     }
-    //
-    //     let word = if self.is_rev { word.reverse() } else { word };
-    //
-    //     let res = if self.rule_type == RuleType::Insertion {
-    //         self.transform(&word, vec![], &mut None)
-    //     } else {
-    //         self.apply_other(word)
-    //     }?;
-    //
-    //     if self.is_rev { 
-    //         Ok(res.reverse())
-    //     } else { 
-    //         Ok(res) 
-    //     }
-    // }
-
     fn apply_other(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
         let mut phrase = phrase;
         let mut cur_index = SegPos::new(0, 0, 0);
@@ -134,18 +112,18 @@ impl SubRule {
             self.variables.borrow_mut().clear();
             let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
             if !res.is_empty() {
+                let mut inc = true;
                 let start = match res[0] {
                     MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => sp,
                     MatchElement::Syllable(wp, s, _)  |
                     MatchElement::SyllBound(wp, s, _) => SegPos::new(wp, s, 0),
-                    MatchElement::WordBound(wp) => SegPos::new(wp+1, 0, 0),
-                };
-                let end = match *res.last().unwrap() {
                     MatchElement::WordBound(wp) => {
                         let mut pos = SegPos::new(wp+1, 0, 0);
                         pos.word_decrement(&phrase);
                         pos
                     },
+                };
+                let end = match *res.last().unwrap() {
                     MatchElement::Segment(mut sp, _) | MatchElement::LongSegment(mut sp, _)  => {
                         // So that long vowels work
                         let mut seg_len = phrase.seg_length_at(sp);
@@ -156,17 +134,18 @@ impl SubRule {
                         sp
                     },
                     MatchElement::SyllBound(wp, s, _) => {
-                        let mut sp = SegPos::new(wp, s, 0);
-                        if s != 0 {
-                            sp.decrement(&phrase);
-                        } // else {
-                            // FIXME(girv): this may lead to bugs 
-                        // }
+                        inc = false;
+                        let sp = SegPos::new(wp, s, 0);
                         sp
                     },
                     MatchElement::Syllable(wp, s, _)  => SegPos::new(wp, s, phrase[wp].syllables[s].segments.len()-1),
+                    MatchElement::WordBound(wp) => {
+                        inc = false;
+                        SegPos::new(wp+1, 0, 0)
+                    },
                 };
-                if !self.match_contexts_and_exceptions(&phrase, start, end, true)? {
+
+                if !self.match_contexts_and_exceptions(&phrase, start, end, inc)? {
                     if let Some(ni) = next_index { 
                         cur_index = ni;
                         continue;
@@ -416,7 +395,6 @@ impl SubRule {
         let mut res_phrase = phrase.clone();
         for z in input.into_iter().rev() {
             match z {
-                MatchElement::WordBound(_) => todo!(),
                 MatchElement::Segment(i, _) => {
                     pos = i;
                     if res_phrase[i.word_index].syllables.len() <= 1 && res_phrase[i.word_index].syllables[i.syll_index].segments.len() <= 1 {
@@ -446,13 +424,23 @@ impl SubRule {
                 },
                 MatchElement::Syllable(wp, i, _) => {
                     // remove syllable
-                    if res_phrase[wp].syllables.len() <= 1 {
+                    if (!self.inp_x_bound || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     pos.syll_index = i;
                     pos.seg_index = 0;
                     pos.decrement(&res_phrase);
                     res_phrase[wp].remove_syll(i);
+                },
+                MatchElement::WordBound(wp) => {
+                    // wp ## wp+1 -> wp.wp+1
+                    
+                    pos.word_index = wp+1;
+                    pos.word_decrement(phrase);
+
+                    let w1 = res_phrase[wp+1].syllables.clone();
+                    res_phrase[wp].syllables.extend(w1);
+                    res_phrase.remove(wp+1);
                 },
                 MatchElement::SyllBound(wp, i, _) => {
                     // join the two neighbouring syllables

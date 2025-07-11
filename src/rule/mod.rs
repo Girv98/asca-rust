@@ -136,7 +136,7 @@ impl Rule {
 
 
             // Ascertain if this subrule has `##` in either its input or environments
-            let cross_bound_inp = if self.cross_bound_inp {
+            let inp_x_bound = if self.cross_bound_inp {
                 if self.input.len() == 1 {
                     true
                 } else {
@@ -146,7 +146,7 @@ impl Rule {
                 }
             } else { false };
             
-            let cross_bound_env = if self.cross_bound_env { 
+            let env_x_bound = if self.cross_bound_env { 
                 if self.context.len() == 1 && self.except.len() == 1 {
                     true
                 } else {
@@ -164,7 +164,8 @@ impl Rule {
                     variables: RefCell::new(HashMap::new()), 
                     alphas: RefCell::new(HashMap::new()), 
                     is_rev: self.prop_rev,
-                    cross_bound: cross_bound_inp || cross_bound_env,
+                    inp_x_bound,
+                    env_x_bound,
                 }
             );
         }
@@ -277,9 +278,19 @@ mod rule_tests {
     }
 
     fn setup_word(test_str: &str) -> Word {
-        let maybe_word = Word::new(test_str, &[]);
-        match maybe_word {
+        match Word::new(test_str, &[]) {
             Ok(w) => return w,
+            Err(e) => {
+                println!("{}", e.format_word_error());
+                assert!(false);
+            },
+        }
+        unreachable!();
+    }
+
+    fn setup_phrase(test_str: &str) -> Phrase {
+        match Phrase::try_from(test_str, &[]) {
+            Ok(p) => return p,
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -2151,5 +2162,29 @@ mod rule_tests {
         let test_rule = setup_rule("a => e / :{ _{p,t,k}, _{b,d,g} }:");
         assert_eq!(test_rule.apply_word(setup_word("satad")).unwrap().render(&[]).0, "seted");
         assert_eq!(test_rule.apply_word(setup_word("salad")).unwrap().render(&[]).0, "saled");
+    }
+
+    #[test]
+    fn test_word_boundary_deletion() {
+        // let test_rule = setup_rule("## > *");
+        // assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
+        // assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a.nif.te");
+
+        // let test_rule = setup_rule("## > * | _n");
+        // assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a nif");
+        // assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a nif.te");
+        
+        // let test_rule = setup_rule("a## > *");
+        // assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "nif te");
+        // assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "d.nif te");
+        
+        // let test_rule = setup_rule("<..a>## > *");
+        // assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "nif te");
+
+        let test_rule = setup_rule("##<..i..> > *");
+        assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
+        let test_rule = setup_rule("<..i..>## > *");
+        assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
+
     }
 }

@@ -924,7 +924,6 @@ impl Word {
     ///
     /// Panics if `syll_index` is out of bounds.
     pub fn remove_syll(&mut self, syll_index: usize) {
-        debug_assert!(self.syllables.len() > 1);
         debug_assert!(syll_index < self.syllables.len());
         self.syllables.remove(syll_index);
     }
