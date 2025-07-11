@@ -109,7 +109,7 @@ impl SegPos {
     }
 
     pub(crate) fn at_phrase_end(&self, phrase: &Phrase) -> bool {
-        self.word_index == phrase.len() - 1 && self.at_word_end(phrase)
+        self.word_index == phrase.len() - 1 && (self.at_word_end(phrase) || !phrase.in_bounds(*self))
     }
 
     pub(crate) fn at_word_start(&self) -> bool {
