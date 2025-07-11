@@ -132,7 +132,7 @@ impl SubRule {
         loop {
             self.alphas.borrow_mut().clear();
             self.variables.borrow_mut().clear();
-            let (res, mut next_index) = self.input_match_at(&phrase, cur_index)?;
+            let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
             if !res.is_empty() {
                 let start = match res[0] {
                     MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => sp,
@@ -349,8 +349,37 @@ impl SubRule {
                 },
                 
                 // TODO: move a segment from one word to another i.e. a napron => an apron
-                (MatchElement::WordBound(_), MatchElement::Segment(..)) => todo!(),
-                (MatchElement::Segment(..), MatchElement::WordBound(_)) => todo!(),
+                (MatchElement::WordBound(wp), MatchElement::Segment(sp, _)) => {
+                    debug_assert!(wp < sp.word_index);
+                    let seg = res_phrase[sp.word_index].syllables[sp.syll_index].segments[sp.seg_index];
+
+                    res_phrase[wp].syllables.last_mut().unwrap().segments.push_back(seg);
+                    res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
+
+                    if res_phrase[sp.word_index].syllables[sp.syll_index].segments.is_empty() {
+                        res_phrase[sp.word_index].syllables.remove(sp.syll_index);
+                    }
+
+                },
+                (MatchElement::Segment(sp, _), MatchElement::WordBound(wp)) => {
+                    debug_assert!(sp.word_index <= wp);
+                    let seg = res_phrase[sp.word_index].syllables[sp.syll_index].segments[sp.seg_index];
+                    // if not at phrase end
+                    if wp < res_phrase.len() - 1 {
+                        res_phrase[wp+1].syllables[0].segments.push_front(seg);
+                        res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
+                    } else { // if at phrase end
+                        let mut new_syll = Syllable::new();
+                        new_syll.segments.push_front(seg);
+                        let new_word = Word { syllables: vec![new_syll] };
+                        res_phrase.push(new_word);
+                        res_phrase[sp.word_index].syllables[sp.syll_index].segments.remove(sp.seg_index);
+                    }
+                    // Remove syllable if empty
+                    if res_phrase[sp.word_index].syllables[sp.syll_index].segments.is_empty() {
+                        res_phrase[sp.word_index].syllables.remove(sp.syll_index);
+                    }
+                },
                 
                 (MatchElement::WordBound(_), MatchElement::LongSegment(..)) => todo!(),
                 (MatchElement::LongSegment(..), MatchElement::WordBound(_)) => todo!(),
@@ -2285,10 +2314,10 @@ impl SubRule { // Context Matching
 }
 
 impl SubRule { // Input Matching
-    fn input_match_at(&self, phrase: &Phrase, start_index: SegPos) -> Result<(Vec<MatchElement>, Option<SegPos>), RuleRuntimeError> {
+    fn input_match_at(&self, phrase: &Phrase, start_index: SegPos, state_index: usize) -> Result<(Vec<MatchElement>, Option<SegPos>), RuleRuntimeError> {
         let mut cur_index = start_index;
         let mut match_begin = None;
-        let mut state_index = 0;
+        let mut state_index = state_index;
         let mut captures: Vec<_> = Vec::new();
 
         while phrase.in_bounds(cur_index) {
@@ -2311,7 +2340,7 @@ impl SubRule { // Input Matching
                         },
                         MatchElement::Syllable(wp, sp, _) |
                         MatchElement::SyllBound(wp, sp, _) => match_begin = Some(SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 }),
-                        MatchElement::WordBound(_) => todo!()
+                        MatchElement::WordBound(wp) => match_begin = Some(SegPos { word_index: wp+1, syll_index: 0, seg_index: 0 })
                     }
                 }
                 // else continue 
@@ -2333,6 +2362,13 @@ impl SubRule { // Input Matching
                 state_index = 0;
                 captures = vec![];
             }
+        }
+
+        if let Some(pi) = self.input.get(state_index) && pi.kind == ParseElement::ExtlBound {
+            cur_index.decrement(phrase);
+            let (res, next_index) = self.input_match_at(phrase, cur_index, state_index)?;
+            captures.extend(res);
+            return Ok((captures, next_index))
         }
 
         if match_begin.is_none() { // if we've got to the end of the word and we haven't began matching
@@ -2379,7 +2415,14 @@ impl SubRule { // Input Matching
                 *state_index += 1;
                 Ok(true)
             } else { Ok(false) },
-            ParseElement::ExtlBound => todo!(),
+            ParseElement::ExtlBound => if seg_pos.at_word_end(phrase) && !seg_pos.at_phrase_end(phrase) {
+                captures.push(MatchElement::WordBound(seg_pos.word_index));
+                seg_pos.word_increment(phrase);
+                *state_index += 1;
+                Ok(true)
+            } else {
+                Ok(false)
+            },
             ParseElement::Syllable(s, t, v) => self.input_match_syll(captures, state_index, s, t, v, phrase, seg_pos),
             ParseElement::Structure(segs, stress, tone, var) => self.input_match_structure(captures, state_index, segs, stress, tone, var, phrase, seg_pos),
             ParseElement::Ellipsis  => self.input_match_ellipsis(captures, phrase, seg_pos, states, state_index, true),
