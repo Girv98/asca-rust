@@ -1,8 +1,10 @@
-use crate::{alias, rule::Rule, word::SegPos, ASCAError};
+use std::fmt;
+
+use crate::{alias::{self, Transformation}, rule::Rule, word::SegPos, ASCAError};
 
 use super::Word;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Clone, PartialEq, Default)]
 pub struct Phrase (Vec<Word>);
 
 impl std::ops::Deref for Phrase {
@@ -24,6 +26,17 @@ impl FromIterator<Word> for Phrase {
     }
 }
 
+impl fmt::Debug for Phrase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, word) in self.iter().enumerate() {
+            writeln!(f, "Word {}", i+1)?;
+            write!(f, "{:?}", word)?;
+        }
+
+        Ok(())
+    }
+}
+
 
 impl Phrase {
     pub fn new() -> Self {
@@ -37,6 +50,19 @@ impl Phrase {
     pub fn try_from(unparsed_phrase: &str, aliases: &[String]) -> Result<Self, ASCAError> {
         let alias_into = alias::parse_into(aliases)?;
         unparsed_phrase.split(' ').map(|w| Word::new(w, &alias_into)).collect()
+    }
+
+    pub fn render(&self, aliases: &[Transformation]) -> (String, Vec<String>) {
+        let mut buffer = String::new();
+        let mut unknowns = Vec::new();
+        for word in self.iter() {
+            let (w, u) = word.render(&aliases);
+            buffer.push(' ');
+            buffer.push_str(&w);
+            unknowns.extend(u);
+        }
+
+        (buffer.trim().to_string(), unknowns)
     }
 
     #[inline]
