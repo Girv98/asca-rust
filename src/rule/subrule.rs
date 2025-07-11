@@ -202,13 +202,9 @@ impl SubRule {
                     let sr_length = res_phrase.seg_length_at(ri);
 
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    for _ in 0..sr_length-1 {
-                        res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr);
-                    }
+                    for _ in 0..sr_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr); }
                     res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
-                    for _ in 0..sr_length-1 {
-                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index+1);
-                    }
+                    for _ in 0..sr_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index + 1); }
                 },
                 (MatchElement::LongSegment(li, _), MatchElement::Segment(ri, _)) => {
                     let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
@@ -216,13 +212,9 @@ impl SubRule {
                     let sl_length = res_phrase.seg_length_at(li);
 
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    for _ in 0..sl_length-1 {
-                        res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index+1);
-                    }
+                    for _ in 0..sl_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index + 1); }
                     res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
-                    for _ in 0..sl_length-1 {
-                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl);
-                    }
+                    for _ in 0..sl_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl); }
                 },
                 (MatchElement::LongSegment(li, _), MatchElement::LongSegment(ri, _)) => {
                     let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
@@ -234,19 +226,11 @@ impl SubRule {
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
                     res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
                     // Remove long
-                    for _ in 0..sl_length-1 {
-                        res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index+1);
-                    }
-                    for _ in 0..sr_length-1 {
-                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index+1);
-                    }
+                    for _ in 0..sl_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index + 1); }
+                    for _ in 0..sr_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index + 1); }
                     // Add long
-                    for _ in 0..sr_length-1 {
-                        res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr);
-                    }
-                    for _ in 0..sl_length-1 {
-                        res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl);
-                    }
+                    for _ in 0..sr_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr); }
+                    for _ in 0..sl_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl); }
                 },
                 (MatchElement::Syllable(lw, ls, _), MatchElement::Syllable(rw, rs, _)) => {
                     res_phrase.swap_sylls(lw, ls, rw, rs);
@@ -548,7 +532,6 @@ impl SubRule {
                         }
                     }
                 }
-
                 Ok(res_phrase)
             },
         }
@@ -905,6 +888,8 @@ impl SubRule {
                     match &in_state.kind {
                         ParseElement::Set(set_input) => if set_input.len() == set_output.len() {
                             match input[state_index] {
+                                // TODO: long segment
+                                MatchElement::LongSegment(mut sp, set_index)  | 
                                 MatchElement::Segment(mut sp, set_index) => {
                                     let Some(i) = set_index else { return Err(RuleRuntimeError::LonelySet(in_state.position)) };
                                     match total_len_change[sp.syll_index].cmp(&0) {
@@ -1016,10 +1001,12 @@ impl SubRule {
                                         ParseElement::SyllBound |
                                         ParseElement::Syllable(..) => return Err(RuleRuntimeError::SubstitutionSylltoSeg(in_state.position, set_output[i].position)),
                                         ParseElement::WordBound => return Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
-                                        _ => unreachable!(),
+                                        
+                                        ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
+                                        ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
+                                        ParseElement::Structure(..) | ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
                                     }
                                 },
-                                MatchElement::LongSegment(..) => todo!(),
                                 MatchElement::Syllable(wp, sp, set_index) => {
                                     let Some(i) = set_index else { return Err(RuleRuntimeError::LonelySet(in_state.position)) };
                                     last_pos.syll_index = sp;
@@ -1055,7 +1042,7 @@ impl SubRule {
                                         _ => unreachable!(),
                                     }
                                 },
-                                MatchElement::SyllBound(wp, sp, set_index) => {
+                                MatchElement::SyllBound(_, sp, set_index) => {
                                     let Some(i) = set_index else { return Err(RuleRuntimeError::LonelySet(in_state.position)) };
                                     last_pos.syll_index = sp;
                                     last_pos.seg_index = 0;
