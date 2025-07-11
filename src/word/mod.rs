@@ -38,7 +38,7 @@ pub struct SegPos {
 
 impl fmt::Debug for SegPos {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.syll_index, self.seg_index)
+        write!(f, "{}:{}:{}", self.word_index, self.syll_index, self.seg_index)
     }
 }
 
