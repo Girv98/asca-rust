@@ -8,9 +8,8 @@ use clap::{CommandFactory, Parser};
 
 
 fn run() -> io::Result<()> {
-    if cfg!(target_os = "windows") {
-        colored::control::set_virtual_terminal(true).unwrap();
-    }
+    #[cfg(windows)]
+    { colored::control::set_virtual_terminal(true).unwrap(); }
 
     let args = CliArgs::parse();
 
