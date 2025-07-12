@@ -47,12 +47,12 @@ impl SegPos {
         Self { word_index, syll_index, seg_index }
     }
 
-    pub(crate) fn reversed(&self, word: &Word) -> Self {
-        debug_assert!(word.in_bounds(*self));
+    pub(crate) fn reversed(&self, phrase: &Phrase) -> Self {
+        debug_assert!(phrase.in_bounds(*self));
         SegPos::new(
-            self.word_index,
-            word.syllables.len() - 1 - self.syll_index, 
-            word.syllables[self.syll_index].segments.len() - 1 - self.seg_index
+            phrase.len() - 1 - self.word_index,
+            phrase[self.word_index].syllables.len() - 1 - self.syll_index, 
+            phrase[self.word_index].syllables[self.syll_index].segments.len() - 1 - self.seg_index
         )
     }
 
@@ -104,6 +104,7 @@ impl SegPos {
         // if 0:0, do nothing
     }
 
+    #[allow(unused)]
     pub(crate) fn at_phrase_start(&self) -> bool {
         self.word_index == 0 && self.syll_index == 0 && self.seg_index == 0
     }

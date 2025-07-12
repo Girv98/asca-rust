@@ -30,7 +30,7 @@ impl fmt::Debug for Phrase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, word) in self.iter().enumerate() {
             writeln!(f, "Word {}", i+1)?;
-            write!(f, "{:?}", word)?;
+            write!(f, "{word:?}")?;
         }
 
         Ok(())
@@ -56,7 +56,7 @@ impl Phrase {
         let mut buffer = String::new();
         let mut unknowns = Vec::new();
         for word in self.iter() {
-            let (w, u) = word.render(&aliases);
+            let (w, u) = word.render(aliases);
             buffer.push(' ');
             buffer.push_str(&w);
             unknowns.extend(u);
@@ -78,11 +78,9 @@ impl Phrase {
         Ok(res)
     }
     
-    pub(crate) fn rev(&self) -> Self {
+    pub(crate) fn reversed(&self) -> Self {
         let mut new = Self::with_capacity(self.len());
-        // TODO: for w in self.iter().rev() {
-        // Need to rev word_index in segpos.rev() for ^ to work
-        for w in self.iter() {
+        for w in self.iter().rev() {
             new.push(w.reverse());
         }
 
