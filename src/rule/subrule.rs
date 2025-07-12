@@ -184,7 +184,7 @@ impl SubRule {
         Ok(phrase)
     }
 
-    fn metathesis(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn metathesis(&self, phrase: &Phrase, input: Vec<MatchElement>, _next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         let mut res_phrase = phrase.clone();
         for z in 0..(input.len() / 2) {
             match (input[z], input[input.len()-1-z]) {
@@ -2822,6 +2822,9 @@ impl SubRule { // Insertion
                         }
                     } else {
                         res_phrase[pos.word_index].syllables.last_mut().unwrap().segments.push_back(*seg);
+                        // If out of bounds, move to added segment
+                        pos.syll_index = res_phrase[pos.word_index].syllables.len() - 1;
+                        pos.seg_index = res_phrase[pos.word_index].syllables[pos.syll_index].segments.len() - 1;
                         if let Some(m) = mods {
                             let lc = res_phrase[pos.word_index].apply_seg_mods(&self.alphas, m, pos, state.position)?;
                             if lc > 0 {
@@ -2936,6 +2939,9 @@ impl SubRule { // Insertion
                                     }
                                 } else {
                                     res_phrase[pos.word_index].syllables.last_mut().unwrap().segments.push_back(*seg);
+                                    // If out of bounds, move to added segment
+                                    pos.syll_index = res_phrase[pos.word_index].syllables.len() - 1;
+                                    pos.seg_index = res_phrase[pos.word_index].syllables[pos.syll_index].segments.len() - 1;
                                     if let Some(m) = mods {
                                         let lc = res_phrase[pos.word_index].apply_seg_mods(&self.alphas, m, pos, state.position)?;
                                         if lc > 0 {
