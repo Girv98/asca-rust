@@ -722,15 +722,12 @@ impl SubRule {
                             }
 
                         },
+                        // Remove segment and then insert syllable in its place
                         MatchElement::Segment(sp, _) => {
-                            // Remove segment and then insert syllable in its place
-
                             if items.is_empty() {
                                 return Err(RuleRuntimeError::SubstitutionSyll(out_state.position))
                             }
-
                             let insert_syll = self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?;
-
                             let old_syll = res_phrase[sp.word_index].syllables.get_mut(sp.syll_index).unwrap();
                             
                             // If the matched segment is the only segment in the syllable
@@ -774,8 +771,57 @@ impl SubRule {
                                 last_pos.decrement(&res_phrase);
                             }
                         },
-                        MatchElement::LongSegment(..) => todo!(),
-                        MatchElement::WordBound(..) => todo!("err"),
+                        // Remove long segment and then insert syllable in its place
+                        MatchElement::LongSegment(sp, _) => {
+                            if items.is_empty() {
+                                return Err(RuleRuntimeError::SubstitutionSyll(out_state.position))
+                            }
+                            let seg_len = res_phrase.seg_length_at(sp);
+                            let insert_syll = self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?;
+                            let old_syll = res_phrase[sp.word_index].syllables.get_mut(sp.syll_index).unwrap();
+
+                            for _ in 0..seg_len {
+                                old_syll.segments.remove(sp.seg_index);
+                            }
+
+                            if old_syll.segments.is_empty() {
+                                *old_syll = insert_syll;
+                                last_pos.syll_index = sp.syll_index + 1;
+                                last_pos.seg_index = 0;
+                                if state_index >= self.output.len()-1 {
+                                    last_pos.decrement(&res_phrase);
+                                }
+                                continue;
+                            }
+
+                            let mut new_syll = Syllable::new();
+                            new_syll.stress = old_syll.stress;
+                            new_syll.tone = old_syll.tone;
+
+                            while old_syll.segments.len() > sp.seg_index {
+                                new_syll.segments.push_front(old_syll.segments.pop_back().unwrap());
+                            }
+
+                            let mut adjustment = 0;
+                            if old_syll.segments.is_empty() {
+                                *old_syll = insert_syll;
+                            } else {
+                                res_phrase[sp.word_index].syllables.insert(sp.syll_index+1, insert_syll);
+                                adjustment = 1;
+                            }
+                            if !new_syll.segments.is_empty() {
+                                res_phrase[sp.word_index].syllables.insert(sp.syll_index+1+adjustment, new_syll);
+                                last_pos.syll_index = sp.syll_index + 2 + adjustment;
+                            } else {
+                                last_pos.syll_index = sp.syll_index + 1 + adjustment;
+                            }
+                            last_pos.seg_index = 0;
+                            if state_index >= self.output.len()-1 {
+                                last_pos.decrement(&res_phrase);
+                            }
+
+                        },
+                        MatchElement::WordBound(..) => return Err(RuleRuntimeError::SubstitutionWordBound(in_state.position, out_state.position)),
                         MatchElement::SyllBound(..) => return Err(RuleRuntimeError::SubstitutionSyllBound(in_state.position, out_state.position))
                     }
                 },
