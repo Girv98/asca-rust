@@ -2207,6 +2207,17 @@ mod rule_tests {
         assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
         let test_rule = setup_rule("<..i..>## > *");
         assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
+    }
 
+    #[test]
+    fn test_extl_boundary_matching() {
+        let test_rule = setup_rule("a > e / _##");
+        assert_eq!(test_rule.apply(setup_phrase("a na")).unwrap().render(&[]).0, "e na");
+        assert_eq!(test_rule.apply(setup_phrase("a na da")).unwrap().render(&[]).0, "e ne da");
+
+        let test_rule = setup_rule("a > e / _##n");
+        assert_eq!(test_rule.apply(setup_phrase("a na")).unwrap().render(&[]).0, "e na");
+        assert_eq!(test_rule.apply(setup_phrase("a nan")).unwrap().render(&[]).0, "e nan");
+        assert_eq!(test_rule.apply(setup_phrase("a na da")).unwrap().render(&[]).0, "e na da");
     }
 }
