@@ -695,14 +695,14 @@ mod rule_tests {
 
     #[test]
     fn test_met_long_dist_ipa() {
-        let test_rule = setup_rule("r...l > &");
+        let test_rule = setup_rule("r..l > &");
         let test_word = setup_word("ˈpa.ra.bo.la");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "ˈpa.la.bo.ra");
     }
 
     #[test]
     fn test_met_long_and_short_dist_ipa() {
-        let test_rule = setup_rule("r(...)l > &");
+        let test_rule = setup_rule("r(..)l > &");
 
         let test_word = setup_word("ˈpar.la");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "ˈpal.ra");
@@ -792,26 +792,30 @@ mod rule_tests {
         let test_word = setup_word("pa.ta.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "a");
 
-        let test_rule = setup_rule("pata...a > *");
+        let test_rule = setup_rule("pata..a > *");
         let test_word = setup_word("pa.ta.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "k");
 
-        let test_rule = setup_rule("p...a > *");
+        let test_rule = setup_rule("p..a > *");
         let test_word = setup_word("pa.ta.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "a.t.ka");
 
-        let test_rule = setup_rule("p(...)a > *");
+        let test_rule = setup_rule("p(..)a > *");
         let test_word = setup_word("pa.ta.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "ta.ka");
     }
 
-    // #[test]
-    // fn test_addad() {
-    //     let test_rule = setup_rule("p...t > x x");
-    //     let test_word = setup_word("pa.ta.ka");
-    //     assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "xa.xa.ka");
-    // }
+    #[test]
+    fn test_sub_skip() {
+        assert_eq!(setup_rule("p..t > x..x").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xa.xa.ka");
+        assert_eq!(setup_rule("p..t > xx").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xa.xa.ka");
+        assert_eq!(setup_rule("p..t > x:[+long]..x").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xːa.xa.ka");
+    }
 
+    #[test]
+    fn test_del_ellipsis() {
+        assert_eq!(setup_rule("p..t > *").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "a.a.ka");
+    }
 
     #[test]
     fn test_del_syll() {
@@ -1395,7 +1399,7 @@ mod rule_tests {
         let test_rule = setup_rule("* > 1 / V:[-long] _ $ C=1");
         assert_eq!(test_rule.apply_word(setup_word("'nu.sa")).unwrap().render(&[]).0, "ˈnus.sa");
         
-        let test_rule = setup_rule("* > 1 / ⟨(..)V:[-long]⟩ _ <C=1...>");
+        let test_rule = setup_rule("* > 1 / ⟨(..)V:[-long]⟩ _ <C=1..>");
         assert_eq!(test_rule.apply_word(setup_word("'nu.sa")).unwrap().render(&[]).0, "ˈnus.sa");
     }
 
@@ -1416,7 +1420,7 @@ mod rule_tests {
     fn test_engala_new() {
         let test_rules = [
             // 1) Copy Vowel Insertion
-            setup_rule("* > 1:[-str]%:[Astr] / #_O:[+nas]V:[Astr]=1"),
+            setup_rule("* > <1> / #_O:[+nas]V=1"),
             // 2) Nasal Assimilation
             setup_rule("[+nas] > [Aplace] / _C:[Aplace]"),
             // 3) Voicing Assim
@@ -1440,7 +1444,7 @@ mod rule_tests {
             // 9) Central Vowel Annihilation Part Un
             setup_rule("V:[-fr, -bk, +str] > [+fr, +tens, -red]"),
             // 10) Progressive Assimilation
-            setup_rule("V:[-lo, -bk, -fr] > [Abk, Bfr, +tens] / V:[Abk, Bfr]=1..._"),
+            setup_rule("V:[-lo, -bk, -fr] > [Abk, Bfr, +tens] / V:[Abk, Bfr]=1.._"),
             // 11) Post-Nasal Lenition
             setup_rule("O:[-cont, +voi] > * / N_"),
             setup_rule("N$ > & / V_V"),
@@ -1455,28 +1459,27 @@ mod rule_tests {
             setup_rule("C:[+cor] > [Aplace, -lab] / _w:[Aplace]"),
             // 11) Central Vowel Annihilation Part Deux
             setup_rule("V:[-fr, -bk, -lo] > [+fr, +tens, -red]"),
-            
         ];
 
         let test_words = [
             setup_word("'ᵑɡa.la"),
-            // setup_word("ᵑɡa'la"),
-            // setup_word("'ᵐbo"),
-            // setup_word("'ᵐba"),
-            // setup_word("'ᵐbə"),
-            // setup_word("'mo"),
-            // setup_word("'ha.mi"),
-            // setup_word("at.wa"),
+            setup_word("ᵑɡa'la"),
+            setup_word("'ᵐbo"),
+            setup_word("'ᵐba"),
+            setup_word("'ᵐbə"),
+            setup_word("'mo"),
+            setup_word("'ha.mi"),
+            setup_word("at.wa"),
             ];
         let output_matchs = [
             setup_word("eˈŋæ.la"),
-            // setup_word("e.ŋaˈlæ"),
-            // setup_word("uˈmo"),
-            // setup_word("eˈmæ"),
-            // setup_word("iˈme"),
-            // setup_word("ˈmo"),
-            // setup_word("'hæ.mi"),
-            // setup_word("ak.wa"),
+            setup_word("e.ŋaˈlæ"),
+            setup_word("uˈmo"),
+            setup_word("eˈmæ"),
+            setup_word("iˈme"),
+            setup_word("ˈmo"),
+            setup_word("'hæ.mi"),
+            setup_word("ak.wa"),
         ];
 
         let mut output_words: Vec<Word> = vec![];
@@ -1503,83 +1506,6 @@ mod rule_tests {
         }
     }
 
-    // #[test]
-    // fn test_engala_old() {
-    //     let test_rules = [
-    //         // 1) Copy Vowel Insertion
-    //         setup_rule("* > 1:[-str]%:[Astr] / #_O:[+nas]V:[Astr]=1"),
-    //         // setup_rule("* > 1 / #_O:[+nas]V=1"),
-    //         // setup_rule("* > %:[Astr] / #V_O:[+nas, Astr]"),
-    //         // setup_rule("%:[+str] > [-str] / _%:[+str]"),
-    //         // 2) Nasal Assimilation
-    //         setup_rule("[+nas] > [Aplace] / _C:[Aplace]"),
-    //         // 3) Pre-nasalised Cons Simp
-    //         setup_rule("O:[+nas, Aplace]=1 > n:[Aplace]1:[-nas]"),
-    //         setup_rule("$N > & / V_C"),
-    //         // 4) Hiatus Res
-    //         setup_rule("$ > * / V_V"),
-    //         setup_rule("ai, au, əi, əu > aj, aw, e, o"),
-    //         setup_rule("i, u > [-syl] / _V:[-hi]"),
-    //         setup_rule("əa, aə > ə:[+long], a:[+long]"),
-    //         // 5) Pre-nasal Raising
-    //         // setup_rule("{ə, a, e, o} > {ɨ, ə, i, u} / _N{O,#}"),
-    //         setup_rule("V:[-hi, -lo] > [+hi, +tense -red] / _N{O,#}"),
-    //         setup_rule("V:[-hi, +lo] > [-lo, +red] / _N{O,#}"),
-    //         // 6) Central Vowel Annihilation Part Un
-    //         setup_rule("V:[-fr, -bk, +str] > [+fr, +tens, -red]"),
-    //         // 7) Progressive Assimilation
-    //         setup_rule("V:[-lo, -bk, -fr] > [Abk, Bfr, +tens] / V:[Abk, Bfr]=1..._"),
-    //         // 8) Post-Nasal Lenition
-    //         setup_rule("O:[-cont, +voi] > * / N_"),
-    //         setup_rule("N$ > & / V_V"),
-    //         setup_rule("O:[-cont, -voi] > [+voi] / N_"),
-    //         setup_rule("* > t:[Avoi] / n_C:[+cont, Avoi, +cor]"), // n_{s,z,l}
-    //         setup_rule("{f, x} > h / N_"),
-    //         // 9) Weak Fricative Lenition
-    //         setup_rule("{f, x} > [+voi] / V_V"),
-    //         // 10) Voiceless Stop Lenition 
-    //         setup_rule("C:[-cont] > [+voi] / V_V"),
-    //         // 11) Central Vowel Annihilation Part Deux
-    //         setup_rule("V:[-fr, -bk, -lo] > [+fr, +tens, -red]"),
-            
-    //     ];
-
-    //     let test_words = [
-    //         setup_word("'ᵑɡa.la"),
-    //         setup_word("ᵑɡa'la"),
-    //         setup_word("'ᵐbo"),
-    //         setup_word("'ᵐba"),
-    //         setup_word("'ᵐbə"),
-    //         setup_word("'mo"),
-    //         setup_word("'ha.mi"),
-    //     ];
-    //     let output_matchs = [
-    //         setup_word("eˈŋæ.la"),
-    //         setup_word("e.ŋaˈlæ"),
-    //         setup_word("uˈmo"),
-    //         setup_word("eˈmæ"),
-    //         setup_word("iˈme"),
-    //         setup_word("ˈmo"),
-    //         setup_word("'hæ.mi"),
-    //     ];
-
-    //     let mut output_words: Vec<Word> = vec![];
-
-    //     for word in &test_words {
-    //         let mut w = word.clone();
-    //         for (ri, rule) in test_rules.iter().enumerate() {
-    //             println!("-- {} --", ri+1);
-    //             println!("{}", w.render(&[]));
-    //             w = rule.apply(w).unwrap();
-    //         }
-    //         output_words.push(w)
-    //     }
-
-    //     for (w, m) in output_words.iter().zip(output_matchs) {
-    //         assert_eq!(w.render(&[]), m.render(&[]));
-    //     }
-    // }
-
     #[test]
     fn test_prop_ltr() {
 
@@ -1595,7 +1521,7 @@ mod rule_tests {
         let test_rule = setup_rule("V > [α front, β back] / _CV:[α front, β back]");
         assert_eq!(test_rule.apply_word(setup_word("si.no.te.hu")).unwrap().render(&[]).0, "sɯ.nø.tɤ.hu");
 
-        // V > [α front, β back] / _...V:[α front, β back]#
+        // V > [α front, β back] / _..V:[α front, β back]#
         // /sinotehu/ becomes /sɯnotɤhu/, as expected
         
         let test_rule = setup_rule("V > [α front, β back] / _ (..) V:[α front, β back]#");
@@ -1924,13 +1850,13 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <..left> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
-        let test_rule = setup_rule("% > <han>:[tone:51] / <...eft> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <..eft> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <s..eft> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
-        let test_rule = setup_rule("% > <han>:[tone:51] / <s...t> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <s..t> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
-        let test_rule = setup_rule("% > <han>:[tone:51] / <sl...> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <sl..> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <sle..> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
@@ -1938,7 +1864,7 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <sleft(..)> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
-        let test_rule = setup_rule("% > <han>:[tone:51] / <...CC> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <..CC> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <..VCC> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
@@ -1983,7 +1909,7 @@ mod rule_tests {
     fn test_structure_input_match() {
         let test_rule = setup_rule("<sleft> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
-        let test_rule = setup_rule("<...eft> > <han>:[tone:51]");
+        let test_rule = setup_rule("<..eft> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
         let test_rule = setup_rule("<s..eft> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
@@ -1993,13 +1919,13 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
         let test_rule = setup_rule("<(..)sleft> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
-        let test_rule = setup_rule("<s...t> > <han>:[tone:51]");
+        let test_rule = setup_rule("<s..t> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
-        let test_rule = setup_rule("<sl...> > <han>:[tone:51]");
+        let test_rule = setup_rule("<sl..> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
         let test_rule = setup_rule("<(..)s(..)> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
-        let test_rule = setup_rule("<...CC> > <han>:[tone:51]");
+        let test_rule = setup_rule("<..CC> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
         let test_rule = setup_rule("<..VCC> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
@@ -2023,7 +1949,7 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
         let test_rule = setup_rule("<..V..> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
-        let test_rule = setup_rule("<...CC> > <han>:[tone:51]");
+        let test_rule = setup_rule("<..CC> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
         let test_rule = setup_rule("<..VCC> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
@@ -2042,7 +1968,7 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.te");
         let test_rule = setup_rule("<xs..e..t> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.te");
-        let test_rule = setup_rule("<s...Vt> > <han>:[tone:51]");
+        let test_rule = setup_rule("<s..Vt> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.te");
     }
 
@@ -2070,13 +1996,13 @@ mod rule_tests {
         let test_rule = setup_rule("<{t,s}l{e,o}f{t,s}> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
 
-        let test_rule = setup_rule("<...{t, s}> > <han>:[tone:51]");
+        let test_rule = setup_rule("<..{t, s}> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
     }
 
     #[test]
     fn test_structure_context_sets(){
-        let test_rule = setup_rule("% > <han>:[tone:51] / <...{t, s}> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <..{t, s}> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
 
         let test_rule = setup_rule("% > <han>:[tone:51] / <sl{e,o}ft> _");
@@ -2088,7 +2014,7 @@ mod rule_tests {
         let test_rule = setup_rule("% > <h1n>:[tone:51] / <slV=1ft> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.hen51");
 
-        let test_rule = setup_rule("<...V=1...{t, s}> > <h1n>:[tone:51]");
+        let test_rule = setup_rule("<..V=1..{t, s}> > <h1n>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "hen51.te");
     }
 
@@ -2097,10 +2023,10 @@ mod rule_tests {
         let test_rule = setup_rule("<sle(f)t> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
 
-        let test_rule = setup_rule("<sle(f)...> > <han>:[tone:51]");
+        let test_rule = setup_rule("<sle(f)..> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
 
-        let test_rule = setup_rule("<(s,1:1)...> > <han>:[tone:51]");
+        let test_rule = setup_rule("<(s,1:1)..> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "han51.te");
 
         let test_rule = setup_rule("<slef(t)> > <han>:[tone:51]");
@@ -2132,10 +2058,10 @@ mod rule_tests {
         let test_rule = setup_rule("% > <han>:[tone:51] / <sle(f)t> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
 
-        let test_rule = setup_rule("% > <han>:[tone:51] / <sle(f)...> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <sle(f)..> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
 
-        let test_rule = setup_rule("% > <han>:[tone:51] / <(s,1:1)...> _");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <(s,1:1)..> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.han51");
 
         let test_rule = setup_rule("% > <han>:[tone:51] / <slef(t)> _");
