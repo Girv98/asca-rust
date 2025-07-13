@@ -34,7 +34,7 @@ impl MatchElement {
             MatchElement::LongSegment(sp, _) => MatchElement::LongSegment(*sp, si),
             MatchElement::Syllable(wp, sp, _) => MatchElement::Syllable(*wp, *sp, si),
             MatchElement::SyllBound(wp, bp, _) => MatchElement::SyllBound(*wp, *bp, si),
-            MatchElement::WordBound(_wp) => unimplemented!()
+            MatchElement::WordBound(..) => unimplemented!()
         }
     }
 }
@@ -103,6 +103,36 @@ impl SubRule {
         }
     }
 
+    fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> SegPos {
+        match res[0] {
+            MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => sp,
+            MatchElement::Syllable(wp, s, _)  |
+            MatchElement::SyllBound(wp, s, _) => SegPos::new(wp, s, 0),
+            MatchElement::WordBound(wp) => {
+                let mut pos = SegPos::new(wp+1, 0, 0);
+                pos.word_decrement(phrase);
+                pos
+            },
+        }
+    }
+
+    fn set_end(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
+        match *res.last().unwrap() {
+            MatchElement::Segment(mut sp, _) | MatchElement::LongSegment(mut sp, _)  => {
+                // So that long vowels work
+                let mut seg_len = phrase.seg_length_at(sp);
+                while seg_len > 1 {
+                    sp.increment(phrase);
+                    seg_len -= 1;
+                }
+                (sp, true)
+            },
+            MatchElement::Syllable(wp, s, _)  => (SegPos::new(wp, s, phrase[wp].syllables[s].segments.len()-1), true),
+            MatchElement::SyllBound(wp, s, _) => (SegPos::new(wp, s, 0), false),
+            MatchElement::WordBound(wp) => (SegPos::new(wp+1, 0, 0), false),
+        }
+    }
+
     fn apply_other(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
         let mut phrase = phrase;
         let mut cur_index = SegPos::new(0, 0, 0);
@@ -112,37 +142,8 @@ impl SubRule {
             self.variables.borrow_mut().clear();
             let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
             if !res.is_empty() {
-                let mut inc = true;
-                let start = match res[0] {
-                    MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => sp,
-                    MatchElement::Syllable(wp, s, _)  |
-                    MatchElement::SyllBound(wp, s, _) => SegPos::new(wp, s, 0),
-                    MatchElement::WordBound(wp) => {
-                        let mut pos = SegPos::new(wp+1, 0, 0);
-                        pos.word_decrement(&phrase);
-                        pos
-                    },
-                };
-                let end = match *res.last().unwrap() {
-                    MatchElement::Segment(mut sp, _) | MatchElement::LongSegment(mut sp, _)  => {
-                        // So that long vowels work
-                        let mut seg_len = phrase.seg_length_at(sp);
-                        while seg_len > 1 {
-                            sp.increment(&phrase);
-                            seg_len -= 1;
-                        }
-                        sp
-                    },
-                    MatchElement::SyllBound(wp, s, _) => {
-                        inc = false;
-                        SegPos::new(wp, s, 0)
-                    },
-                    MatchElement::Syllable(wp, s, _)  => SegPos::new(wp, s, phrase[wp].syllables[s].segments.len()-1),
-                    MatchElement::WordBound(wp) => {
-                        inc = false;
-                        SegPos::new(wp+1, 0, 0)
-                    },
-                };
+                let start = self.set_start(&res,  &phrase);
+                let (end, inc) = self.set_end(&res, &phrase);
 
                 if !self.match_contexts_and_exceptions(&phrase, start, end, inc)? {
                     if let Some(ni) = next_index { 
