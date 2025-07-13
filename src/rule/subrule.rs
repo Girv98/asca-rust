@@ -2609,9 +2609,9 @@ impl SubRule { // Input Matching
         *state_index += 1;
         if inc { pos.increment(phrase) }
 
-        // let back_state = *state_index;
         let back_alphas = self.alphas.borrow().clone();
         let back_varlbs = self.variables.borrow().clone();
+        let back_captures = captures.clone();
         while phrase.in_bounds(*pos) {
             let mut m = true;
             while *state_index < states.len() {
@@ -2624,15 +2624,15 @@ impl SubRule { // Input Matching
             if m {
                 return Ok(true)
             }
-            // *state_index = back_state;
-            // *pos = back_pos;
             *self.alphas.borrow_mut() = back_alphas.clone();
             *self.variables.borrow_mut() = back_varlbs.clone();
+            *captures = back_captures.clone();
             pos.increment(phrase);
         }
         
-        *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.variables.borrow_mut() = back_varlbs.clone();
+        *self.alphas.borrow_mut() = back_alphas;
+        *self.variables.borrow_mut() = back_varlbs;
+        *captures = back_captures;
         Ok(false)
     }
 
