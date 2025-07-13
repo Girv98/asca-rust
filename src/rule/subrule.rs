@@ -693,14 +693,11 @@ impl SubRule {
         let mut total_len_change: Vec<i8> = vec![0; phrase[word_pos].syllables.len()];
         let mut last_pos = SegPos::new(word_pos, 0, 0);
 
-        let mut ell_count_input = 0;
-        
-        let mut res_phrase = phrase.clone();
-        for (si, (in_state, out_state)) in self.input.iter().zip(&self.output).enumerate() {
-            // FIXME: I don't know how we're gonna do this for t
-            if in_state.kind == ParseElement::Ellipsis || in_state.kind == ParseElement::WEllipsis { ell_count_input +=1 }
-            let state_index = si - ell_count_input;
+        let input_filt = self.input.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::WEllipsis).collect::<Vec<_>>();
+        let output_filt = self.output.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::WEllipsis).collect::<Vec<_>>();
 
+        let mut res_phrase = phrase.clone();
+        for (state_index, (in_state, out_state)) in input_filt.iter().zip(&output_filt).enumerate() {
             match &out_state.kind {
                 ParseElement::Syllable(..) => return Err(RuleRuntimeError::SubstitutionSyll(out_state.position)),
                 ParseElement::Structure(items, stress, tone, var) => {
@@ -718,7 +715,7 @@ impl SubRule {
 
                             last_pos.syll_index = sp + 1;
                             last_pos.seg_index = 0;
-                            if state_index >= self.output.len()-1 {
+                            if state_index >= output_filt.len()-1 {
                                 last_pos.decrement(&res_phrase);
                             }
 
@@ -737,7 +734,7 @@ impl SubRule {
                                 *old_syll = insert_syll;
                                 last_pos.syll_index = sp.syll_index + 1;
                                 last_pos.seg_index = 0;
-                                if state_index >= self.output.len()-1 {
+                                if state_index >= output_filt.len()-1 {
                                     last_pos.decrement(&res_phrase);
                                 }
                                 continue;
@@ -768,7 +765,7 @@ impl SubRule {
                                 last_pos.syll_index = sp.syll_index + 1 + adjustment;
                             }
                             last_pos.seg_index = 0;
-                            if state_index >= self.output.len()-1 {
+                            if state_index >= output_filt.len()-1 {
                                 last_pos.decrement(&res_phrase);
                             }
                         },
@@ -789,7 +786,7 @@ impl SubRule {
                                 *old_syll = insert_syll;
                                 last_pos.syll_index = sp.syll_index + 1;
                                 last_pos.seg_index = 0;
-                                if state_index >= self.output.len()-1 {
+                                if state_index >= output_filt.len()-1 {
                                     last_pos.decrement(&res_phrase);
                                 }
                                 continue;
@@ -817,7 +814,7 @@ impl SubRule {
                                 last_pos.syll_index = sp.syll_index + 1 + adjustment;
                             }
                             last_pos.seg_index = 0;
-                            if state_index >= self.output.len()-1 {
+                            if state_index >= output_filt.len()-1 {
                                 last_pos.decrement(&res_phrase);
                             }
 
@@ -845,8 +842,8 @@ impl SubRule {
                             if lc > 0 {
                                 last_pos.seg_index += lc.unsigned_abs() as usize;
                             }
-                            if self.input.len() == self.output.len() {
-                                if state_index < self.input.len() -1 {
+                            if input_filt.len() == output_filt.len() {
+                                if state_index < input_filt.len() -1 {
                                     last_pos.seg_index +=1;
                                 }
                             } else {
@@ -879,8 +876,8 @@ impl SubRule {
                         if lc > 0 {
                             last_pos.seg_index += lc.unsigned_abs() as usize;
                         }
-                        if self.input.len() == self.output.len() {
-                            if state_index < self.input.len() -1 {
+                        if input_filt.len() == output_filt.len() {
+                            if state_index < input_filt.len() -1 {
                                 last_pos.seg_index +=1;
                             }
                         } else {
@@ -911,8 +908,8 @@ impl SubRule {
                                         last_pos.seg_index += lc.unsigned_abs() as usize;
                                     }
                                 }
-                                if self.input.len() == self.output.len() {
-                                    if state_index < self.input.len() -1 {
+                                if input_filt.len() == output_filt.len() {
+                                    if state_index < input_filt.len() -1 {
                                         last_pos.seg_index +=1;
                                     }
                                 } else {
@@ -938,7 +935,7 @@ impl SubRule {
                                     *old_syll = insert_syll.clone();
                                     last_pos.syll_index = sp.syll_index + 1;
                                     last_pos.seg_index = 0;
-                                    if state_index >= self.output.len()-1 {
+                                    if state_index >= output_filt.len()-1 {
                                         last_pos.decrement(&res_phrase);
                                     }
                                     continue;
@@ -969,7 +966,7 @@ impl SubRule {
                                     last_pos.syll_index = sp.syll_index + 1 + adjustment;
                                 }
                                 last_pos.seg_index = 0;
-                                if state_index >= self.output.len()-1 {
+                                if state_index >= output_filt.len()-1 {
                                     last_pos.decrement(&res_phrase);
                                 }
                             },
@@ -983,7 +980,7 @@ impl SubRule {
                     }
                 },
                 ParseElement::Set(set_output) => {
-                    // Check that self.input[si] is a set, if not throw RuleRuntimeError::LonelySet(state.position)
+                    // Check that input_filt[si] is a set, if not throw RuleRuntimeError::LonelySet(state.position)
                     // Check both sets have the same number of elements 
                     // See which one of the input set matched and use the corresponding in output to substitute
                     match &in_state.kind {
@@ -1009,8 +1006,8 @@ impl SubRule {
                                                     last_pos.seg_index += lc.unsigned_abs() as usize;
                                                 }
                                             }
-                                            if self.input.len() == self.output.len() {
-                                                if state_index < self.input.len() -1 {
+                                            if input_filt.len() == output_filt.len() {
+                                                if state_index < input_filt.len() -1 {
                                                     last_pos.seg_index +=1;
                                                 }
                                             } else {
@@ -1023,8 +1020,8 @@ impl SubRule {
                                             if lc > 0 {
                                                 last_pos.seg_index += lc.unsigned_abs() as usize;
                                             }
-                                            if self.input.len() == self.output.len() {
-                                                if state_index < self.input.len() -1 {
+                                            if input_filt.len() == output_filt.len() {
+                                                if state_index < input_filt.len() -1 {
                                                     last_pos.seg_index +=1;
                                                 }
                                             } else {
@@ -1043,8 +1040,8 @@ impl SubRule {
                                                                 last_pos.seg_index += lc.unsigned_abs() as usize;
                                                             }
                                                         }
-                                                        if self.input.len() == self.output.len() {
-                                                            if state_index < self.input.len() -1 {
+                                                        if input_filt.len() == output_filt.len() {
+                                                            if state_index < input_filt.len() -1 {
                                                                 last_pos.seg_index +=1;
                                                             }
                                                         } else {
@@ -1059,7 +1056,7 @@ impl SubRule {
                                                             *old_syll = insert_syll.clone();
                                                             last_pos.syll_index = sp.syll_index + 1;
                                                             last_pos.seg_index = 0;
-                                                            if state_index >= self.output.len()-1 {
+                                                            if state_index >= output_filt.len()-1 {
                                                                 last_pos.decrement(&res_phrase);
                                                             }
                                                             continue;
@@ -1090,7 +1087,7 @@ impl SubRule {
                                                             last_pos.syll_index = sp.syll_index + 1 + adjustment;
                                                         }
                                                         last_pos.seg_index = 0;
-                                                        if state_index >= self.output.len()-1 {
+                                                        if state_index >= output_filt.len()-1 {
                                                             last_pos.decrement(&res_phrase);
                                                         }
                                                     }
@@ -1169,15 +1166,16 @@ impl SubRule {
                         return Err(RuleRuntimeError::SubstitutionSyllBound(in_state.position, out_state.position))
                     }
                 },
-                ParseElement::EmptySet   | ParseElement::Metathesis    | ParseElement::ExtlBound | 
-                ParseElement::Ellipsis   | ParseElement::Optional(..)  | ParseElement::WEllipsis | 
-                ParseElement::WordBound  | ParseElement::Environment(..) => unreachable!(),
+                ParseElement::Ellipsis | ParseElement::WEllipsis => { continue; }
+
+                ParseElement::EmptySet     | ParseElement::Metathesis | ParseElement::ExtlBound | 
+                ParseElement::Optional(..) | ParseElement::WordBound  | ParseElement::Environment(..) => unreachable!(),
             }
         }
 
         let mut pos = last_pos;
-        if self.output.len() > self.input.len() {
-            for z in self.output.iter().skip(self.input.len()) {
+        if output_filt.len() > input_filt.len() {
+            for z in output_filt.iter().skip(input_filt.len()) {
                 match &z.kind {
                     ParseElement::Ipa(seg, mods) => {
                         if let Some(syll) = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index) { 
@@ -1358,12 +1356,12 @@ impl SubRule {
                     ParseElement::WordBound  | ParseElement::Environment(..) => unreachable!(),
                 }
             }
-        } else if self.input.len() > self.output.len() {
+        } else if input_filt.len() > output_filt.len() {
             // TODO(girv): factor this out
-            let start_index = self.input.len() - self.output.len();
+            let start_index = input_filt.len() - output_filt.len();
             for (si, &z) in input.iter().enumerate().skip(start_index).rev() {
                 match z {
-                    MatchElement::WordBound(..) => return Err(RuleRuntimeError::SubstitutionWordBound(self.input[si].position, self.output[si].position)),
+                    MatchElement::WordBound(..) => return Err(RuleRuntimeError::SubstitutionWordBound(input_filt[si].position, output_filt[si].position)),
                     MatchElement::LongSegment(mut sp, _) |
                     MatchElement::Segment(mut sp, _) => {
                         match total_len_change[sp.syll_index].cmp(&0) {
@@ -2978,12 +2976,13 @@ impl SubRule { // Insertion
                         return Err(RuleRuntimeError::UnknownVariable(num.clone()))
                     }
                 },
+                ParseElement::Ellipsis | ParseElement::WEllipsis => {/* Do Nothing */},
 
                 ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(state.position)),
                 ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(state.position)),
+
                 ParseElement::EmptySet  | ParseElement::Metathesis   | ParseElement::ExtlBound | 
-                ParseElement::Ellipsis  | ParseElement::Optional(..) | ParseElement::WEllipsis | 
-                ParseElement::WordBound | ParseElement::Environment(..) => unreachable!(),
+                ParseElement::Optional(..) | ParseElement::WordBound | ParseElement::Environment(..) => unreachable!(),
             }
         }
 

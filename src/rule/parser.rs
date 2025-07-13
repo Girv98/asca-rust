@@ -972,7 +972,12 @@ impl Parser {
         if let Some(x) = self.get_seg()?       { return Ok(Some(x)) }
         if let Some(x) = self.get_var()?       { return Ok(Some(x)) }
         if let Some(x) = self.get_syll_bound() { return Ok(Some(x)) }
-
+        if let Some(w_el) = self.eat_expect(TokenKind::WrappedEllipsis) {
+            return Ok(Some(ParseItem::new(ParseElement::WEllipsis, w_el.position)))
+        }
+        if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
+                return Ok(Some(ParseItem::new(ParseElement::Ellipsis, el.position)))
+        }
         Ok(None)
     }
 
