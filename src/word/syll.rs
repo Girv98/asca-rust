@@ -149,6 +149,63 @@ impl Syllable {
         self.apply_supras(alphas, &mods.suprs, start_pos, err_pos)
     }
 
+    // NOTE: Will panic if old_len is greater than i8::MAX 
+    pub(crate) fn calc_new_length(&self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
+        let mut seg_len = old_len;
+        let mut len_change: i8 = 0;
+        match mods.length {
+            // [long, Overlong]
+            [None, None] => {},
+            [None, Some(v)] => if v.as_bool(alphas, err_pos)? {
+                while seg_len < 3 {
+                    seg_len +=1;
+                    len_change +=1;
+                }
+            } else {
+                while seg_len > 2 {
+                    seg_len -=1;
+                    len_change -=1;
+                }
+            },
+            [Some(long), None] => if long.as_bool(alphas, err_pos)? {
+                while seg_len < 2 {
+                    seg_len += 1;
+                    len_change +=1;
+                }
+            } else {
+                while seg_len > 1 {
+                    seg_len -= 1;
+                    len_change -=1;
+                }
+            },
+            [Some(long), Some(vlong)] => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
+                (true, true) => while seg_len < 3 {
+                    seg_len +=1;
+                    len_change +=1;
+                },
+                (true, false) => {
+                    while seg_len > 2 {
+                        seg_len -=1;
+                        len_change -=1;
+                    }
+                    while seg_len < 2 {
+                        seg_len += 1;
+                        len_change +=1;
+                    }
+                },
+                (false, false) => while seg_len > 1 {
+                    seg_len -= 1;
+                    len_change -=1;
+                },
+                (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
+            },
+        }
+        debug_assert!(old_len > len_change.unsigned_abs());
+
+        Ok((old_len as i8 + len_change) as u8)
+    }
+
+
     pub(crate) fn apply_supras(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, pos: usize, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         let seg = self.segments[pos];
         let mut seg_len = self.get_seg_length_at(pos);
@@ -214,7 +271,7 @@ impl Syllable {
         Ok(len_change)
     }
 
-    pub(crate) fn apply_syll_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, err_pos: Position) -> Result<(), RuleRuntimeError>{
+    pub(crate) fn apply_syll_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, err_pos: Position) -> Result<(), RuleRuntimeError> {
         match mods.stress {
             // [stress, secstress]
             [None, None] => {},

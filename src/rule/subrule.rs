@@ -46,11 +46,15 @@ enum Payload {
     Syllable(Syllable),
 }
 
+type OldLen = NonZeroU8;
+type NewLen = NonZeroU8;
+type ErrPos = Position;
+
 #[derive(Debug)]
 enum ActionKind {
-    ReplaceSegment(NonZeroU8, Payload),
+    ReplaceSegment((OldLen, NewLen), Payload, ErrPos),
     ReplaceSyllable(Syllable),
-    ModifySyllable(SupraSegs, Position),
+    ModifySyllable(SupraSegs, ErrPos),
     Pass,
 }
 
@@ -634,17 +638,19 @@ impl SubRule {
         Ok(lc)
     }
 
-    fn gen_seg(&self, seg: Segment, mods: Option<&Modifiers>, var: &Option<usize>, err_pos: Position) -> Result<Segment, RuleRuntimeError> {
+    fn gen_seg(&self, syll: &Syllable, seg: Segment, old_len: u8, mods: Option<&Modifiers>, var: &Option<usize>, err_pos: Position) -> Result<(Segment, u8), RuleRuntimeError> {
         let mut seg = seg;
+        let mut new_len = old_len;
         if let Some(m) = mods {
             seg.apply_seg_mods(&self.alphas, m.nodes, m.feats, err_pos, false)?;
+            new_len = syll.calc_new_length(&self.alphas, &m.suprs, old_len, err_pos)?;
         }
         
         if let Some(v) = var {
             self.variables.borrow_mut().insert(*v, VarKind::Segment(seg));
         }
 
-        Ok(seg)
+        Ok((seg, new_len))
     }
 
     fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
@@ -759,13 +765,26 @@ impl SubRule {
             }
         }
         let mut res_phrase = phrase.clone();
-        // let mut last_pos = SegPos::new(word_pos, 0, 0);
 
+        // NOTE: because we are going reverse, the first of multiple syllable tone or stress changes on the same syllable will be final
+        // This may not be a problem, but is the opposite of what happened previously
         for action in actions.iter().rev() {
             match &action.kind {
-                ActionKind::ReplaceSegment(length, payload) => match payload {
-                    Payload::Segment(segment, supra_segs) => {
-                        todo!()
+                ActionKind::ReplaceSegment((old_length, new_length), payload, err_pos) => match payload {
+                    Payload::Segment(segment, mods) => {
+                        let syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
+                        for _ in 0..old_length.get()-1 {
+                            syll.segments.remove(action.pos.seg_index+1);
+                        }
+                        syll.segments[action.pos.seg_index] = *segment;
+
+                        for _ in 0..new_length.get()-1 {
+                            syll.segments.insert(action.pos.seg_index, *segment);
+                        }
+
+                        if let Some(m) = mods {
+                            syll.apply_syll_mods(&self.alphas, m, *err_pos)?;
+                        }
                     },
                     Payload::Syllable(syllable) => {
                         todo!()
@@ -803,16 +822,19 @@ impl SubRule {
             MatchElement::Segment(pos, _) => {
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
-                        Self::ONE, 
-                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?)),
+                        (Self::ONE, Self::ONE), 
+                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?),
+                        out_state.position
+                    ),
                     pos,
                 })
             },
             MatchElement::LongSegment(pos, _) => {
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
-                        NonZeroU8::new(phrase.seg_length_at(pos) as u8).unwrap(),
-                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?)
+                        (NonZeroU8::new(phrase.seg_length_at(pos) as u8).unwrap(), Self::ONE),
+                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?),
+                        out_state.position
                     ),
                     pos,
                 })
@@ -825,17 +847,27 @@ impl SubRule {
     fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, var: &Option<usize>, state: MatchElement, in_state: &&ParseItem, out_state: &&ParseItem) -> Result<SubAction, RuleRuntimeError> {
         match state {
             MatchElement::LongSegment(pos, _) => {
-                let seg = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), Some(mods), var, out_state.position)?;
-                let seg_len = phrase.seg_length_at(pos) as u8;
+                let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+                let old_len = phrase.seg_length_at(pos) as u8;
+                let (seg, new_len) = self.gen_seg(syll, phrase[pos.word_index].get_seg_at(pos).unwrap(), old_len,Some(mods), var, out_state.position)?;
                 Ok(SubAction {
-                    kind: ActionKind::ReplaceSegment(NonZeroU8::new(seg_len).unwrap(), Payload::Segment(seg, Some(mods.suprs))),
+                    kind: ActionKind::ReplaceSegment(
+                        (NonZeroU8::new(old_len).unwrap(), Self::non_zero_len(new_len)),
+                        Payload::Segment(seg, Some(mods.suprs)),
+                        out_state.position,
+                    ),
                     pos,
                 })
             },
             MatchElement::Segment(pos, _) => {
-                let seg = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), Some(mods), var, out_state.position)?;
+                let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+                let (seg, new_len) = self.gen_seg(syll, phrase[pos.word_index].get_seg_at(pos).unwrap(), 1,Some(mods), var, out_state.position)?;
                 Ok(SubAction {
-                    kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Segment(seg, Some(mods.suprs))),
+                    kind: ActionKind::ReplaceSegment(
+                        (Self::ONE, Self::non_zero_len(new_len)), 
+                        Payload::Segment(seg, Some(mods.suprs)),
+                        out_state.position,
+                    ),
                     pos,
                 })
             },
@@ -859,24 +891,31 @@ impl SubRule {
         match state {
             //TODO: LongSegment may have to be different
             MatchElement::LongSegment(pos, _) => {
-                let seg = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), mods.as_ref(), &None, out_state.position)?;
-                let seg_len = phrase.seg_length_at(pos) as u8;
+                let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+                let old_len = phrase.seg_length_at(pos) as u8;
+                let (seg, new_len) = self.gen_seg(syll, *seg, old_len, mods.as_ref(), &None, out_state.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
 
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
-                        Self::non_zero_len(seg_len), 
-                        Payload::Segment(seg, suprs)
+                        (Self::non_zero_len(old_len), Self::non_zero_len(new_len)), 
+                        Payload::Segment(seg, suprs),
+                        out_state.position
                     ),
                     pos,
                 })
             },
             MatchElement::Segment(pos, _)=> {
-                let seg = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), mods.as_ref(), &None, out_state.position)?;
+                let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+                let (seg, new_len) = self.gen_seg(syll, *seg, 1,  mods.as_ref(), &None, out_state.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
 
                 Ok(SubAction {
-                    kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Segment(seg, suprs)),
+                    kind: ActionKind::ReplaceSegment(
+                        (Self::ONE, Self::non_zero_len(new_len)), 
+                        Payload::Segment(seg, suprs),
+                        out_state.position
+                    ),
                     pos,
                 })
             },
@@ -890,24 +929,32 @@ impl SubRule {
         let Some(var) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownVariable(num.clone())) };
         match (state, var) {
             (MatchElement::LongSegment(pos, _), VarKind::Segment(seg)) => {
-                let seg = self.gen_seg(*seg, mods.as_ref(), &None, num.position)?;
-                let seg_len = phrase.seg_length_at(pos) as u8;
+                let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+                let old_len = phrase.seg_length_at(pos) as u8;
+                let (seg, new_len) = self.gen_seg(syll, *seg, old_len, mods.as_ref(), &None, num.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
 
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
-                        Self::non_zero_len(seg_len),
-                        Payload::Segment(seg, suprs)
+                        (Self::non_zero_len(old_len), Self::non_zero_len(new_len)),
+                        Payload::Segment(seg, suprs),
+                        num.position
                     ),
                     pos,
                 })
             },
             (MatchElement::Segment(pos, _), VarKind::Segment(seg)) => {
-                let seg = self.gen_seg(*seg, mods.as_ref(), &None, num.position)?;
+                let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+                // TODO: Pass 1 here instead of the actual seg length may cause some issues, need to test once implemented
+                let (seg, new_len) = self.gen_seg(syll, *seg, 1, mods.as_ref(), &None, num.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
 
                 Ok(SubAction {
-                    kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Segment(seg, suprs)),
+                    kind: ActionKind::ReplaceSegment(
+                        (Self::ONE, Self::non_zero_len(new_len)), 
+                        Payload::Segment(seg, suprs), 
+                        num.position
+                    ),
                     pos,
                 })
             },
@@ -918,8 +965,9 @@ impl SubRule {
 
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
-                        Self::non_zero_len(seg_len),
-                        Payload::Syllable(syll)
+                        (Self::non_zero_len(seg_len), Self::ONE),
+                        Payload::Syllable(syll),
+                        num.position
                     ),
                     pos,
                 })
@@ -930,7 +978,11 @@ impl SubRule {
                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
 
                 Ok(SubAction {
-                    kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Syllable(syll)),
+                    kind: ActionKind::ReplaceSegment(
+                        (Self::ONE, Self::ONE), 
+                        Payload::Syllable(syll),
+                        num.position
+                    ),
                     pos,
                 })
             },
@@ -969,25 +1021,29 @@ impl SubRule {
                 let Some(i) = set_index else { return Err(RuleRuntimeError::LonelySet(in_state.position)) };
                 match &set_output[i].kind {
                     ParseElement::Ipa(seg, mods) => {
-                        let seg_len = phrase.seg_length_at(sp) as u8; 
-                        let seg = self.gen_seg(*seg, mods.as_ref(), &None, out_state.position)?;
+                        let syll = &phrase[sp.word_index].syllables[sp.syll_index];
+                        let old_len = phrase.seg_length_at(sp) as u8; 
+                        let (seg, new_len) = self.gen_seg(syll, *seg, old_len, mods.as_ref(), &None, out_state.position)?;
                         let suprs = mods.as_ref().map(|m| m.suprs);
 
                         Ok(SubAction {
                             kind: ActionKind::ReplaceSegment(
-                                Self::non_zero_len(seg_len),
-                                Payload::Segment(seg, suprs)
+                                (Self::non_zero_len(old_len), Self::non_zero_len(new_len)),
+                                Payload::Segment(seg, suprs),
+                                out_state.position
                             ),
                             pos: sp,
                         })
                     },
                     ParseElement::Matrix(mods, var) => {
-                        let seg_len = phrase.seg_length_at(sp) as u8; 
-                        let seg  = self.gen_seg(phrase[sp.word_index].get_seg_at(sp).unwrap(), Some(mods), var, set_output[i].position)?;
+                        let old_len = phrase.seg_length_at(sp) as u8; 
+                        let syll = &phrase[sp.word_index].syllables[sp.syll_index];
+                        let (seg, new_len)  = self.gen_seg(syll, phrase[sp.word_index].get_seg_at(sp).unwrap(), old_len,Some(mods), var, set_output[i].position)?;
                         Ok(SubAction {
                             kind: ActionKind::ReplaceSegment(
-                                Self::non_zero_len(seg_len),
-                                Payload::Segment(seg, Some(mods.suprs))
+                                (Self::non_zero_len(old_len), Self::non_zero_len(new_len)),
+                                Payload::Segment(seg, Some(mods.suprs)),
+                                set_output[i].position
                             ),
                             pos: sp,
                         })
@@ -998,18 +1054,21 @@ impl SubRule {
                             return Err(RuleRuntimeError::UnknownVariable(num.clone()))
                         };
 
-                        let seg_len = phrase.seg_length_at(sp) as u8; 
+                        let old_len = phrase.seg_length_at(sp) as u8; 
 
 
                         match var {
                             VarKind::Segment(seg) => {
-                                let seg = self.gen_seg(*seg, mods.as_ref(), &None, num.position)?;
+                                let syll = &phrase[sp.word_index].syllables[sp.syll_index];
+                                let (seg, new_len) = self.gen_seg(syll, *seg, 1, mods.as_ref(), &None, num.position)?;
                                 let suprs = mods.as_ref().map(|m| m.suprs);
 
                                 Ok(SubAction {
                                     kind: ActionKind::ReplaceSegment(
-                                        Self::non_zero_len(seg_len), 
-                                        Payload::Segment(seg, suprs)),
+                                        (Self::non_zero_len(old_len), Self::non_zero_len(new_len)), 
+                                        Payload::Segment(seg, suprs),
+                                        num.position,
+                                    ),
                                     pos: sp,
                                 })
                             },
@@ -1019,8 +1078,9 @@ impl SubRule {
 
                                 Ok(SubAction {
                                     kind: ActionKind::ReplaceSegment(
-                                        Self::non_zero_len(seg_len),
-                                        Payload::Syllable(syll)
+                                        (Self::non_zero_len(old_len), Self::ONE),
+                                        Payload::Syllable(syll),
+                                        num.position,
                                     ),
                                     pos: sp,
                                 })
@@ -1040,18 +1100,28 @@ impl SubRule {
                 let Some(i) = set_index else { return Err(RuleRuntimeError::LonelySet(in_state.position)) };
                 match &set_output[i].kind {
                     ParseElement::Ipa(seg, mods) => {
-                        let seg = self.gen_seg(*seg, mods.as_ref(), &None, out_state.position)?;
+                        let syll = &phrase[sp.word_index].syllables[sp.syll_index];
+                        let (seg, new_len) = self.gen_seg(syll, *seg, 1, mods.as_ref(), &None, out_state.position)?;
                         let suprs = mods.as_ref().map(|m| m.suprs);
 
                         Ok(SubAction {
-                            kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Segment(seg, suprs)),
+                            kind: ActionKind::ReplaceSegment(
+                                (Self::ONE, Self::non_zero_len(new_len)), 
+                                Payload::Segment(seg, suprs),
+                                out_state.position
+                        ),
                             pos: sp,
                         })
                     }
                     ParseElement::Matrix(mods, var) => {
-                        let seg  = self.gen_seg(phrase[sp.word_index].get_seg_at(sp).unwrap(), Some(mods), var, set_output[i].position)?;
+                        let syll = &phrase[sp.word_index].syllables[sp.syll_index];
+                        let (seg, new_len)  = self.gen_seg(syll, phrase[sp.word_index].get_seg_at(sp).unwrap(), 1, Some(mods), var, set_output[i].position)?;
                         Ok(SubAction {
-                            kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Segment(seg, Some(mods.suprs))),
+                            kind: ActionKind::ReplaceSegment(
+                                (Self::ONE, Self::non_zero_len(new_len)), 
+                                Payload::Segment(seg, Some(mods.suprs)),
+                                set_output[i].position,
+                        ),
                             pos: sp,
                         })
                     },
@@ -1063,11 +1133,16 @@ impl SubRule {
 
                         match var {
                             VarKind::Segment(seg) => {
-                                let seg = self.gen_seg(*seg, mods.as_ref(), &None, num.position)?;
+                                let syll = &phrase[sp.word_index].syllables[sp.syll_index];
+                                let (seg, new_len) = self.gen_seg(syll, *seg, 1, mods.as_ref(), &None, num.position)?;
                                 let suprs = mods.as_ref().map(|m| m.suprs);
 
                                 Ok(SubAction {
-                                    kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Segment(seg, suprs)),
+                                    kind: ActionKind::ReplaceSegment(
+                                        (Self::ONE, Self::non_zero_len(new_len)), 
+                                        Payload::Segment(seg, suprs),
+                                        num.position,
+                                    ),
                                     pos: sp,
                                 })
                             },
@@ -1076,7 +1151,11 @@ impl SubRule {
                                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
 
                                 Ok(SubAction {
-                                    kind: ActionKind::ReplaceSegment(Self::ONE, Payload::Syllable(syll)),
+                                    kind: ActionKind::ReplaceSegment(
+                                        (Self::ONE, Self::ONE), 
+                                        Payload::Syllable(syll),
+                                        num.position,
+                                    ),
                                     pos: sp,
                                 })
                             },
