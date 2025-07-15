@@ -200,7 +200,7 @@ impl Syllable {
                 (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
             },
         }
-        debug_assert!(old_len > len_change.unsigned_abs());
+        debug_assert!(old_len >= len_change.unsigned_abs());
 
         Ok((old_len as i8 + len_change) as u8)
     }
