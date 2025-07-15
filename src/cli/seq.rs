@@ -397,7 +397,7 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
         str = format!("\n{str} {arr} {:<pad$}", &trace[num_steps-1][word].bright_green().bold());
         output += &str;
     }
-    println!("{}", output.trim_end());
+    println!("{}", output.trim());
 }
 
 fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<String>)> {

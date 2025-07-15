@@ -65,7 +65,7 @@ fn print_result(result: &[String], start_words: &[String], maybe_compare: Option
             }
         }
 
-        println!("{}", output.trim_end());
+        println!("{}", output.trim());
         Ok(())
     }
 }
