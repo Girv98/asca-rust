@@ -49,6 +49,7 @@ pub enum RuleRuntimeError {
     UnknownVariable(Token),
     DeletionOnlySeg,
     DeletionOnlySyll,
+    UnevenEllipsis(Vec<Position>),
 }
 
 impl From<RuleRuntimeError> for ASCAError {
@@ -101,6 +102,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::UnknownVariable(token)  => write!(f, "Unknown variable '{}' at {}", token.value, token.position.start),
             Self::DeletionOnlySyll => write!(f, "Can't delete a word's only syllable"),
             Self::DeletionOnlySeg  => write!(f, "Can't delete a word's only segment"),
+            Self::UnevenEllipsis      (_) => write!(f, "Uneven number of ellipses in input and output"),
         }
     }
 }
@@ -111,6 +113,18 @@ impl RuleRuntimeError {
         let mut result = format!("{} {}", "Runtime Error:".bright_red().bold(), self.to_string().bold());
         
         let (arrows, group , line) =  match self {
+            Self::UnevenEllipsis      (positions) => {
+                let mut asdf = String::new();
+                let mut prev_end = 0;
+                for pos in positions {
+                    asdf += &" ".repeat(pos.start - prev_end);
+                    asdf += &"^".repeat(pos.end-pos.start);
+                    prev_end = pos.end;
+                }
+
+                asdf += "\n";
+                (asdf, positions[0].group, positions[0].line)
+            }
             Self::DeletionOnlySyll | Self::DeletionOnlySeg => return result,
             Self::UnknownVariable(t) => (
                 " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start) + "\n", 

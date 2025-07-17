@@ -55,7 +55,7 @@ type ErrPos = Position;
 enum ActionKind {
     DeleteSyllable,
     DeleteSegment(SegLen),
-    InsertSegment(SegLen, Payload),
+    InsertSegment(SegLen, Segment, Option<SupraSegs>, ErrPos),
     InsertSyllable(Syllable),
     ReplaceSegment((OldLen, NewLen), Payload, ErrPos),
     ReplaceSyllable(Syllable),
@@ -733,44 +733,12 @@ impl SubRule {
         Ok(syll)
     }
 
-    fn substitution_insert(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>, input_filt: &[&ParseItem], output_filt: &[&ParseItem]) -> Result<Phrase, RuleRuntimeError> {
+    fn substitution_insert(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>, input_filt: &[ParseItem], output_filt: &[ParseItem]) -> Result<Phrase, RuleRuntimeError> {
         // input < output
         todo!("substitution_insert")
     }
 
-    fn substitution_delete(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>, input_filt: &[&ParseItem], output_filt: &[&ParseItem]) -> Result<Phrase, RuleRuntimeError> {
-        // input > output
-
-        // See if any states line up
-        // delete any intermediate non matching or delete extra on end
-        // e.g. V$N > [+long] [-syll] ==> V$N > V*N
-        // e.g. V$N > [+long, +nasal] ==> V$N > V**
-        // e.g. VNV > [+long] [-syll] ==> VNV > VN*
-
-
-
-        // Move over input with output like a window, if substitution is valid; pair them up, decrease window, and move to next
-
-        // input  [V, $, N]
-        // output [M, M]
-        // goes to
-        // input  [V, $, N]
-        // output [M, *, M]
-
-        //  V, $, N
-        // [M, ..]  MATCH
-        // V, $, N
-        // M [M]    NO MATCH
-        // V, $, N
-        // M    [M] MATCH 
-
-        
-        if self.input.len() != input_filt.len() || self.output.len() != output_filt.len() {
-            todo!()
-            // TODO: Ellipses change the semantics
-            // E.G. p...k > pf...g  is different to pk > pfg
-        }
-
+    fn substitution_delete_gen_actions(&self, phrase: &Phrase, input_filt: &[ParseItem], output_filt: &[ParseItem], input: &[MatchElement]) -> Result<Vec<SubAction>, RuleRuntimeError> {
         let mut out_index = 0;
         let mut actions: Vec<SubAction> = Vec::with_capacity(input_filt.len());
 
@@ -807,7 +775,7 @@ impl SubRule {
                         pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } 
                     });
                 },
-                (_, ParseElement::SyllBound)=> return Err(RuleRuntimeError::SubstitutionSyllBound(input_item.position, cur_out_state.position)),
+                (_, ParseElement::SyllBound) => return Err(RuleRuntimeError::SubstitutionSyllBound(input_item.position, cur_out_state.position)),
 
                 (_, ParseElement::Structure(items, stress, tone, var)) => {
                     actions.push(self.sub_structure(phrase, items, stress, tone, var, input[in_index], input_item, cur_out_state)?);
@@ -832,9 +800,85 @@ impl SubRule {
             }
         }
 
+        Ok(actions)
+    }
 
+    fn substitution_ellipses(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+        // Ellipses change the semantics
+        // E.G. p...k > pf...g  is different to pk > pfg
+
+        let mut in_parts = Vec::new();
+        for x in self.input.split(|x| x.kind == ParseElement::Ellipsis || x.kind == ParseElement::WEllipsis) {
+            in_parts.push(x);
+        }
+
+        let mut out_parts = Vec::new();
+        for x in self.output.split(|x| x.kind == ParseElement::Ellipsis || x.kind == ParseElement::WEllipsis) {
+            out_parts.push(x);
+        }
+
+        if in_parts.len() != out_parts.len() {
+            let all_pos = self.input.iter().chain(self.output.iter()).filter_map(|x| {
+                if x.kind == ParseElement::Ellipsis || x.kind == ParseElement::WEllipsis {
+                    Some(x.position)
+                } else {
+                    None
+                }
+            }).collect::<Vec<_>>();
+            return Err(RuleRuntimeError::UnevenEllipsis(all_pos))
+        }
+
+        let mut actions: Vec<SubAction> = Vec::with_capacity(input.len());
+        let mut input = input;
+        for (i, o) in in_parts.iter().zip(out_parts.iter()) {
+            actions.extend(match i.len().cmp(&o.len()) {
+                // Delete
+                std::cmp::Ordering::Greater => self.substitution_delete_gen_actions(phrase, i, o, &input)?,
+                // Insert
+                std::cmp::Ordering::Less => self.substitution_insert_gen_actions(phrase, i, o, &input)?,
+                std::cmp::Ordering::Equal => self.substitution_eq_gen_actions(phrase, i, o, &input)?,
+            });
+            
+            for _ in 0..i.len() {
+                input.remove(0);
+            }
+        }
+        
         let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
 
+        if let Some(next) = next_pos {
+            let last_action = actions.last().expect("Output is not empty");
+            match self.sub_calc_next_pos(last_action, &res_phrase, phrase, last_syll_len_change) {
+                Some(np) => *next = np,
+                None => *next_pos = None,
+            }
+        }
+
+        Ok(res_phrase)
+    }
+
+    fn substitution_delete(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>, input_filt: &[ParseItem], output_filt: &[ParseItem]) -> Result<Phrase, RuleRuntimeError> {
+        // input > output
+
+        // See if any states line up
+        // delete any intermediate non matching or delete extra on end
+        // e.g. V$N > [+long] [-syll] ==> V$N > V*N
+        // e.g. V$N > [+long, +nasal] ==> V$N > V**
+        // e.g. VNV > [+long] [-syll] ==> VNV > VN*
+
+        // Move over input with output like a window, if substitution is valid; pair them up, decrease window, and move to next
+
+        //  V, $, N
+        // [M, ..]  MATCH
+        // V, $, N
+        // M [M]    NO MATCH, Continue
+        // V, $, N
+        // M    [M] MATCH 
+
+        
+        let actions = self.substitution_delete_gen_actions(phrase, input_filt, output_filt, &input)?;
+
+        let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
 
         if let Some(next) = next_pos {
             let last_action = actions.last().expect("Output is not empty");
@@ -914,16 +958,88 @@ impl SubRule {
                     res_phrase[action.pos.word_index].syllables[action.pos.syll_index].apply_syll_mods(&self.alphas, mods, *err_pos)?;
                 },
                 ActionKind::PassBoundary => continue,
-                ActionKind::InsertSegment(..) | ActionKind::DeleteSegment(_) => todo!("Input/Output lengths are equal"),
-                ActionKind::InsertSyllable(_)   => todo!("Input/Output lengths are equal"),
+                ActionKind::InsertSegment(seg_len, segment, mods, err_pos) => {
+                    let syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
+
+                    for _ in 0..seg_len.get() {
+                        syll.segments.insert(action.pos.seg_index, *segment);
+                    }
+
+                    if let Some(m) = mods {
+                        syll.apply_syll_mods(&self.alphas, m, *err_pos)?;
+                    }
+                },
+                ActionKind::DeleteSegment(seg_len) => {
+                    // if only segment in word, err
+                    if res_phrase[action.pos.word_index].syllables.len() <= 1 && res_phrase[action.pos.word_index].syllables[action.pos.syll_index].segments.len() <= seg_len.get() as usize {
+                        return Err(RuleRuntimeError::DeletionOnlySeg)
+                    }
+                    // remove segment
+                    let syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
+                    for _ in 0..seg_len.get() {
+                        syll.segments.remove(action.pos.seg_index);
+                    }
+                    // if that was the only segment in that syllable, remove the syllable
+                    if syll.segments.is_empty() {
+                        res_phrase[action.pos.word_index].syllables.remove(action.pos.syll_index);
+                        word_len_change[action.pos.word_index] -= 1;
+                    }
+                },
+                ActionKind::InsertSyllable(insert_syll) => {
+                    if !res_phrase.in_bounds(action.pos) {
+                        // Push to end
+                        res_phrase[action.pos.word_index].syllables.push(insert_syll.clone());
+                        word_len_change[action.pos.word_index] += 1;
+                        continue;
+                    }
+                    if action.pos.at_syll_start() {
+                        // Insert before
+                        res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index, insert_syll.clone());
+                        word_len_change[action.pos.word_index] += 1;
+                        continue;
+                    }
+
+                    let old_syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
+
+                    let mut new_syll = Syllable::new();
+                    new_syll.stress = old_syll.stress;
+                    new_syll.tone = old_syll.tone;
+
+                    while old_syll.segments.len() > action.pos.seg_index {
+                        new_syll.segments.push_front(old_syll.segments.pop_back().unwrap());
+                    }
+
+                    let mut adjustment = 0;
+                    if old_syll.segments.is_empty() {
+                        *old_syll = insert_syll.clone();
+                    } else {
+                        res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1, insert_syll.clone());
+                        adjustment = 1;
+                        word_len_change[action.pos.word_index] += 1
+                    }
+                    if !new_syll.segments.is_empty() {
+                        res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1+adjustment, new_syll);
+                    }
+                },
                 ActionKind::DeleteSyllable => {
                     if res_phrase[action.pos.word_index].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     res_phrase[action.pos.word_index].syllables.remove(action.pos.syll_index);
-                    word_len_change[action.pos.word_index] -= 1
+                    word_len_change[action.pos.word_index] -= 1;
                 },
-                ActionKind::InsertBoundary => todo!("Break syllable into two at position"),
+                ActionKind::InsertBoundary => {
+                    // Break syllable into two at position
+                    let mut new_syll = Syllable::new();
+                    let syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
+
+                    while syll.segments.len() > action.pos.seg_index {
+                        new_syll.segments.push_front(syll.segments.pop_back().unwrap());
+                    }
+                    res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1, new_syll);
+
+                    word_len_change[action.pos.word_index] += 1;
+                }
                 ActionKind::DeleteBoundary => {
                     if action.pos.syll_index == 0 || action.pos.syll_index >= res_phrase[action.pos.word_index].syllables.len() {
                         continue; // can't delete a word boundary
@@ -957,12 +1073,18 @@ impl SubRule {
             }
         }
 
+        for word in res_phrase.iter_mut() { word.syllables.pop_if(| x | x.segments.is_empty()); }
+
         Ok((res_phrase, word_len_change[actions.last().expect("Output is not empty").pos.word_index]))
     }
 
-    fn substitution_eq(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>, input_filt: &[&ParseItem], output_filt: &[&ParseItem]) -> Result<Phrase, RuleRuntimeError> {
-        let mut actions = Vec::new();
+    fn substitution_insert_gen_actions(&self, phrase: &Phrase, input_filt: &[ParseItem], output_filt: &[ParseItem], input: &[MatchElement]) -> Result<Vec<SubAction>, RuleRuntimeError> {
+        todo!()
+    }
 
+    fn substitution_eq_gen_actions(&self, phrase: &Phrase, input_filt: &[ParseItem], output_filt: &[ParseItem], input: &[MatchElement]) -> Result<Vec<SubAction>, RuleRuntimeError> {
+        let mut actions = Vec::with_capacity(input_filt.len());
+        
         for (state_index, (in_state, out_state)) in input_filt.iter().zip(output_filt).enumerate() {
             match &out_state.kind {
                 ParseElement::Syllable(..) => return Err(RuleRuntimeError::SubstitutionSyll(out_state.position)),
@@ -996,7 +1118,13 @@ impl SubRule {
                 }
             }
         }
+        
+        Ok(actions)
+    }
 
+    fn substitution_eq(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>, input_filt: &[ParseItem], output_filt: &[ParseItem]) -> Result<Phrase, RuleRuntimeError> {
+        
+        let actions = self.substitution_eq_gen_actions(phrase, input_filt, output_filt, &input)?;
         let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
         
         if let Some(next) = next_pos {
@@ -1074,7 +1202,40 @@ impl SubRule {
                     seg_index: 0
                 })
             },
-            ActionKind::InsertSegment(..) | ActionKind::DeleteSegment(_) => todo!(),
+            ActionKind::InsertSegment(seg_len, ..) | ActionKind::DeleteSegment(seg_len) => {
+                let old_next_pos = SegPos { 
+                    word_index: last_action.pos.word_index,
+                    syll_index: last_action.pos.syll_index,
+                    seg_index: last_action.pos.seg_index + seg_len.get() as usize,
+                };
+
+                if !old_phrase.in_bounds(old_next_pos) {
+                    let old_next_syll = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1)?;
+                    // Find next syllable in result, making sure that we don't accidentally match a previous syllable
+                    match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
+                        Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),
+                        None => unimplemented!("Word Boundary change"),
+                    }
+                }
+
+                let old_syll = &old_phrase[last_action.pos.word_index].syllables[last_action.pos.syll_index];
+
+                let sub_arr: Vec<Segment> = old_syll.segments.range(old_next_pos.seg_index..old_syll.segments.len()).cloned().rev().collect::<Vec<_>>();
+
+                for (i, syll) in res_phrase[old_next_pos.word_index].syllables.iter().enumerate().skip(old_next_pos.syll_index.saturating_add_signed(word_len_change)) {
+                    let mut segs = syll.segments.clone();
+                    segs.make_contiguous().reverse();
+                    
+                    match segs.as_slices().0.windows(sub_arr.len()).position(|w| w == sub_arr) {
+                        Some(s) => if s == 0 {
+                            return Some(SegPos { word_index: old_next_pos.word_index, syll_index: i, seg_index: syll.segments.len() - sub_arr.len() })
+                        },
+                        None => continue,
+                    }
+                    
+                }
+                unimplemented!("Word Boundary change")
+            },
             // These may not be right
             ActionKind::InsertSyllable(_) => {
                 Some(SegPos{
@@ -1107,7 +1268,7 @@ impl SubRule {
         }
     }
     
-    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, state: MatchElement, in_state: &&ParseItem, out_state: &&ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_state.position)) }
         match state {
             MatchElement::Syllable(wp, sp, _) => {
@@ -1141,7 +1302,7 @@ impl SubRule {
         }
     }
 
-    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, var: &Option<usize>, state: MatchElement, in_state: &&ParseItem, out_state: &&ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, var: &Option<usize>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         match state {
             MatchElement::LongSegment(pos, _) => {
                 let syll = &phrase[pos.word_index].syllables[pos.syll_index];
@@ -1184,7 +1345,7 @@ impl SubRule {
         }
     }
 
-    fn sub_ipa(&self, phrase: &Phrase, seg: &Segment, mods: &Option<Modifiers>, state: MatchElement, in_state: &&ParseItem, out_state: &&ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_ipa(&self, phrase: &Phrase, seg: &Segment, mods: &Option<Modifiers>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         match state {
             //TODO: LongSegment may have to be different
             MatchElement::LongSegment(pos, _) => {
@@ -1221,7 +1382,7 @@ impl SubRule {
         }
     }
 
-    fn sub_var(&self, phrase: &Phrase, num: &Token, mods: &Option<Modifiers>, state: MatchElement, in_state: &&ParseItem, out_state: &&ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_var(&self, phrase: &Phrase, num: &Token, mods: &Option<Modifiers>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         let binding = self.variables.borrow();
         let Some(var) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownVariable(num.clone())) };
         match (state, var) {
@@ -1308,7 +1469,7 @@ impl SubRule {
 
     const ONE: NonZeroU8 = NonZeroU8::new(1).unwrap();
 
-    fn sub_set(&self, phrase: &Phrase, set_output: &[ParseItem], state: MatchElement, in_state: &&ParseItem, out_state: &&ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_set(&self, phrase: &Phrase, set_output: &[ParseItem], state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         let ParseElement::Set(set_input) = &in_state.kind else { return Err(RuleRuntimeError::LonelySet(out_state.position)) };
         if set_input.len() != set_output.len() { return Err(RuleRuntimeError::UnevenSet(in_state.position, out_state.position)) }
 
@@ -1536,12 +1697,16 @@ impl SubRule {
     }
 
     fn substitution_new(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
-        let input_filt = self.input.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::WEllipsis).collect::<Vec<_>>();
-        let output_filt = self.output.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::WEllipsis).collect::<Vec<_>>();
+        let input_filt = self.input.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::WEllipsis).cloned().collect::<Vec<_>>();
+        let output_filt = self.output.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::WEllipsis).cloned().collect::<Vec<_>>();
 
         // Just in case input/output is somehow only ellipses
         // TODO: probs should error
         if input_filt.is_empty() || output_filt.is_empty() { return Ok(phrase.clone()) }
+
+        if self.input.len() != input_filt.len() || self.output.len() != output_filt.len() {
+            return self.substitution_ellipses(phrase, input, next_pos)
+        }
         
         match input_filt.len().cmp(&output_filt.len()) {
             std::cmp::Ordering::Equal => self.substitution_eq(phrase, input, next_pos, &input_filt, &output_filt),
@@ -3493,9 +3658,9 @@ impl SubRule { // Input Matching
             if m {
                 return Ok(true)
             }
+            // TODO: Test if this is necessary, doesn't work well with multiple ellipses
             *self.alphas.borrow_mut() = back_alphas.clone();
             *self.variables.borrow_mut() = back_varlbs.clone();
-            *captures = back_captures.clone();
             pos.increment(phrase);
         }
         
