@@ -393,8 +393,7 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
             }
         }
         // Concat final result
-        let pad = base_pad[num_steps-1] + util::fix_combining_char_pad(&trace[num_steps-1][word]);
-        str = format!("\n{str} {arr} {:<pad$}", &trace[num_steps-1][word].bright_green().bold());
+        str = format!("\n{str} {arr} {}", &trace[num_steps-1][word].bright_green().bold());
         output += &str;
     }
     println!("{}", output.trim());
