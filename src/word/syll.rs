@@ -51,24 +51,24 @@ impl Syllable {
         Self {segments: VecDeque::new(), stress: StressKind::default(), tone: 0}
     }
 
-    pub(crate) fn replace_segment(&mut self, pos: usize, seg: &Segment, mods: &Option<Modifiers>, alphas: &RefCell<HashMap<char, Alpha>>, err_pos: Position) -> Result<i8, RuleRuntimeError> {
-        let mut seg_len = self.get_seg_length_at(pos);
-        let mut lc = 1 - seg_len as i8;
+    // pub(crate) fn replace_segment(&mut self, pos: usize, seg: &Segment, mods: &Option<Modifiers>, alphas: &RefCell<HashMap<char, Alpha>>, err_pos: Position) -> Result<i8, RuleRuntimeError> {
+    //     let mut seg_len = self.get_seg_length_at(pos);
+    //     let mut lc = 1 - seg_len as i8;
 
-        while seg_len > 1 {
-            self.segments.remove(pos+1);
-            // TODO: we should really do this instead of removing, but it brakes inserting after subbing
-            // self.segments[pos+1] = *seg;
-            seg_len -= 1;
-        }
-        self.segments[pos] = *seg;
+    //     while seg_len > 1 {
+    //         self.segments.remove(pos+1);
+    //         // TODO: we should really do this instead of removing, but it brakes inserting after subbing
+    //         // self.segments[pos+1] = *seg;
+    //         seg_len -= 1;
+    //     }
+    //     self.segments[pos] = *seg;
 
-        if let Some(m) = mods {
-            lc += self.apply_seg_mods(alphas, m, pos, err_pos)?;
-        }
+    //     if let Some(m) = mods {
+    //         lc += self.apply_seg_mods(alphas, m, pos, err_pos)?;
+    //     }
 
-        Ok(lc)
-    }
+    //     Ok(lc)
+    // }
 
     /// Returns the positions of the segments in the syllable
     /// 
@@ -150,7 +150,7 @@ impl Syllable {
     }
 
     // NOTE: Will panic if old_len is greater than i8::MAX 
-    pub(crate) fn calc_new_length(&self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
+    pub(crate) fn calc_new_length(alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
         let mut seg_len = old_len;
         let mut len_change: i8 = 0;
         match mods.length {
@@ -200,7 +200,8 @@ impl Syllable {
                 (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
             },
         }
-        debug_assert!(old_len >= len_change.unsigned_abs());
+
+        debug_assert!(old_len.saturating_add_signed(len_change) > 0, "{old_len} < {len_change}");
 
         Ok((old_len as i8 + len_change) as u8)
     }

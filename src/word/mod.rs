@@ -75,6 +75,10 @@ impl SegPos {
         self.syll_index = 0;
         self.seg_index = 0;
 
+        // Incase of "empty" words
+        while !phrase[self.word_index].in_bounds(*self) {
+            self.word_increment(phrase);
+        }
     }
 
     pub(crate) fn word_decrement(&mut self, phrase: &Phrase) {
@@ -87,6 +91,11 @@ impl SegPos {
         self.word_index -= 1;
         self.syll_index = phrase[self.word_index].syllables.len() - 1;
         self.seg_index = phrase[self.word_index].syllables[self.syll_index].segments.len() - 1;
+
+        // Incase of "empty" words
+        while !phrase[self.word_index].in_bounds(*self) {
+            self.word_decrement(phrase);
+        }
     }
 
     pub(crate) fn decrement(&mut self, phrase: &Phrase) {
