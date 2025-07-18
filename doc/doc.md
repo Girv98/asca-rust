@@ -36,6 +36,7 @@ This is documentation for the core principles of defining words and sound change
     * [Nodes and Subnodes](#nodes-and-subnodes)
 * [Variables](#variables)
 * [Syllable Structure Matching](#syllable-structure-matching)
+* [Cross Word-Boundary Operations](#cross-word-boundary-operations)
 * [Propagation](#propagation)
     * [Faux Right-to-left Propagation](#faux-right-to-left-propagation)
     * [True Right-to-left Propagation](#true-right-to-left-propagation)
@@ -357,6 +358,8 @@ a > e ;; This is also a comment!
 `$` represents a syllable boundary.
 
 `#` represents a word boundary.
+
+`##` represents an intraphrase boundary (see more [below](#cross-word-boundary-operations))
 
 Word boundaries `#` may only be used in environments, and must only be used once on either periphery.
 
@@ -890,6 +893,37 @@ Example: Word Initial Copy Vowel Insertion
 * > <1> / #_CV=1
 
 /'de.no/ => /e'de.no/
+```
+
+## Cross Word-Boundary Operations
+***NOTE: Coming Version 0.9.0***
+
+`##` can be used within the input or environment to match and manipulate word boundaries within a phrase.
+
+```
+Example: Rebracketing
+
+## n > & / ə_
+
+/ə ˈneɪ.pɹən/ => /ən ˈeɪ.pɹən/ (English: a napron => an apron)
+```
+
+```
+Example: Norwegian Retroflex Sandhi
+
+C:[+cor] > [-ant, -dist] / r##_
+r > * / _##[-ant, -dist] 
+
+/ʋæːr sɔ 'ɡuː/ => /ʋæːr ʂɔ 'ɡuː/ => /ʋæː ʂɔ 'ɡuː/
+```
+
+```
+Example: French Pronoun Contraction
+
+ə## > * / ʒ_
+ʒ$s > ʃ
+
+/ʒə sɥi/ => /ʒ.sɥi/ => /ʃɥi/
 ```
 
 ## Propagation 
