@@ -1770,11 +1770,6 @@ impl SubRule { // Substitution
                 },
 
                 (Some(&MatchElement::Segment(mut pos, _)), ParseElement::SyllBound) => {
-                    actions.push(SubAction {
-                        kind: ActionKind::DeleteSegment(Self::ONE),
-                        pos,
-                    });
-
                     pos.seg_index += 1;
                     
                     actions.push(SubAction {
@@ -1785,13 +1780,7 @@ impl SubRule { // Substitution
                     in_index += 1;
                 },
                 (Some(&MatchElement::LongSegment(mut pos, _)), &ParseElement::SyllBound) => {
-                    let len = phrase.seg_length_at(pos);
-                    actions.push(SubAction {
-                        kind: ActionKind::DeleteSegment(Self::non_zero_len(len as u8)),
-                        pos,
-                    });
-
-                    pos.seg_index += len;
+                    pos.seg_index += phrase.seg_length_at(pos);
                     
                     actions.push(SubAction {
                         kind: ActionKind::InsertBoundary,
@@ -1802,6 +1791,7 @@ impl SubRule { // Substitution
                 },
 
                 (Some(MatchElement::Syllable(wp, sp, _)), ParseElement::SyllBound) => {
+                    // TODO: test this
                     actions.push(SubAction { 
                         kind: ActionKind::DeleteSyllable,
                         pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 },
