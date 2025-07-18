@@ -136,15 +136,15 @@ impl SubRule {
         }
     }
 
-    fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> SegPos {
+    fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
         match res[0] {
-            MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => sp,
+            MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => (sp, true),
             MatchElement::Syllable(wp, s, _)  |
-            MatchElement::SyllBound(wp, s, _) => SegPos::new(wp, s, 0),
+            MatchElement::SyllBound(wp, s, _) => (SegPos::new(wp, s, 0), true),
             MatchElement::WordBound(wp) => {
                 let mut pos = SegPos::new(wp+1, 0, 0);
                 pos.word_decrement(phrase);
-                pos
+                (pos, false)
             },
         }
     }
@@ -175,10 +175,10 @@ impl SubRule {
             self.variables.borrow_mut().clear();
             let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
             if !res.is_empty() {
-                let start = self.set_start(&res,  &phrase);
-                let (end, inc) = self.set_end(&res, &phrase);
+                let (start, inc_start) = self.set_start(&res,  &phrase);
+                let (end, inc_end) = self.set_end(&res, &phrase);
 
-                if !self.match_contexts_and_exceptions(&phrase, start, end, inc)? {
+                if !self.match_contexts_and_exceptions(&phrase, start, end, inc_start, inc_end)? {
                     if let Some(ni) = next_index { 
                         cur_index = ni;
                         continue;
@@ -497,13 +497,17 @@ impl SubRule {
                 },
                 MatchElement::Syllable(wp, i, _) => {
                     // remove syllable
-                    if (!self.inp_x_bound || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
+                    if ((!self.inp_x_bound && !self.env_x_bound) || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     pos.syll_index = i;
                     pos.seg_index = 0;
                     pos.decrement(&res_phrase);
                     res_phrase[wp].remove_syll(i);
+
+                    if res_phrase[wp].syllables.is_empty() && !self.inp_x_bound {
+                        res_phrase.remove(wp);
+                    }
                 },
                 MatchElement::WordBound(wp) => {
                     // wp ## wp+1 -> wp.wp+1
@@ -2325,10 +2329,12 @@ impl SubRule { // Context Matching
         }
     }
 
-    fn match_before_env(&self, states: &[ParseItem], phrase_rev: &Phrase, pos: &SegPos, ins_match_before: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_before_env(&self, states: &[ParseItem], phrase_rev: &Phrase, pos: &SegPos, ins_match_before: bool, inc: bool, is_context: bool) -> Result<bool, RuleRuntimeError> {
         // NOTE: assumes parent has done reversals
         let mut start_pos = *pos;
-        start_pos.increment(phrase_rev);
+        if inc {
+            start_pos.increment(phrase_rev);
+        }
         let mut is_match = if is_context {
             true
         } else {
@@ -2368,7 +2374,7 @@ impl SubRule { // Context Matching
         Ok(is_match)
     }
 
-    fn match_contexts_and_exceptions(&self, phrase: &Phrase, start_pos: SegPos, end_pos: SegPos, inc: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_contexts_and_exceptions(&self, phrase: &Phrase, start_pos: SegPos, end_pos: SegPos, inc_start:bool, inc_end: bool) -> Result<bool, RuleRuntimeError> {
         let contexts = self.get_contexts();
         let exceptions = self.get_exceptions();
         if contexts.is_empty() && exceptions.is_empty() {
@@ -2382,8 +2388,8 @@ impl SubRule { // Context Matching
         for (bef_cont_states, aft_cont_states) in contexts {
             let mut bef_cont_states = bef_cont_states.clone();
             bef_cont_states.reverse();
-            if (bef_cont_states.is_empty() || self.match_before_env(&bef_cont_states, &phrase_rev, &start_pos.reversed(phrase), false, true)?) 
-            && (aft_cont_states.is_empty() || self.match_after_env(aft_cont_states, phrase, &end_pos, false, inc, true)?) {
+            if (bef_cont_states.is_empty() || self.match_before_env(&bef_cont_states, &phrase_rev, &start_pos.reversed(phrase), false, inc_start, true)?) 
+            && (aft_cont_states.is_empty() || self.match_after_env(aft_cont_states, phrase, &end_pos, false, inc_end, true)?) {
                 is_cont_match = true;
                 break;
             }
@@ -2391,8 +2397,8 @@ impl SubRule { // Context Matching
         for (bef_expt_states, aft_expt_states) in exceptions {
             let mut bef_expt_states = bef_expt_states.clone();
             bef_expt_states.reverse();
-            if (bef_expt_states.is_empty() || self.match_before_env(&bef_expt_states, &phrase_rev, &start_pos.reversed(phrase), false, false)?) 
-            && (aft_expt_states.is_empty() || self.match_after_env(aft_expt_states, phrase, &end_pos, false, inc, false)?) {
+            if (bef_expt_states.is_empty() || self.match_before_env(&bef_expt_states, &phrase_rev, &start_pos.reversed(phrase), false, inc_start,false)?) 
+            && (aft_expt_states.is_empty() || self.match_after_env(aft_expt_states, phrase, &end_pos, false, inc_end, false)?) {
                 is_expt_match = true;
                 break;
             }
@@ -3483,7 +3489,7 @@ impl SubRule { // Insertion
                 // #_
                 let phrase_rev = phrase.reversed();
                 let pos_rev = ins_pos.reversed(phrase);
-                let match_bef = self.match_before_env(&before_expt, &phrase_rev, &pos_rev, false, false)?;
+                let match_bef = self.match_before_env(&before_expt, &phrase_rev, &pos_rev, false, true, false)?;
                 Ok(match_bef)
             },
             (true, false) => {
@@ -3499,7 +3505,7 @@ impl SubRule { // Insertion
             (false, false) => {
                 let phrase_rev = phrase.reversed();
                 let pos_rev = ins_pos.reversed(phrase);
-                let match_bef = self.match_before_env(&before_expt, &phrase_rev, &pos_rev, false, false)?;
+                let match_bef = self.match_before_env(&before_expt, &phrase_rev, &pos_rev, false, true, false)?;
                 let match_aft = self.match_after_env(after_expt, phrase, &ins_pos, false, false, false)?;
 
                 Ok(match_bef && match_aft)

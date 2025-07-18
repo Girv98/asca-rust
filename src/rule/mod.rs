@@ -2189,6 +2189,15 @@ mod rule_tests {
         assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
         assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a.nif.te");
 
+        let test_rule = setup_rule("## > * / _n");
+        assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
+        assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a.nif te");
+
+        let test_rule = setup_rule("## > * / a_");
+        assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
+        let test_rule = setup_rule("## > * / a_n");
+        assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a.nif");
+
         let test_rule = setup_rule("## > * | _n");
         assert_eq!(test_rule.apply(setup_phrase("a nif")).unwrap().render(&[]).0, "a nif");
         assert_eq!(test_rule.apply(setup_phrase("a nif te")).unwrap().render(&[]).0, "a nif.te");
@@ -2204,6 +2213,14 @@ mod rule_tests {
         assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
         let test_rule = setup_rule("<..i..>## > *");
         assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
+        let test_rule = setup_rule("<..i..> > * / _##");
+        assert_eq!(test_rule.apply(setup_phrase("da nif te")).unwrap().render(&[]).0, "da te");
+    }
+
+    #[test]
+    fn test_french_contraction() {
+        assert_eq!(setup_rule("ə## > * / ʒ_").apply(setup_phrase("ʒə sɥi")).unwrap().render(&[]).0, "ʒ.sɥi");
+        assert_eq!(setup_rule("ʒ$s > ʃ").apply(setup_phrase("ʒ.sɥi")).unwrap().render(&[]).0, "ʃɥi");
     }
 
     #[test]
@@ -2216,5 +2233,18 @@ mod rule_tests {
         assert_eq!(test_rule.apply(setup_phrase("a na")).unwrap().render(&[]).0, "e na");
         assert_eq!(test_rule.apply(setup_phrase("a nan")).unwrap().render(&[]).0, "e nan");
         assert_eq!(test_rule.apply(setup_phrase("a na da")).unwrap().render(&[]).0, "e na da");
+    }
+
+    #[test]
+    fn test_extl_sandhi() {
+        let test_rule = setup_rule(" b > v / n##_");
+        assert_eq!(test_rule.apply(setup_phrase("an ban")).unwrap().render(&[]).0, "an van");
+
+        let test_rule = setup_rule("C:[+cor] > [-ant, -dist] / r##_");
+        assert_eq!(test_rule.apply(setup_phrase("væːr sɔ ɡuː")).unwrap().render(&[]).0, "væːr ʂɔ ɡuː");
+        assert_eq!(test_rule.apply(setup_phrase("væːr tɔ")).unwrap().render(&[]).0, "væːr ʈɔ");
+        
+        let test_rule = setup_rule("r > * / _##[-ant, -dist] ");
+        assert_eq!(test_rule.apply(setup_phrase("væːr ʂɔ ɡuː")).unwrap().render(&[]).0, "væː ʂɔ ɡuː");
     }
 }
