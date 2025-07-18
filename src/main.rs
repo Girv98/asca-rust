@@ -13,10 +13,10 @@ fn run() -> io::Result<()> {
 
     let args = CliArgs::parse();
 
-    if let Some(generator) = args.generator {
+    if let Some(shell) = args.shell {
         let mut cmd = CliArgs::command();
-        eprint!("Generating completion file for {generator:?}...");
-        cli::args::print_completions(generator, &mut cmd);
+        eprint!("Generating completion file for {shell:?}...");
+        cli::args::print_completions(shell, &mut cmd);
         eprintln!("DONE");
         return Ok(())
     }

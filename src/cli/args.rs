@@ -12,7 +12,7 @@ use clap_stdin::MaybeStdin;
 pub struct CliArgs {
     #[arg(long = "generate", value_enum)]
     /// Generate a completion script for a given shell
-    pub(crate) generator: Option<Shell>,
+    pub(crate) shell: Option<Shell>,
     #[clap(subcommand)]
     pub cmd: Option<AscaCommand>,
 }
