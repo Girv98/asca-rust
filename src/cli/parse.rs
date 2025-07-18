@@ -23,7 +23,7 @@ pub fn parse_rsca(path: &Path) -> io::Result<Vec<RuleGroup>> {
 
             continue;
         }
-        if line.starts_with('#') {
+        if line.starts_with('#') && !line.starts_with("##") {
             let mut chars = line.chars();
             chars.next();
             if !r.description.is_empty() {
