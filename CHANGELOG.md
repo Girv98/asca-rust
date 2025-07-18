@@ -11,7 +11,7 @@ Features:
     * Added Retroflex diacritic alias `"r`
     * (Potentially Breaking) New substitution implementation, allowing for:
         * Meaningful Ellipses e.g. `p..t > pf..s`
-        * Boundary Deletion e.g. `V$N > VN`
+        * Implicit Boundary Deletion e.g. `V$N > VN`
 
 Fixes:
 * Lib: 
