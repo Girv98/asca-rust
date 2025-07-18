@@ -903,7 +903,7 @@ Example: Word Initial Copy Vowel Insertion
 ```
 Example: Rebracketing
 
-## n > & / ə_
+## n > & / ə_   (A word-initial /n/ moves to the end of the previous word if it ends in schwa)
 
 /ə ˈneɪ.pɹən/ => /ən ˈeɪ.pɹən/ (English: a napron => an apron)
 ```
@@ -911,8 +911,8 @@ Example: Rebracketing
 ```
 Example: Norwegian Retroflex Sandhi
 
-C:[+cor] > [-ant, -dist] / r##_
-r > * / _##[-ant, -dist] 
+C:[+cor] > [-ant, -dist] / r(##)_   (A coronal cons. becomes retroflex if preceded by /r/, even across a word boundary)
+r > * / _(##)[-ant, -dist]          (/r/ deletes before a retroflex consonant, even across a word boundary)
 
 /ʋæːr sɔ 'ɡuː/ => /ʋæːr ʂɔ 'ɡuː/ => /ʋæː ʂɔ 'ɡuː/
 ```

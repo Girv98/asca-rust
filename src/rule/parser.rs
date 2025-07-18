@@ -268,7 +268,7 @@ impl Parser {
         None
     }
 
-    fn get_extl_bound(&mut self) -> Option<ParseItem> {
+    fn get_x_bound(&mut self) -> Option<ParseItem> {
         if let Some(token) = self.eat_expect(TokenKind::ExternBoundary) {
             return Some(ParseItem::new(ParseElement::ExtlBound, token.position))
         }
@@ -292,7 +292,7 @@ impl Parser {
                 continue;
             }
 
-            if let Some(x) = self.get_extl_bound() {
+            if let Some(x) = self.get_x_bound() {
                 els.push(x);
                 self.contains_external_in_env = true;
                 continue;
@@ -744,6 +744,7 @@ impl Parser {
         let mut second_bound: usize = 0;
         while self.has_more_tokens() {
             if self.peek_expect(TokenKind::RightBracket) { break; }
+            if let Some(x) = self.get_x_bound() { segs.push(x); continue; }
             if let Some(x) = self.get_bound()   { segs.push(x); continue; }
             if let Some(x) = self.get_syll()?   { segs.push(x); continue; }
             if let Some(x) = self.get_set()?    { segs.push(x); continue; }
@@ -946,7 +947,7 @@ impl Parser {
                 els.push(ParseItem::new(ParseElement::WEllipsis, w_el.position))
             } else if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
                 els.push(ParseItem::new(ParseElement::Ellipsis, el.position));
-            } else if let Some(x_bound) = self.get_extl_bound() {
+            } else if let Some(x_bound) = self.get_x_bound() {
                 els.push(x_bound);
                 self.contains_external_in_input = true;
             } else if let Some(s_bound) = self.get_syll_bound() {

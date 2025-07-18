@@ -7,7 +7,7 @@ EOL     ←   <End of Line> / COMMENT
 
 INP     ←   INP_TRM ( ',' INP_TRM )*
 INP_TRM ←   EMP / INP_EL+
-INP_EL  ←   W_ELLIP / ELLIPSS / XBOUND / SBOUND / TERM              // NOTE: XBOUND only allowed in input with deletion rules
+INP_EL  ←   W_ELLIP / ELLIPSS / XBOUND / SBOUND / TERM
 
 OUT     ←   OUT_TRM  ( ',' OUT_TRM )*
 OUT_TRM ←   MET / EMP / OUT_EL+
@@ -27,7 +27,7 @@ SYL_TRM ←   SEG / W_ELLIP / ELLIPSS / VAR / SET / OPT               // NOTE: B
 SET     ←   '{' SET_TRM (',' SET_TRM)* '}'                          // NOTE: At the moment, we can't have multi-segment sets i.e. "{nd}" is not allowed 
 SET_TRM ←   SEG / BOUND / SYL                                       // NOTE: WBOUND not valid in input/output
 OPT     ←   '(' OPT_TRM+ (',' [0-9]+ (':' [1-9]+)?)? ')'
-OPT_TRM ←   BOUND / SYL / SET / SEG / VAR
+OPT_TRM ←   XBOUND / BOUND / SYL / SET / SEG / VAR
 SEG     ←   IPA (':' PARAMS)? / MATRIX VAR_ASN?
 MATRIX  ←   GROUP (':' PARAMS)? / PARAMS
 VAR     ←   [0-9]+ (':' PARAMS)?

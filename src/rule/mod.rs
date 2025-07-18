@@ -2243,8 +2243,16 @@ mod rule_tests {
         let test_rule = setup_rule("C:[+cor] > [-ant, -dist] / r##_");
         assert_eq!(test_rule.apply(setup_phrase("væːr sɔ ɡuː")).unwrap().render(&[]).0, "væːr ʂɔ ɡuː");
         assert_eq!(test_rule.apply(setup_phrase("væːr tɔ")).unwrap().render(&[]).0, "væːr ʈɔ");
+
+        let test_rule = setup_rule("C:[+cor] > [-ant, -dist] / r(##)_");
+        assert_eq!(test_rule.apply(setup_phrase("væːr sɔ væːr.sɔ væːrsɔ")).unwrap().render(&[]).0, "væːr ʂɔ væːr.ʂɔ væːrʂɔ");
+        assert_eq!(test_rule.apply(setup_phrase("væːr tɔ væːr.tɔ væːrtɔ")).unwrap().render(&[]).0, "væːr ʈɔ væːr.ʈɔ væːrʈɔ");
+
         
         let test_rule = setup_rule("r > * / _##[-ant, -dist] ");
         assert_eq!(test_rule.apply(setup_phrase("væːr ʂɔ ɡuː")).unwrap().render(&[]).0, "væː ʂɔ ɡuː");
+
+        let test_rule = setup_rule("r > * / _(##)[-ant, -dist] ");
+        assert_eq!(test_rule.apply(setup_phrase("væːr ʂɔ væːr.ʂɔ væːrʂɔ")).unwrap().render(&[]).0, "væː ʂɔ væː.ʂɔ væːʂɔ");
     }
 }

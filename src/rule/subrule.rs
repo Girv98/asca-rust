@@ -2287,8 +2287,8 @@ impl SubRule { // Context Matching
     fn context_match(&self, states: &[ParseItem], state_index: &mut usize, phrase: &Phrase, pos: &mut SegPos, forwards: bool, ins_match_before: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         let state = &states[*state_index];
         match &state.kind {
-            ParseElement::SyllBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
-            ParseElement::WordBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
+            ParseElement::SyllBound | ParseElement::WordBound | ParseElement::ExtlBound if within_struct => Err(RuleRuntimeError::BoundaryInsideStruct(state.position)),
+
             ParseElement::Structure(..) if within_struct => Err(RuleRuntimeError::StructInsideStruct(state.position)),
             ParseElement::Syllable (..) if within_struct => Err(RuleRuntimeError::SyllbleInsideStruct(state.position)),
 
