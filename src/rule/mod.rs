@@ -1465,6 +1465,18 @@ mod rule_tests {
         
         let test_rule = setup_rule("* > 1 / ⟨(..)V:[-long]⟩ _ <C=1..>");
         assert_eq!(test_rule.apply_word(setup_word("'nu.sa")).unwrap().render(&[]).0, "ˈnus.sa");
+        
+        let test_rule = setup_rule("* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1..⟩");
+        assert_eq!(test_rule.apply_word(setup_word("'lu.ka")).unwrap().render(&[]).0, "ˈluk.ka");
+        
+        let test_rule = setup_rule("* > 1 / V:[-long, +str] _ $ C=1");
+        assert_eq!(test_rule.apply_word(setup_word("'lu.ka")).unwrap().render(&[]).0, "ˈluk.ka");
+        
+        let test_rule = setup_rule("V:[-long, +str] $ C=1 > [] 1 $ 1");
+        assert_eq!(test_rule.apply_word(setup_word("'lu.ka")).unwrap().render(&[]).0, "ˈluk.ka");
+
+        let test_rule = setup_rule("$ C=1 > 1 $ 1 / V:[-long, +str]_");
+        assert_eq!(test_rule.apply_word(setup_word("'lu.ka")).unwrap().render(&[]).0, "ˈluk.ka");
     }
 
     #[test]
@@ -2233,6 +2245,13 @@ mod rule_tests {
         assert_eq!(test_rule.apply(setup_phrase("a na")).unwrap().render(&[]).0, "e na");
         assert_eq!(test_rule.apply(setup_phrase("a nan")).unwrap().render(&[]).0, "e nan");
         assert_eq!(test_rule.apply(setup_phrase("a na da")).unwrap().render(&[]).0, "e na da");
+
+        let test_rule = setup_rule("a > e / #_##");
+        assert_eq!(test_rule.apply(setup_phrase("a ha a")).unwrap().render(&[]).0, "e ha a");
+        assert_eq!(test_rule.apply(setup_phrase("a a a")).unwrap().render(&[]).0, "e e a");
+
+        let test_rule = setup_rule("a > e / _,##");
+        assert_eq!(test_rule.apply(setup_phrase("a a a")).unwrap().render(&[]).0, "e e e");
     }
 
     #[test]
