@@ -73,7 +73,7 @@ struct SubAction {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum VarKind {
+pub(crate) enum RefKind {
     Segment(Segment),
     Syllable(Syllable)
 }
@@ -85,7 +85,7 @@ pub(crate) struct SubRule {
     pub(crate) context    : Option<ParseItem>,
     pub(crate) except     : Option<ParseItem>,
     pub(crate) rule_type  : RuleType,
-    pub(crate) variables  : RefCell<HashMap<usize, VarKind>>,
+    pub(crate) references : RefCell<HashMap<usize, RefKind>>,
     pub(crate) alphas     : RefCell<HashMap<char, Alpha>>,
     pub(crate) is_rev     : bool,
     pub(crate) inp_x_bound: bool,
@@ -170,7 +170,7 @@ impl SubRule {
         // TODO(girv): `$ > *` or any broad deletion rule without context/exception should give a warning to the user
         loop {
             self.alphas.borrow_mut().clear();
-            self.variables.borrow_mut().clear();
+            self.references.borrow_mut().clear();
             let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
             if !res.is_empty() {
                 let (start, inc_start) = self.set_start(&res,  &phrase);
@@ -590,7 +590,7 @@ impl SubRule {
                 let mut pos = SegPos::new(word_pos, 0, 0);
                 while res_phrase.in_bounds(pos) {
                     self.alphas.borrow_mut().clear();
-                    self.variables.borrow_mut().clear();
+                    self.references.borrow_mut().clear();
                     match self.insertion_match(&res_phrase, pos)? {
                         Some(ins) => {                                    
                             if self.insertion_match_exceptions(&res_phrase, ins)? {
@@ -632,7 +632,7 @@ impl SubRule {
         }
     }
 
-    fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
+    fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
         let mut syll = Syllable::new();
         let mods = SupraSegs { stress: *stress, length: [None, None], tone: *tone };
 
@@ -666,11 +666,11 @@ impl SubRule {
                     }
                 
                 },
-                ParseElement::Variable(num, modifiers) => {
-                    if let Some(var) = self.variables.borrow().get(&num.value.parse().unwrap()) {
-                        match var {
-                            VarKind::Syllable(_) => return Err(RuleRuntimeError::SyllVarInsideStruct(item.position)),
-                            &VarKind::Segment(mut segment) => {
+                ParseElement::Reference(num, modifiers) => {
+                    if let Some(refr) = self.references.borrow().get(&num.value.parse().unwrap()) {
+                        match refr {
+                            RefKind::Syllable(_) => return Err(RuleRuntimeError::SyllRefInsideStruct(item.position)),
+                            &RefKind::Segment(mut segment) => {
                                 let mut len = 1;
                                 if let Some(mods) = modifiers {
                                     segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
@@ -698,8 +698,8 @@ impl SubRule {
             }
         }
 
-        if let Some(v) = var {
-            self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll.clone()));
+        if let Some(r) = refr {
+            self.references.borrow_mut().insert(*r, RefKind::Syllable(syll.clone()));
         }
 
         Ok(syll)
@@ -1197,12 +1197,12 @@ impl SubRule { // Substitution
         Ok(res_phrase)
     }
     
-    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_state.position)) }
         match state {
             MatchElement::Syllable(wp, sp, _) => {
                 Ok(SubAction {
-                    kind: ActionKind::ReplaceSyllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?),
+                    kind: ActionKind::ReplaceSyllable(self.gen_syll_from_struct(items, stress, tone, refr, out_state.position, false)?),
                     pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                 })
             },
@@ -1210,7 +1210,7 @@ impl SubRule { // Substitution
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
                         (Self::ONE, Self::ONE), 
-                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?),
+                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, refr, out_state.position, false)?),
                         out_state.position
                     ),
                     pos,
@@ -1220,7 +1220,7 @@ impl SubRule { // Substitution
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
                         (NonZeroU8::new(phrase.seg_length_at(pos) as u8).unwrap(), Self::ONE),
-                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, var, out_state.position, false)?),
+                        Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, refr, out_state.position, false)?),
                         out_state.position
                     ),
                     pos,
@@ -1231,11 +1231,11 @@ impl SubRule { // Substitution
         }
     }
 
-    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, var: &Option<usize>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, refr: &Option<usize>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
         match state {
             MatchElement::LongSegment(pos, _) => {
                 let old_len = phrase.seg_length_at(pos) as u8;
-                let (seg, new_len) = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), old_len,Some(mods), var, out_state.position)?;
+                let (seg, new_len) = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), old_len,Some(mods), refr, out_state.position)?;
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
                         (NonZeroU8::new(old_len).unwrap(), Self::non_zero_len(new_len)),
@@ -1246,7 +1246,7 @@ impl SubRule { // Substitution
                 })
             },
             MatchElement::Segment(pos, _) => {
-                let (seg, new_len) = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), 1,Some(mods), var, out_state.position)?;
+                let (seg, new_len) = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), 1,Some(mods), refr, out_state.position)?;
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
                         (Self::ONE, Self::non_zero_len(new_len)), 
@@ -1259,8 +1259,8 @@ impl SubRule { // Substitution
             MatchElement::Syllable(wp, sp, _)  => {
                 let mut syll = phrase[wp].syllables[sp].clone();
                 syll.apply_syll_mods(&self.alphas, &mods.suprs, out_state.position)?;
-                if let Some(v) = var {
-                    self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll.clone()));
+                if let Some(r) = refr {
+                    self.references.borrow_mut().insert(*r, RefKind::Syllable(syll.clone()));
                 }
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSyllable(syll),
@@ -1306,11 +1306,11 @@ impl SubRule { // Substitution
         }
     }
 
-    fn sub_var(&self, phrase: &Phrase, num: &Token, mods: &Option<Modifiers>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
-        let binding = self.variables.borrow();
-        let Some(var) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownVariable(num.clone())) };
-        match (state, var) {
-            (MatchElement::LongSegment(pos, _), VarKind::Segment(seg)) => {
+    fn sub_ref(&self, phrase: &Phrase, num: &Token, mods: &Option<Modifiers>, state: MatchElement, in_state: &ParseItem, out_state: &ParseItem) -> Result<SubAction, RuleRuntimeError> {
+        let binding = self.references.borrow();
+        let Some(refr) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownReference(num.clone())) };
+        match (state, refr) {
+            (MatchElement::LongSegment(pos, _), RefKind::Segment(seg)) => {
                 let old_len = phrase.seg_length_at(pos) as u8;
                 let (seg, new_len) = self.gen_seg(*seg, old_len, mods.as_ref(), &None, num.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
@@ -1324,7 +1324,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (MatchElement::Segment(pos, _), VarKind::Segment(seg)) => {
+            (MatchElement::Segment(pos, _), RefKind::Segment(seg)) => {
                 // TODO: Pass 1 here instead of the actual seg length may cause some issues, need to test once implemented
                 let (seg, new_len) = self.gen_seg(*seg, 1, mods.as_ref(), &None, num.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
@@ -1338,7 +1338,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (MatchElement::LongSegment(pos, _), VarKind::Syllable(insert_syll)) => {
+            (MatchElement::LongSegment(pos, _), RefKind::Syllable(insert_syll)) => {
                 let mut syll = insert_syll.clone();
                 let seg_len = phrase.seg_length_at(pos) as u8;
                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
@@ -1352,7 +1352,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (MatchElement::Segment(pos, _), VarKind::Syllable(insert_syll)) => {
+            (MatchElement::Segment(pos, _), RefKind::Syllable(insert_syll)) => {
                 let mut syll = insert_syll.clone();
 
                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
@@ -1366,7 +1366,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (MatchElement::Syllable(wp, sp, _), VarKind::Syllable(syll)) => {
+            (MatchElement::Syllable(wp, sp, _), RefKind::Syllable(syll)) => {
                 let mut syll = syll.clone();
                 if let Some(m) = mods {
                     syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?;
@@ -1378,9 +1378,9 @@ impl SubRule { // Substitution
                 })
             },
             (MatchElement::WordBound(_), _) => Err(RuleRuntimeError::SubstitutionWordBound(in_state.position, out_state.position)),
-            (MatchElement::SyllBound(..), VarKind::Segment(..)) |
-            (MatchElement::Syllable(..),  VarKind::Segment(..)) => Err(RuleRuntimeError::SubstitutionSylltoSeg(in_state.position, out_state.position)),
-            (MatchElement::SyllBound(..), VarKind::Syllable(_), ) => Err(RuleRuntimeError::SubstitutionSyllBound(in_state.position, out_state.position)),
+            (MatchElement::SyllBound(..), RefKind::Segment(..)) |
+            (MatchElement::Syllable(..),  RefKind::Segment(..)) => Err(RuleRuntimeError::SubstitutionSylltoSeg(in_state.position, out_state.position)),
+            (MatchElement::SyllBound(..), RefKind::Syllable(_), ) => Err(RuleRuntimeError::SubstitutionSyllBound(in_state.position, out_state.position)),
         }
     }
 
@@ -1407,9 +1407,9 @@ impl SubRule { // Substitution
                             pos: sp,
                         })
                     },
-                    ParseElement::Matrix(mods, var) => {
+                    ParseElement::Matrix(mods, refr) => {
                         let old_len = phrase.seg_length_at(sp) as u8; 
-                        let (seg, new_len)  = self.gen_seg(phrase[sp.word_index].get_seg_at(sp).unwrap(), old_len,Some(mods), var, set_output[i].position)?;
+                        let (seg, new_len)  = self.gen_seg(phrase[sp.word_index].get_seg_at(sp).unwrap(), old_len,Some(mods), refr, set_output[i].position)?;
                         Ok(SubAction {
                             kind: ActionKind::ReplaceSegment(
                                 (Self::non_zero_len(old_len), Self::non_zero_len(new_len)),
@@ -1419,17 +1419,17 @@ impl SubRule { // Substitution
                             pos: sp,
                         })
                     },
-                    ParseElement::Variable(num, mods) => {
-                        let binding = self.variables.borrow();
-                        let Some(var) = binding.get(&num.value.parse().unwrap()) else {
-                            return Err(RuleRuntimeError::UnknownVariable(num.clone()))
+                    ParseElement::Reference(num, mods) => {
+                        let binding = self.references.borrow();
+                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else {
+                            return Err(RuleRuntimeError::UnknownReference(num.clone()))
                         };
 
                         let old_len = phrase.seg_length_at(sp) as u8; 
 
 
-                        match var {
-                            VarKind::Segment(seg) => {
+                        match refr {
+                            RefKind::Segment(seg) => {
                                 let (seg, new_len) = self.gen_seg(*seg, 1, mods.as_ref(), &None, num.position)?;
                                 let suprs = mods.as_ref().map(|m| m.suprs);
 
@@ -1442,7 +1442,7 @@ impl SubRule { // Substitution
                                     pos: sp,
                                 })
                             },
-                            VarKind::Syllable(insert_syll) => {
+                            RefKind::Syllable(insert_syll) => {
                                 let mut syll = insert_syll.clone();
                                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
 
@@ -1482,8 +1482,8 @@ impl SubRule { // Substitution
                             pos: sp,
                         })
                     }
-                    ParseElement::Matrix(mods, var) => {
-                        let (seg, new_len)  = self.gen_seg(phrase[sp.word_index].get_seg_at(sp).unwrap(), 1, Some(mods), var, set_output[i].position)?;
+                    ParseElement::Matrix(mods, refr) => {
+                        let (seg, new_len)  = self.gen_seg(phrase[sp.word_index].get_seg_at(sp).unwrap(), 1, Some(mods), refr, set_output[i].position)?;
                         Ok(SubAction {
                             kind: ActionKind::ReplaceSegment(
                                 (Self::ONE, Self::non_zero_len(new_len)), 
@@ -1493,14 +1493,14 @@ impl SubRule { // Substitution
                             pos: sp,
                         })
                     },
-                    ParseElement::Variable(num, mods) => { 
-                        let binding = self.variables.borrow();
-                        let Some(var) = binding.get(&num.value.parse().unwrap()) else {
-                            return Err(RuleRuntimeError::UnknownVariable(num.clone()))
+                    ParseElement::Reference(num, mods) => { 
+                        let binding = self.references.borrow();
+                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else {
+                            return Err(RuleRuntimeError::UnknownReference(num.clone()))
                         };
 
-                        match var {
-                            VarKind::Segment(seg) => {
+                        match refr {
+                            RefKind::Segment(seg) => {
                                 let (seg, new_len) = self.gen_seg(*seg, 1, mods.as_ref(), &None, num.position)?;
                                 let suprs = mods.as_ref().map(|m| m.suprs);
 
@@ -1513,7 +1513,7 @@ impl SubRule { // Substitution
                                     pos: sp,
                                 })
                             },
-                            VarKind::Syllable(insert_syll) => {
+                            RefKind::Syllable(insert_syll) => {
                                 let mut syll = insert_syll.clone();
                                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
 
@@ -1545,36 +1545,36 @@ impl SubRule { // Substitution
                     ParseElement::SyllBound => Err(RuleRuntimeError::SubstitutionSylltoBound(in_state.position, set_output[i].position)),
                     ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
 
-                    ParseElement::Matrix(mods, var) => {
+                    ParseElement::Matrix(mods, refr) => {
                         let mut syll = phrase[wp].syllables[sp].clone();
                         syll.apply_syll_mods(&self.alphas, &mods.suprs, set_output[i].position)?;
-                        if let Some(v) = var { self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll.clone())); }
+                        if let Some(r) = refr { self.references.borrow_mut().insert(*r, RefKind::Syllable(syll.clone())); }
                         // FIXME: This is wasteful as we are discarding the changed syllable to later apply the same changes
                         Ok(SubAction {
                             kind: ActionKind::ModifySyllable(mods.suprs, set_output[i].position),
                             pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                         })
                     }
-                    ParseElement::Syllable(stress, tone, var) => { 
+                    ParseElement::Syllable(stress, tone, refr) => { 
                         let mut syll = phrase[wp].syllables[sp].clone();
                         let sups = SupraSegs::from(*stress, [None, None], *tone);
                         syll.apply_syll_mods(&self.alphas, &sups, set_output[i].position)?;
-                        if let Some(v) = var { self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll.clone())); }
+                        if let Some(r) = refr { self.references.borrow_mut().insert(*r, RefKind::Syllable(syll.clone())); }
                         // FIXME: This is wasteful as we are discarding the changed syllable to later apply the same changes
                         Ok(SubAction {
                             kind: ActionKind::ModifySyllable(sups, set_output[i].position),
                             pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                         })
                     }
-                    ParseElement::Variable(num, mods) => {
-                        let binding = self.variables.borrow();
-                        let Some(var) = binding.get(&num.value.parse().unwrap()) else {
-                            return Err(RuleRuntimeError::UnknownVariable(num.clone()))
+                    ParseElement::Reference(num, mods) => {
+                        let binding = self.references.borrow();
+                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else {
+                            return Err(RuleRuntimeError::UnknownReference(num.clone()))
                         };
 
-                        match var {
-                            VarKind::Segment(_) => Err(RuleRuntimeError::SubstitutionSylltoMatrix(in_state.position, num.position)),
-                            VarKind::Syllable(syll) => {
+                        match refr {
+                            RefKind::Segment(_) => Err(RuleRuntimeError::SubstitutionSylltoMatrix(in_state.position, num.position)),
+                            RefKind::Syllable(syll) => {
                                 let mut syll = syll.clone();
 
                                 if let Some(m) = mods {
@@ -1605,7 +1605,7 @@ impl SubRule { // Substitution
         }
     }
 
-    fn gen_seg(&self, seg: Segment, old_len: u8, mods: Option<&Modifiers>, var: &Option<usize>, err_pos: Position) -> Result<(Segment, u8), RuleRuntimeError> {
+    fn gen_seg(&self, seg: Segment, old_len: u8, mods: Option<&Modifiers>, refr: &Option<usize>, err_pos: Position) -> Result<(Segment, u8), RuleRuntimeError> {
         let mut seg = seg;
         let mut new_len = old_len;
         if let Some(m) = mods {
@@ -1613,8 +1613,8 @@ impl SubRule { // Substitution
             new_len = Syllable::calc_new_length(&self.alphas, &m.suprs, old_len, err_pos)?;
         }
 
-        if let Some(v) = var {
-            self.variables.borrow_mut().insert(*v, VarKind::Segment(seg));
+        if let Some(r) = refr {
+            self.references.borrow_mut().insert(*r, RefKind::Segment(seg));
         }
 
         Ok((seg, new_len))
@@ -1630,17 +1630,17 @@ impl SubRule { // Substitution
                 ParseElement::EmptySet     | ParseElement::Metathesis | ParseElement::ExtlBound | 
                 ParseElement::Optional(..) | ParseElement::WordBound  | ParseElement::Environment(..) => unreachable!(),
 
-                ParseElement::Structure(items, stress, tone, var) => {
-                    actions.push(self.sub_structure(phrase, items, stress, tone, var, input[state_index], in_state, out_state)?);
+                ParseElement::Structure(items, stress, tone, refr) => {
+                    actions.push(self.sub_structure(phrase, items, stress, tone, refr, input[state_index], in_state, out_state)?);
                 },
-                ParseElement::Matrix(mods, var) => { 
-                    actions.push(self.sub_matrix(phrase, mods, var, input[state_index], in_state, out_state)?);
+                ParseElement::Matrix(mods, refr) => { 
+                    actions.push(self.sub_matrix(phrase, mods, refr, input[state_index], in_state, out_state)?);
                 },
                 ParseElement::Ipa(seg, mods) => {
                     actions.push(self.sub_ipa(phrase, seg, mods, input[state_index], in_state, out_state)?);
                 },
-                ParseElement::Variable(num, mods) => {
-                    actions.push(self.sub_var(phrase, num, mods, input[state_index], in_state, out_state)?);
+                ParseElement::Reference(num, mods) => {
+                    actions.push(self.sub_ref(phrase, num, mods, input[state_index], in_state, out_state)?);
                 }
                 ParseElement::Set(set_output) => {
                     actions.push(self.sub_set(phrase, set_output, input[state_index], in_state, out_state)?);
@@ -1710,10 +1710,10 @@ impl SubRule { // Substitution
                         pos
                     });
                 },
-                (None, ParseElement::Structure(items, stress, tone, var)) => {
+                (None, ParseElement::Structure(items, stress, tone, refr)) => {
                     if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_item.position)) }
                     let pos = insert_pos.expect("insert_pos is set");
-                    let syll = self.gen_syll_from_struct(items, stress, tone, var, out_item.position, true)?;
+                    let syll = self.gen_syll_from_struct(items, stress, tone, refr, out_item.position, true)?;
 
                     actions.push(SubAction { 
                         kind: ActionKind::InsertSyllable(syll), 
@@ -1721,11 +1721,11 @@ impl SubRule { // Substitution
                     });
 
                 },
-                (None, ParseElement::Variable(num, mods)) => {
-                    let binding = self.variables.borrow();
-                    let Some(var) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownVariable(num.clone())) };
-                    match var {
-                        VarKind::Segment(segment) => {
+                (None, ParseElement::Reference(num, mods)) => {
+                    let binding = self.references.borrow();
+                    let Some(refr) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownReference(num.clone())) };
+                    match refr {
+                        RefKind::Segment(segment) => {
                             let pos = insert_pos.expect("insert_pos is set");
                             let (seg, len) = self.gen_seg(*segment, 1, mods.as_ref(), &None, num.position)?;
                             let suprs = mods.as_ref().map(|m| m.suprs);
@@ -1735,7 +1735,7 @@ impl SubRule { // Substitution
                                 pos,
                             });
                         },
-                        VarKind::Syllable(insert_syll) => {
+                        RefKind::Syllable(insert_syll) => {
                             let pos = insert_pos.expect("insert_pos is set");
                             let mut syll = insert_syll.clone();
                             if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
@@ -1809,20 +1809,20 @@ impl SubRule { // Substitution
                     });
                 },
 
-                (Some(in_match), ParseElement::Structure(items, stress, tone, var)) => {
-                    actions.push(self.sub_structure(phrase, items, stress, tone, var, *in_match, &input_filt[in_index], out_item)?);
+                (Some(in_match), ParseElement::Structure(items, stress, tone, refr)) => {
+                    actions.push(self.sub_structure(phrase, items, stress, tone, refr, *in_match, &input_filt[in_index], out_item)?);
                     in_index += 1;
                 },
-                (Some(in_match), ParseElement::Matrix(mods, var)) => {
-                    actions.push(self.sub_matrix(phrase, mods, var, *in_match, &input_filt[in_index], out_item)?);
+                (Some(in_match), ParseElement::Matrix(mods, refr)) => {
+                    actions.push(self.sub_matrix(phrase, mods, refr, *in_match, &input_filt[in_index], out_item)?);
                     in_index += 1;
                 },
                 (Some(in_match), ParseElement::Ipa(seg, mods)) => {
                     actions.push(self.sub_ipa(phrase, seg, mods, *in_match, &input_filt[in_index], out_item)?);
                     in_index += 1;
                 },
-                (Some(in_match), ParseElement::Variable(num, mods)) => {
-                    actions.push(self.sub_var(phrase, num, mods, *in_match, &input_filt[in_index], out_item)?);
+                (Some(in_match), ParseElement::Reference(num, mods)) => {
+                    actions.push(self.sub_ref(phrase, num, mods, *in_match, &input_filt[in_index], out_item)?);
                     in_index += 1;
                 },
                 (Some(in_match), ParseElement::Set(set_output)) => {
@@ -1874,20 +1874,20 @@ impl SubRule { // Substitution
                 },
                 (_, ParseElement::SyllBound) => return Err(RuleRuntimeError::SubstitutionSyllBound(input_item.position, cur_out_state.position)),
 
-                (_, ParseElement::Structure(items, stress, tone, var)) => {
-                    actions.push(self.sub_structure(phrase, items, stress, tone, var, input[in_index], input_item, cur_out_state)?);
+                (_, ParseElement::Structure(items, stress, tone, refr)) => {
+                    actions.push(self.sub_structure(phrase, items, stress, tone, refr, input[in_index], input_item, cur_out_state)?);
                     out_index += 1;
                 }
-                (_, ParseElement::Matrix(mods, var)) => {
-                    actions.push(self.sub_matrix(phrase, mods, var, input[in_index], input_item, cur_out_state)?);
+                (_, ParseElement::Matrix(mods, refr)) => {
+                    actions.push(self.sub_matrix(phrase, mods, refr, input[in_index], input_item, cur_out_state)?);
                     out_index += 1;
                 },
                 (_, ParseElement::Ipa(seg, mods)) => {
                     actions.push(self.sub_ipa(phrase, seg, mods, input[in_index], input_item, cur_out_state)?);
                     out_index += 1;
                 },
-                (_, ParseElement::Variable(num, mods)) => {
-                    actions.push(self.sub_var(phrase, num, mods, input[in_index], input_item, cur_out_state)?);
+                (_, ParseElement::Reference(num, mods)) => {
+                    actions.push(self.sub_ref(phrase, num, mods, input[in_index], input_item, cur_out_state)?);
                     out_index += 1;
                 },
                 (_, ParseElement::Set(set_output)) => {
@@ -2255,12 +2255,12 @@ impl SubRule { // Context Matching
             } else {
                 self.context_match_syll(s, t, v, phrase, pos, forwards)
             },
-            ParseElement::Structure(segs, stress, tone, var) => if ins_match_before {
-                Ok(!pos.at_word_start() && self.context_match_structure(segs, stress, tone, var, phrase, pos, forwards)?)
+            ParseElement::Structure(segs, stress, tone, refr) => if ins_match_before {
+                Ok(!pos.at_word_start() && self.context_match_structure(segs, stress, tone, refr, phrase, pos, forwards)?)
             } else {
-                self.context_match_structure(segs, stress, tone, var, phrase, pos, forwards)
+                self.context_match_structure(segs, stress, tone, refr, phrase, pos, forwards)
             },
-            ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, phrase, pos, forwards, state.position, within_struct),
+            ParseElement::Reference(vt, mods) => self.context_match_ref(vt, mods, phrase, pos, forwards, state.position, within_struct),
             ParseElement::Set(s) => self.context_match_set(s, phrase, pos, forwards, within_struct),
             ParseElement::Optional(opt_states, min, max) => self.context_match_option(states, state_index, phrase, pos, forwards, opt_states, *min, *max, within_struct),
             ParseElement::Ellipsis => self.context_match_ellipsis(states, state_index, phrase, pos, forwards, true),
@@ -2353,9 +2353,9 @@ impl SubRule { // Context Matching
         Ok(!is_expt_match && is_cont_match)
     }
 
-    fn context_match_structure(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_structure(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         if items.is_empty() {
-            return self.context_match_syll(stress, tone, var, phrase, pos, forwards)
+            return self.context_match_syll(stress, tone, refr, phrase, pos, forwards)
         }
         if !pos.at_syll_start() {
             return Ok(false)
@@ -2408,11 +2408,11 @@ impl SubRule { // Context Matching
                 ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, phrase, *pos, item.position)? {
                     pos.increment(phrase);
                 } else { return Ok(false) },
-                ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, phrase, pos, item.position)? {
+                ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, item.position)? {
                     return Ok(false) 
                 },
                 // NOTE: since syllables are invalid, passing `forwards` won't matter
-                ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, phrase, pos, forwards, item.position, true)? {
+                ParseElement::Reference(num, mods) => if !self.context_match_ref(num, mods, phrase, pos, forwards, item.position, true)? {
                    return Ok(false) 
                 },
                 ParseElement::Set(set) => if !self.context_match_set(set, phrase, pos, forwards, true)? {
@@ -2434,13 +2434,13 @@ impl SubRule { // Context Matching
 
         if pos.seg_index != 0 { return Ok(false) }
 
-        if let Some(v) = var {
+        if let Some(r) = refr {
             if forwards {
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
+                self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
             } else {
                 let mut syll = phrase[cur_word_index].syllables[cur_syll_index].clone();
                 syll.segments.make_contiguous().reverse();
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll));
+                self.references.borrow_mut().insert(*r, RefKind::Syllable(syll));
             }
         }
 
@@ -2457,7 +2457,7 @@ impl SubRule { // Context Matching
 
         let back_index = *index;
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
         while pos.syll_index == syll_index {
             
             let mut m = true;
@@ -2490,11 +2490,11 @@ impl SubRule { // Context Matching
                     ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, phrase, *pos, items[*index].position)? {
                         pos.increment(phrase);
                     } else { m = false; break; },
-                    ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, phrase, pos, items[*index].position)? {
+                    ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, items[*index].position)? {
                         m = false; break;
                     },
                     // since syllables are invalid, passing `forwards` won't matter
-                    ParseElement::Variable(num, mods) => if !self.context_match_var(num, mods, phrase, pos, forwards, items[*index].position, true)? {
+                    ParseElement::Reference(num, mods) => if !self.context_match_ref(num, mods, phrase, pos, forwards, items[*index].position, true)? {
                         m = false; break;
                     },
                     ParseElement::Set(set) => if !self.context_match_set(set, phrase, pos, forwards, true)? {
@@ -2517,7 +2517,7 @@ impl SubRule { // Context Matching
             }
             *index = back_index;
             *self.alphas.borrow_mut() = back_alphas.clone();
-            *self.variables.borrow_mut() = back_varlbs.clone();
+            *self.references.borrow_mut() = back_refs.clone();
             pos.increment(phrase);
         }
 
@@ -2534,7 +2534,7 @@ impl SubRule { // Context Matching
 
         let back_state = *state_index;
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
         while phrase.in_bounds(*pos) {
             *state_index = back_state;
             let mut m = true;
@@ -2547,12 +2547,12 @@ impl SubRule { // Context Matching
             }
             if m { return Ok(true) }
             *self.alphas.borrow_mut() = back_alphas.clone();
-            *self.variables.borrow_mut() = back_varlbs.clone();
+            *self.references.borrow_mut() = back_refs.clone();
             pos.increment(phrase);
         }
         
         *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.variables.borrow_mut() = back_varlbs.clone();
+        *self.references.borrow_mut() = back_refs.clone();
         Ok(false)
     }
 
@@ -2573,7 +2573,7 @@ impl SubRule { // Context Matching
         let match_max = if match_max == 0 { None } else { Some(match_max) };
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
 
         let start_syll = pos.syll_index;
 
@@ -2583,7 +2583,7 @@ impl SubRule { // Context Matching
             if !self.match_opt_states(opt_states, phrase, pos, forwards, within_struct)? {
                 *pos = back_pos;
                 *self.alphas.borrow_mut() = back_alphas;
-                *self.variables.borrow_mut() = back_varlbs;
+                *self.references.borrow_mut() = back_refs;
                 return Ok(false)
             }
             index += 1;
@@ -2594,7 +2594,7 @@ impl SubRule { // Context Matching
         let back_state = *state_index;
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
 
         if *state_index >= states.len() && within_struct {
             if pos.at_syll_end(phrase) {
@@ -2616,7 +2616,7 @@ impl SubRule { // Context Matching
                 return Ok(true)
             } else {
                 *self.alphas.borrow_mut() = back_alphas.clone();
-                *self.variables.borrow_mut() = back_varlbs.clone();
+                *self.references.borrow_mut() = back_refs.clone();
             }
         }
 
@@ -2624,7 +2624,7 @@ impl SubRule { // Context Matching
         *pos = back_pos;
         *state_index = back_state;
         *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.variables.borrow_mut() = back_varlbs.clone();
+        *self.references.borrow_mut() = back_refs.clone();
         let max = match_max.unwrap_or(usize::MAX);
         while index < max {
             *state_index = back_state;
@@ -2645,35 +2645,35 @@ impl SubRule { // Context Matching
                     } else if *state_index >= states.len() && index < max {
                             index += 1;
                             *self.alphas.borrow_mut() = back_alphas.clone();
-                            *self.variables.borrow_mut() = back_varlbs.clone();
+                            *self.references.borrow_mut() = back_refs.clone();
                             continue;
                     } else {
                         *self.alphas.borrow_mut() = back_alphas.clone();
-                        *self.variables.borrow_mut() = back_varlbs.clone();
+                        *self.references.borrow_mut() = back_refs.clone();
                         return Ok(false)
                     }
                 } else {
                     index += 1;
                     *self.alphas.borrow_mut() = back_alphas.clone();
-                    *self.variables.borrow_mut() = back_varlbs.clone();
+                    *self.references.borrow_mut() = back_refs.clone();
                     continue;
                 }
             } else {
                 *self.alphas.borrow_mut() = back_alphas.clone();
-                *self.variables.borrow_mut() = back_varlbs.clone();
+                *self.references.borrow_mut() = back_refs.clone();
                 return Ok(false)
             }
         }
 
         *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.variables.borrow_mut() = back_varlbs.clone();
+        *self.references.borrow_mut() = back_refs.clone();
         Ok(false)
     }
 
     fn context_match_set(&self, set: &[ParseItem], phrase: &Phrase, pos: &mut SegPos, forwards: bool, within_struct: bool) -> Result<bool, RuleRuntimeError> {
         let back_pos= *pos;
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
         
         for s in set {
             let res = match &s.kind {
@@ -2685,13 +2685,13 @@ impl SubRule { // Context Matching
 
                 ParseElement::Structure(..) => unimplemented!(),
 
-                ParseElement::Variable(vt, mods) => self.context_match_var(vt, mods, phrase, pos, forwards, s.position, within_struct),
+                ParseElement::Reference(vt, mods) => self.context_match_ref(vt, mods, phrase, pos, forwards, s.position, within_struct),
                 ParseElement::Ipa(seg, mods) => if self.context_match_ipa(seg, mods, phrase, *pos, s.position)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else {Ok(false)},
-                ParseElement::Matrix(mods, var) => self.context_match_matrix(mods, var, phrase, pos, s.position),
-                ParseElement::Syllable(stress, tone, var) => self.context_match_syll(stress, tone, var, phrase, pos, forwards),
+                ParseElement::Matrix(mods, refr) => self.context_match_matrix(mods, refr, phrase, pos, s.position),
+                ParseElement::Syllable(stress, tone, refr) => self.context_match_syll(stress, tone, refr, phrase, pos, forwards),
                 ParseElement::WordBound => Ok(phrase[pos.word_index].out_of_bounds(*pos)),
                 ParseElement::SyllBound => Ok(pos.at_syll_start()),
                 _ => unimplemented!(),
@@ -2702,27 +2702,27 @@ impl SubRule { // Context Matching
             *pos = back_pos;
             // TODO: Deal with these clones
             *self.alphas.borrow_mut() = back_alphas.clone();
-            *self.variables.borrow_mut() = back_varlbs.clone();
+            *self.references.borrow_mut() = back_refs.clone();
         }
         Ok(false)
     }
 
-    fn context_match_var(&self, vt: &Token, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        if let Some(var) = self.variables.borrow().get(&vt.value.parse::<usize>().unwrap()) {
-            match var {
-                VarKind::Segment(s) => if self.context_match_ipa(s, mods, phrase, *pos, err_pos)? {
+    fn context_match_ref(&self, vt: &Token, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        if let Some(refr) = self.references.borrow().get(&vt.value.parse::<usize>().unwrap()) {
+            match refr {
+                RefKind::Segment(s) => if self.context_match_ipa(s, mods, phrase, *pos, err_pos)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                VarKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllVarInsideStruct(vt.position)),
-                VarKind::Syllable(s) => self.context_match_syll_var(s, mods, phrase, pos, forwards),
+                RefKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllRefInsideStruct(vt.position)),
+                RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards),
             }            
         } else {
-            Err(RuleRuntimeError::UnknownVariable(vt.clone()))
+            Err(RuleRuntimeError::UnknownReference(vt.clone()))
         }
     }
 
-    fn context_match_syll_var(&self, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_syll_ref(&self, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         if !pos.at_syll_start()  {
             return Ok(false)
         }
@@ -2758,7 +2758,7 @@ impl SubRule { // Context Matching
         Ok(true)
     }
 
-    fn context_match_syll(&self, stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {        
+    fn context_match_syll(&self, stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {        
         if !pos.at_syll_start() {
             return Ok(false)
         }
@@ -2774,13 +2774,13 @@ impl SubRule { // Context Matching
                 return Ok(false)
             }
         }
-        if let Some(v) = var {
+        if let Some(r) = refr {
             if forwards {
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(phrase[pos.word_index].syllables[pos.syll_index].clone()));
+                self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[pos.word_index].syllables[pos.syll_index].clone()));
             } else {
                 let mut syll = phrase[pos.word_index].syllables[pos.syll_index].clone();
                 syll.segments.make_contiguous().reverse();
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(syll));
+                self.references.borrow_mut().insert(*r, RefKind::Syllable(syll));
             }
         }
         pos.syll_index += 1;
@@ -2800,11 +2800,11 @@ impl SubRule { // Context Matching
         }
     }
 
-    fn context_match_matrix(&self, mods: &Modifiers, var: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {        
+    fn context_match_matrix(&self, mods: &Modifiers, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {        
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, phrase, pos, err_pos)? {
-            if let Some(v) = var {
-                self.variables.borrow_mut().insert(*v, VarKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
+            if let Some(r) = refr {
+                self.references.borrow_mut().insert(*r, RefKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
             }
             self.matrix_increment(phrase, pos);
             pos.increment(phrase);
@@ -2855,12 +2855,12 @@ impl SubRule { // Input Matching
                 captures = vec![];
                 match_begin = None;
                 self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
+                self.references.borrow_mut().clear();
             } else {
                 // if we weren't in the middle of matching, move on
                 cur_index.increment(phrase);
                 self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
+                self.references.borrow_mut().clear();
                 // NOTE(girv): Should be unnecessary, but safety first!
                 state_index = 0;
                 captures = vec![];
@@ -2895,7 +2895,7 @@ impl SubRule { // Input Matching
     ) -> Result<bool, RuleRuntimeError> {
         let err_pos = states[*state_index].position;
         match &states[*state_index].kind {
-            ParseElement::Variable(vt, m) => if self.input_match_var(captures, state_index, vt, m, phrase, seg_pos, err_pos)? {
+            ParseElement::Reference(vt, m) => if self.input_match_ref(captures, state_index, vt, m, phrase, seg_pos, err_pos)? {
                 *state_index += 1;
                 Ok(true)
             } else { Ok(false) },
@@ -2927,7 +2927,7 @@ impl SubRule { // Input Matching
                 Ok(false)
             },
             ParseElement::Syllable(s, t, v) => self.input_match_syll(captures, state_index, s, t, v, phrase, seg_pos),
-            ParseElement::Structure(segs, stress, tone, var) => self.input_match_structure(captures, state_index, segs, stress, tone, var, phrase, seg_pos),
+            ParseElement::Structure(segs, stress, tone, refr) => self.input_match_structure(captures, state_index, segs, stress, tone, refr, phrase, seg_pos),
             ParseElement::Ellipsis  => self.input_match_ellipsis(captures, phrase, seg_pos, states, state_index, true),
             ParseElement::WEllipsis => self.input_match_ellipsis(captures, phrase, seg_pos, states, state_index, false),
 
@@ -2936,9 +2936,9 @@ impl SubRule { // Input Matching
         }
     }
 
-    fn input_match_structure(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, var: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_structure(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         if items.is_empty() {
-            return self.input_match_syll(captures, state_index, stress, tone, var, phrase, pos)
+            return self.input_match_syll(captures, state_index, stress, tone, refr, phrase, pos)
         }
         if !(phrase.in_bounds(*pos) && pos.seg_index == 0) {
             return Ok(false)
@@ -2979,17 +2979,17 @@ impl SubRule { // Input Matching
                 ParseElement::Ipa(s, mods) => if self.context_match_ipa(s, mods, phrase, *pos, item.position)? {
                     pos.increment(phrase);
                 } else { return Ok(false) },
-                ParseElement::Matrix(mods, var) => if !self.context_match_matrix(mods, var, phrase, pos, item.position)? {
+                ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, item.position)? {
                     return Ok(false)
                 },
-                ParseElement::Variable(num, mods) => match self.variables.borrow().get(&num.value.parse::<usize>().unwrap()) {
-                    Some(var) => match var {
-                        VarKind::Segment(s) => if self.context_match_ipa(s, mods, phrase, *pos, item.position)? {
+                ParseElement::Reference(num, mods) => match self.references.borrow().get(&num.value.parse::<usize>().unwrap()) {
+                    Some(refr) => match refr {
+                        RefKind::Segment(s) => if self.context_match_ipa(s, mods, phrase, *pos, item.position)? {
                             pos.increment(phrase);
                         } else { return Ok(false) },
-                        VarKind::Syllable(_) => return Err(RuleRuntimeError::SyllVarInsideStruct(item.position)),
+                        RefKind::Syllable(_) => return Err(RuleRuntimeError::SyllRefInsideStruct(item.position)),
                     },
-                    None => return Err(RuleRuntimeError::UnknownVariable(num.clone())),
+                    None => return Err(RuleRuntimeError::UnknownReference(num.clone())),
                 }
                 ParseElement::Optional(states, min, max) => if self.context_match_option(items, &mut i, phrase, pos, true, states, *min, *max, true)? {
                     // This works i guess
@@ -3008,8 +3008,8 @@ impl SubRule { // Input Matching
         }
         if pos.seg_index != 0 { return Ok(false) }
 
-        if let Some(v) = var {
-            self.variables.borrow_mut().insert(*v, VarKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
+        if let Some(r) = refr {
+            self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
         }
         captures.push(MatchElement::Syllable(cur_word_index, cur_syll_index, None));
         *state_index += 1;
@@ -3034,7 +3034,7 @@ impl SubRule { // Input Matching
         if inc { pos.increment(phrase) }
 
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
         let back_captures = captures.clone();
         while phrase.in_bounds(*pos) {
             let mut m = true;
@@ -3050,17 +3050,17 @@ impl SubRule { // Input Matching
             }
             // TODO: Test if this is necessary, doesn't work well with multiple ellipses
             *self.alphas.borrow_mut() = back_alphas.clone();
-            *self.variables.borrow_mut() = back_varlbs.clone();
+            *self.references.borrow_mut() = back_refs.clone();
             pos.increment(phrase);
         }
         
         *self.alphas.borrow_mut() = back_alphas;
-        *self.variables.borrow_mut() = back_varlbs;
+        *self.references.borrow_mut() = back_refs;
         *captures = back_captures;
         Ok(false)
     }
 
-    fn input_match_syll(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, stress: &[Option<ModKind>;2], tone: &Option<Tone>, var: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_syll(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, stress: &[Option<ModKind>;2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         // checks current segment is at start of syll
         // matches stress and tone
         // jumps to end of syllable if match
@@ -3078,8 +3078,8 @@ impl SubRule { // Input Matching
                     return Ok(false)
                 }
             }
-            if let Some(v) = var {
-                self.variables.borrow_mut().insert(*v, VarKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
+            if let Some(r) = refr {
+                self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
             }
             captures.push(MatchElement::Syllable(cur_word_index, cur_syll_index, None));
             *state_index += 1;
@@ -3104,20 +3104,20 @@ impl SubRule { // Input Matching
     fn input_match_set(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, set: &[ParseItem], phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
-        let back_varlbs = self.variables.borrow().clone();
+        let back_refs = self.references.borrow().clone();
 
         for (i,s) in set.iter().enumerate() {
             let res = match &s.kind {
-                ParseElement::Variable(vt, mods) => self.input_match_var(captures, state_index, vt, mods, phrase, pos, s.position),
+                ParseElement::Reference(vt, mods) => self.input_match_ref(captures, state_index, vt, mods, phrase, pos, s.position),
                 ParseElement::Ipa(seg, mods) => if self.input_match_ipa(captures, seg, mods, phrase, pos, s.position)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                ParseElement::Matrix(mods, var) => if self.input_match_matrix(captures, mods, var, phrase, pos, s.position)? {
+                ParseElement::Matrix(mods, refr) => if self.input_match_matrix(captures, mods, refr, phrase, pos, s.position)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                ParseElement::Syllable(stress, tone, var) => self.input_match_syll(captures, state_index, stress, tone, var, phrase, pos),
+                ParseElement::Syllable(stress, tone, refr) => self.input_match_syll(captures, state_index, stress, tone, refr, phrase, pos),
                 ParseElement::SyllBound => if pos.at_syll_start() {
                     captures.push(MatchElement::SyllBound(pos.word_index, pos.syll_index, Some(i))); // FIXME: `i` is being unnecessarily reassigned
                     Ok(true)
@@ -3132,7 +3132,7 @@ impl SubRule { // Input Matching
             *pos = back_pos;
             // TODO: Deal with these clones
             *self.alphas.borrow_mut() = back_alphas.clone();
-            *self.variables.borrow_mut() = back_varlbs.clone();
+            *self.references.borrow_mut() = back_refs.clone();
         }
         Ok(false)
     }
@@ -3162,7 +3162,7 @@ impl SubRule { // Input Matching
         }
     }
 
-    fn input_match_syll_var(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_syll_ref(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         if pos.seg_index != 0 || phrase[pos.word_index].out_of_bounds(*pos){
             return Ok(false)
         }
@@ -3196,25 +3196,25 @@ impl SubRule { // Input Matching
         
     }
 
-    fn input_match_var(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, vt: &Token, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        match self.variables.borrow_mut().get(&vt.value.parse::<usize>().unwrap()) {
-            Some(var) => match var {
-                VarKind::Segment(s)  => if self.input_match_ipa(captures, s, mods, phrase, pos, err_pos)? {
+    fn input_match_ref(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, vt: &Token, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        match self.references.borrow_mut().get(&vt.value.parse::<usize>().unwrap()) {
+            Some(refr) => match refr {
+                RefKind::Segment(s)  => if self.input_match_ipa(captures, s, mods, phrase, pos, err_pos)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                VarKind::Syllable(s) => self.input_match_syll_var(captures, state_index , s, mods, phrase, pos),
+                RefKind::Syllable(s) => self.input_match_syll_ref(captures, state_index , s, mods, phrase, pos),
             },
-            None => Err(RuleRuntimeError::UnknownVariable(vt.clone())),
+            None => Err(RuleRuntimeError::UnknownReference(vt.clone())),
         }
     }
 
-    fn input_match_matrix(&self, captures: &mut Vec<MatchElement>, mods: &Modifiers, var: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> { 
+    fn input_match_matrix(&self, captures: &mut Vec<MatchElement>, mods: &Modifiers, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> { 
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, phrase, pos, err_pos)? {
-            if let Some(v) = var {
+            if let Some(r) = refr {
                 // TODO: LongSegment Match
-                self.variables.borrow_mut().insert(*v, VarKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
+                self.references.borrow_mut().insert(*r, RefKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
             }
             // match mods.suprs.length {
             //     [None, None] => captures.push(MatchElement::Segment(*pos, None)),
@@ -3280,13 +3280,13 @@ impl SubRule { // Insertion
                     pos.syll_index += 1;
                     pos.seg_index = 0;
                 },
-                ParseElement::Syllable(stress, tone, var) => {
+                ParseElement::Syllable(stress, tone, refr) => {
                     if pos.at_syll_start() {
                         // apply mods to current syllable, possibly not a good idea
                         if let Some(syll) = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index) {
                             syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
-                            if let Some(v) = var {
-                                self.variables.borrow_mut().insert(*v, VarKind::Syllable(res_phrase[pos.word_index].syllables[pos.syll_index].clone()));
+                            if let Some(r) = refr {
+                                self.references.borrow_mut().insert(*r, RefKind::Syllable(res_phrase[pos.word_index].syllables[pos.syll_index].clone()));
                             }
                             continue;
                         } else {
@@ -3297,7 +3297,7 @@ impl SubRule { // Insertion
                     // split current syll into two at insert_pos
                     // Apply mods to second syll
                     let mut new_syll = Syllable::new();
-                    new_syll.apply_syll_mods(&self.alphas, /*&self.variables,*/ &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
+                    new_syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
 
                     let syll = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index).expect("pos should not be out of bounds");
 
@@ -3309,12 +3309,12 @@ impl SubRule { // Insertion
                     pos.syll_index += 2;
                     pos.seg_index = 0;
 
-                    if let Some(v) = var {
-                        self.variables.borrow_mut().insert(*v, VarKind::Syllable(res_phrase[pos.word_index].syllables[pos.syll_index -1].clone()));
+                    if let Some(r) = refr {
+                        self.references.borrow_mut().insert(*r, RefKind::Syllable(res_phrase[pos.word_index].syllables[pos.syll_index -1].clone()));
                     }
                 },
-                ParseElement::Structure(items, stress, tone, var) => {
-                    let insert_syll = self.gen_syll_from_struct(items, stress, tone, var, state.position, true)?;
+                ParseElement::Structure(items, stress, tone, refr) => {
+                    let insert_syll = self.gen_syll_from_struct(items, stress, tone, refr, state.position, true)?;
 
                     if pos.at_syll_start() {
                         res_phrase[pos.word_index].syllables.insert(pos.syll_index, insert_syll);
@@ -3350,10 +3350,10 @@ impl SubRule { // Insertion
                     
                     pos.seg_index = 0;
                 },
-                ParseElement::Variable(num, mods) => {
-                    if let Some(var) = self.variables.borrow().get(&num.value.parse().unwrap()) {
-                        match var {
-                            VarKind::Segment(seg) => {
+                ParseElement::Reference(num, mods) => {
+                    if let Some(refr) = self.references.borrow().get(&num.value.parse().unwrap()) {
+                        match refr {
+                            RefKind::Segment(seg) => {
                                 if let Some(syll) = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index) { 
                                     let lc = syll.insert_segment(pos.seg_index, seg, mods, &self.alphas, state.position)?;
                                     if lc > 0 {
@@ -3373,7 +3373,7 @@ impl SubRule { // Insertion
                                 };
                                 pos.increment(&res_phrase);
                             },
-                            VarKind::Syllable(syll) => {
+                            RefKind::Syllable(syll) => {
                                 let mut new_syll = syll.clone();
                                 if let Some(m) = mods {
                                     new_syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?;
@@ -3382,7 +3382,7 @@ impl SubRule { // Insertion
                                     res_phrase[pos.word_index].syllables.insert(pos.syll_index, new_syll.clone());
                                     pos.syll_index += 1;
                                 } else {
-                                    // split current syllable in two, insert var_syll in between them
+                                    // split current syllable in two, insert ref_syll in between them
                                     let before_syll = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index).unwrap();
                                     let mut after_syll = Syllable::new();
                                     while before_syll.segments.len() > pos.seg_index {
@@ -3397,7 +3397,7 @@ impl SubRule { // Insertion
                             },
                         }
                     } else {
-                        return Err(RuleRuntimeError::UnknownVariable(num.clone()))
+                        return Err(RuleRuntimeError::UnknownReference(num.clone()))
                     }
                 },
                 ParseElement::Ellipsis | ParseElement::WEllipsis => {/* Do Nothing */},
@@ -3556,11 +3556,11 @@ impl SubRule { // Insertion
                 state_index = 0;
                 match_begin = None;
                 self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
+                self.references.borrow_mut().clear();
             } else {
                 cur_pos.increment(phrase);
                 self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
+                self.references.borrow_mut().clear();
                 state_index = 0;
             }
         }
@@ -3605,11 +3605,11 @@ impl SubRule { // Insertion
                 state_index = 0;
                 match_begin = None;
                 self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
+                self.references.borrow_mut().clear();
             } else {
                 cur_pos.increment(phrase);
                 self.alphas.borrow_mut().clear();
-                self.variables.borrow_mut().clear();
+                self.references.borrow_mut().clear();
                 state_index = 0;
             }
         }

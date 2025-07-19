@@ -57,7 +57,7 @@ pub(crate) enum ParseElement {
     Structure   (Vec<ParseItem>, [Option<ModKind>; 2], Option<Tone>, Option<usize>),
     Optional    (Vec<ParseItem>, usize, usize),
     Environment (Vec<Env>),
-    Variable    (Token, Option<Modifiers>),
+    Reference   (Token, Option<Modifiers>),
 }
 
 impl ParseElement {
@@ -71,9 +71,9 @@ impl ParseElement {
 
     fn reverse(&mut self) {
         match self {
-            Self::EmptySet   | Self::WordBound    | Self::SyllBound | 
-            Self::Ellipsis   | Self::Metathesis   | Self::Ipa(..)   | 
-            Self::Matrix(..) | Self::Variable(..) | Self::Syllable(..) | 
+            Self::EmptySet   | Self::WordBound     | Self::SyllBound | 
+            Self::Ellipsis   | Self::Metathesis    | Self::Ipa(..)   | 
+            Self::Matrix(..) | Self::Reference(..) | Self::Syllable(..) | 
             Self::WEllipsis  | Self::ExtlBound => {},
             
             Self::Optional(items, ..) | Self::Structure(items, ..) | 
@@ -90,7 +90,7 @@ impl ParseElement {
 impl fmt::Display for ParseElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Variable(tk, p) => {
+            Self::Reference(tk, p) => {
                 // let tt = p.iter()
                 // .fold(String::new(), |acc, i| acc + &i.to_string() + ", ");
 
@@ -107,14 +107,14 @@ impl fmt::Display for ParseElement {
 
             Self::Ipa(s, m) => write!(f, "{s:?} + {m:?}"),
 
-            Self::Matrix(tokens, var) => {
-                write!(f, "{tokens:#?}={var:#?}")
+            Self::Matrix(tokens, refr) => {
+                write!(f, "{tokens:#?}={refr:#?}")
             },
-            Self::Syllable(str, tone, var) => {
-                write!(f, "SYLL=>{str:?}:{tone:#?}={var:#?}")
+            Self::Syllable(str, tone, refr) => {
+                write!(f, "SYLL=>{str:?}:{tone:#?}={refr:#?}")
             },
-            Self::Structure(segs, str, tone, var) => {
-                write!(f, "STRUCT=>{str:?}:{tone:#?}={var:#?} <")?;
+            Self::Structure(segs, str, tone, refr) => {
+                write!(f, "STRUCT=>{str:?}:{tone:#?}={refr:#?} <")?;
                 for i in segs {
                     write!(f, "{i}")?;
                     write!(f, ", ")?;
@@ -678,15 +678,15 @@ impl Parser {
         Ok(ParseItem::new(joined_kind, Position::new(self.group, self.line, pos.start, params.position.end )))
     }
     
-    fn get_var_assign(&mut self, number: Token, char: &ParseItem) -> ParseItem {
-        // returns VAR_ASN ← '=' [0-9]+ 
+    fn get_ref_assign(&mut self, number: Token, char: &ParseItem) -> ParseItem {
+        // returns REF_ASN ← '=' [0-9]+ 
         let num = number.value.parse::<usize>().expect("number should be a number as set in `self.get_seg`");
         let mods = char.kind.as_matrix().expect("char should be matrix as set in `self.get_group`").clone();
         ParseItem::new(ParseElement::Matrix(mods, Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end ))
     }
 
     fn get_seg(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        // returns SEG ← IPA (':' PARAMS)? / MATRIX VAR_ASN?  
+        // returns SEG ← IPA (':' PARAMS)? / MATRIX REF_ASN?  
         if self.peek_expect(TokenKind::Cardinal) {
             return Ok(Some(self.get_ipa()?))
         }
@@ -694,9 +694,9 @@ impl Parser {
             let chr = self.get_group()?;
             if self.expect(TokenKind::Equals) {
                 let Some(n) = self.eat_expect(TokenKind::Number) else {
-                    return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
+                    return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let res =  self.get_var_assign(n, &chr);
+                let res =  self.get_ref_assign(n, &chr);
                 return Ok(Some(res))
             }
             return Ok(Some(chr))
@@ -705,9 +705,9 @@ impl Parser {
             let params = self.get_params()?;
             if self.expect(TokenKind::Equals) {
                 let Some(n) = self.eat_expect(TokenKind::Number) else {
-                    return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
+                    return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let res = self.get_var_assign(n, &params);
+                let res = self.get_ref_assign(n, &params);
                 return Ok(Some(res))
             }
             return Ok(Some(params))
@@ -715,13 +715,13 @@ impl Parser {
         Ok(None)
     }
 
-    fn get_var(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        // returns VAR ← [0-9]+ (':' PARAMS)? 
+    fn get_ref(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
+        // returns REF ← [0-9]+ (':' PARAMS)? 
         let Some(t) = self.eat_expect(TokenKind::Number) else { return Ok(None) };     
         let mut pos = t.position;
         if !self.expect(TokenKind::Colon) {
-            let var = ParseItem::new(ParseElement::Variable(t, None), pos);
-            return Ok(Some(var))
+            let refr = ParseItem::new(ParseElement::Reference(t, None), pos);
+            return Ok(Some(refr))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -730,7 +730,7 @@ impl Parser {
         let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`").clone();
         pos.end = params.position.end;
 
-        Ok(Some(ParseItem::new(ParseElement::Variable(t, Some(matrix)), pos)))    
+        Ok(Some(ParseItem::new(ParseElement::Reference(t, Some(matrix)), pos)))    
     }
 
     fn get_opt(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
@@ -749,7 +749,7 @@ impl Parser {
             if let Some(x) = self.get_syll()?   { segs.push(x); continue; }
             if let Some(x) = self.get_set()?    { segs.push(x); continue; }
             if let Some(x) = self.get_seg()?    { segs.push(x); continue; }
-            if let Some(x) = self.get_var()?    { segs.push(x); continue; }
+            if let Some(x) = self.get_ref()?    { segs.push(x); continue; }
             if self.peek_expect(TokenKind::Comma){ break; }
 
             return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
@@ -824,7 +824,7 @@ impl Parser {
     }
 
     fn get_syll(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        // returns SYL ← '%' (':' PARAMS)? VAR_ASN?  
+        // returns SYL ← '%' (':' PARAMS)? REF_ASN?  
         let start_pos = self.curr_tkn.position.start;
 
         if !self.expect(TokenKind::Syllable) { return Ok(None) }
@@ -832,7 +832,7 @@ impl Parser {
             let end_pos = self.curr_tkn.position.start - 1;
             if self.expect(TokenKind::Equals) {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
-                    return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
+                    return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
                 return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
@@ -848,7 +848,7 @@ impl Parser {
                     
         if self.expect(TokenKind::Equals) {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
-                return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
+                return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
             };
             let num = number.value.parse::<usize>().unwrap();
             return Ok(Some(ParseItem::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
@@ -880,7 +880,7 @@ impl Parser {
                 continue;
             }
             // 1 2 3
-            if let Some(x) = self.get_var()? {
+            if let Some(x) = self.get_ref()? {
                 terms.push(x);
                 continue;
             }
@@ -902,7 +902,7 @@ impl Parser {
             let end_pos = self.curr_tkn.position.start - 1;
             if self.expect(TokenKind::Equals) {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
-                    return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
+                    return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
@@ -918,7 +918,7 @@ impl Parser {
                     
         if self.expect(TokenKind::Equals) {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
-                return Err(RuleSyntaxError::ExpectedVariable(self.curr_tkn.clone()))
+                return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
             };
             let num = number.value.parse::<usize>().unwrap();
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
@@ -928,12 +928,12 @@ impl Parser {
     }
 
     fn get_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        // returns TERM ← SYL / STRUCT / SET / SEG / OPT / VAR 
+        // returns TERM ← SYL / STRUCT / SET / SEG / REF / OPT 
         if let Some(x) = self.get_syll()?   { return Ok(Some(x)) }
         if let Some(x) = self.get_struct()? { return Ok(Some(x)) }
         if let Some(x) = self.get_set()?    { return Ok(Some(x)) }
         if let Some(x) = self.get_seg()?    { return Ok(Some(x)) }
-        if let Some(x) = self.get_var()?    { return Ok(Some(x)) }
+        if let Some(x) = self.get_ref()?    { return Ok(Some(x)) }
         if let Some(x) = self.get_opt()?    { return Err(RuleSyntaxError::OptLocError(x.position)) }
 
         Ok(None)
@@ -964,14 +964,14 @@ impl Parser {
     }
 
     fn get_output_el(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        // returns OUT_EL ← SYL / SET / SEG / VAR / SBOUND
+        // returns OUT_EL ← SYL / SET / SEG / REF / SBOUND
         // NOTE: a set in the output only makes sense when matched to a set in the input w/ the same # of elements
         // This will be validated when applying
         if let Some(x) = self.get_syll()?      { return Ok(Some(x)) }
         if let Some(x) = self.get_struct()?    { return Ok(Some(x)) }
         if let Some(x) = self.get_set()?       { return Ok(Some(x)) }
         if let Some(x) = self.get_seg()?       { return Ok(Some(x)) }
-        if let Some(x) = self.get_var()?       { return Ok(Some(x)) }
+        if let Some(x) = self.get_ref()?       { return Ok(Some(x)) }
         if let Some(x) = self.get_syll_bound() { return Ok(Some(x)) }
         if let Some(w_el) = self.eat_expect(TokenKind::WrappedEllipsis) {
             return Ok(Some(ParseItem::new(ParseElement::WEllipsis, w_el.position)))
@@ -1249,7 +1249,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_variables_plain() {
+    fn test_references_plain() {
 
         let mut x = Modifiers::new();
         x.feats[FeatKind::Syllabic as usize] = Some(ModKind::Binary(BinMod::Negative));
@@ -1274,12 +1274,12 @@ mod parser_tests {
         assert_eq!(result.context.len(), 1);
         assert!(result.except.is_empty());
 
-        // assert_eq!(result.variables.len(), 2);
-        // assert!(result.variables.contains_key(&1));
-        // assert!(result.variables.contains_key(&2));
-        // assert_eq!(result.variables.get(&1), Some(&c));
-        // assert_eq!(result.variables.get(&2), Some(&v));
-        // assert_eq!(result.variables.get(&3), None);
+        // assert_eq!(result.references.len(), 2);
+        // assert!(result.references.contains_key(&1));
+        // assert!(result.references.contains_key(&2));
+        // assert_eq!(result.references.get(&1), Some(&c));
+        // assert_eq!(result.references.get(&2), Some(&v));
+        // assert_eq!(result.references.get(&3), None);
     }
 
     #[test] 

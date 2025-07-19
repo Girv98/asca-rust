@@ -937,7 +937,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_variables() {
+    fn test_references() {
         
         let test_input= String::from("C=1 V=2 > 2 1 / _C // ___");
         let expected_result = vec![

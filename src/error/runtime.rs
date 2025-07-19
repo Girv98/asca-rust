@@ -26,7 +26,7 @@ pub enum RuleRuntimeError {
     SubstitutionEllipsis (Position),
     BoundaryInsideStruct (Position),
     SyllbleInsideStruct  (Position),
-    SyllVarInsideStruct  (Position),
+    SyllRefInsideStruct  (Position),
     InsertionGroupedEnv  (Position),
     StructInsideStruct   (Position),
     AlphaNodeAssignInv   (Position),
@@ -46,7 +46,7 @@ pub enum RuleRuntimeError {
     InsertionOpt         (Position),
     AlphaUnknown         (Position),
     LonelySet            (Position),
-    UnknownVariable(Token),
+    UnknownReference(Token),
     DeletionOnlySeg,
     DeletionOnlySyll,
     UnevenEllipsis(Vec<Position>),
@@ -79,7 +79,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::SubstitutionEllipsis(_) => write!(f, "An ellipsis cannot be substituted"),
             Self::BoundaryInsideStruct(_) => write!(f, "A boundary cannot be used inside a structure"),
             Self::SyllbleInsideStruct (_) => write!(f, "A syllable cannot be used inside a structure"),
-            Self::SyllVarInsideStruct (_) => write!(f, "A variable assigned to a syllable cannot be used inside a structure"),
+            Self::SyllRefInsideStruct (_) => write!(f, "A reference assigned to a syllable cannot be used inside a structure"),
             Self::StructInsideStruct  (_) => write!(f, "A structure cannot be used inside a structure"),
             Self::InsertionGroupedEnv (_) => write!(f, "Grouped Environments cannot (yet) be used in insertion rules"),
             Self::AlphaNodeAssignInv  (_) => write!(f, "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive."),
@@ -99,7 +99,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::InsertionOpt        (_) => write!(f, "Options cannot be used in insertion output"),
             Self::AlphaUnknown        (_) => write!(f, "Alpha has not be assigned before applying"),
             Self::LonelySet           (_) => write!(f, "A Set in output must have a matching Set in input"),
-            Self::UnknownVariable(token)  => write!(f, "Unknown variable '{}' at {}", token.value, token.position.start),
+            Self::UnknownReference(token) => write!(f, "Unknown reference '{}' at {}", token.value, token.position.start),
             Self::DeletionOnlySyll => write!(f, "Can't delete a word's only syllable"),
             Self::DeletionOnlySeg  => write!(f, "Can't delete a word's only segment"),
             Self::UnevenEllipsis      (_) => write!(f, "Uneven number of ellipses in input and output"),
@@ -126,7 +126,7 @@ impl RuleRuntimeError {
                 (asdf, positions[0].group, positions[0].line)
             }
             Self::DeletionOnlySyll | Self::DeletionOnlySeg => return result,
-            Self::UnknownVariable(t) => (
+            Self::UnknownReference(t) => (
                 " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start) + "\n", 
                 t.position.group,
                 t.position.line
@@ -139,7 +139,7 @@ impl RuleRuntimeError {
             Self::WordBoundSetLocError(pos) |
             Self::SubstitutionEllipsis(pos) |
             Self::BoundaryInsideStruct(pos) |
-            Self::SyllVarInsideStruct (pos) |
+            Self::SyllRefInsideStruct (pos) |
             Self::SyllbleInsideStruct (pos) |
             Self::StructInsideStruct  (pos) |
             Self::InsertionGroupedEnv (pos) |

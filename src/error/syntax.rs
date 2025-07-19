@@ -105,7 +105,7 @@ pub enum RuleSyntaxError {
     TooManyUnderlines   (Token),
     BadSyllableMatrix   (Token),
     ExpectedUnderline   (Token),
-    ExpectedVariable    (Token),
+    ExpectedReference   (Token),
     UnknownGrouping     (Token),
     ExpectedSegment     (Token),
     ExpectedEndLine     (Token),
@@ -166,7 +166,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::TooManyUnderlines   (_)     => write!(f, "Cannot have multiple underlines in an environment"),
             Self::BadSyllableMatrix   (_)     => write!(f, "A syllable can only have parameters stress and tone"),
             Self::ExpectedUnderline   (token) => write!(f, "Expected '_', but received '{}'", token.value),
-            Self::ExpectedVariable    (token) => write!(f, "Expected number, but received {} ", token.value),
+            Self::ExpectedReference   (token) => write!(f, "Expected number, but received {} ", token.value),
             Self::UnknownGrouping     (token) => write!(f, "Unknown grouping '{}'. Known groupings are (C)onsonant, (O)bstruent, (S)onorant, (P)losive, (F)ricative, (L)iquid, (N)asal, (G)lide, and (V)owel", token.value),
             Self::ExpectedSegment     (token) => write!(f, "Expected an IPA character, Primative or Matrix, but received '{}'", token.value),
             Self::ExpectedEndLine     (token) => write!(f, "Expected end of line, received '{}'. Did you forget a '/' between the output and environment?", token.value),
@@ -222,7 +222,7 @@ impl RuleSyntaxError {
             Self::ExpectedStructElem  (t) | 
             Self::TooManyUnderlines   (t) | 
             Self::ExpectedUnderline   (t) | 
-            Self::ExpectedVariable    (t) | 
+            Self::ExpectedReference   (t) | 
             Self::UnknownGrouping     (t) | 
             Self::ExpectedSegment     (t) | 
             Self::ExpectedEndLine     (t) | 

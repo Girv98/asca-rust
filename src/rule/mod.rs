@@ -161,7 +161,7 @@ impl Rule {
                     context, 
                     except, 
                     rule_type, 
-                    variables: RefCell::new(HashMap::new()), 
+                    references: RefCell::new(HashMap::new()), 
                     alphas: RefCell::new(HashMap::new()), 
                     is_rev: self.prop_rev,
                     inp_x_bound,
@@ -563,7 +563,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_sub_syll_var() {
+    fn test_sub_syll_ref() {
         let test_rule = setup_rule("% > 1:[-str] / %:[+str]=1_");
         let test_word = setup_word("keˈsa.lo");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "keˈsa.sa");
@@ -889,7 +889,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_del_syll_var() {
+    fn test_del_syll_ref() {
         let test_rule = setup_rule("%=1 > * / 1_");
         let test_word = setup_word("ke.sa.sa");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "ke.sa");
@@ -1841,7 +1841,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_var() {
+    fn test_structure_ref() {
         let test_rule = setup_rule("% > <ha1>:[tone:51] / _C=1");
         assert_eq!(test_rule.apply_word(setup_word("sleft.sa")).unwrap().render(&[]).0, "has51.sa");
 
@@ -2081,7 +2081,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_variables(){
+    fn test_structure_references(){
         let test_rule = setup_rule("% > <h1n>:[tone:51] / <slV=1ft> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]).0, "sleft.hen51");
 
