@@ -416,9 +416,17 @@ mod rule_tests {
 
     #[test]
     fn test_sub_simple_ipa() {
-        let test_rule = setup_rule("r > l");
-        let test_word = setup_word("la.ri.sa");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "la.li.sa");
+        assert_eq!(setup_rule("r > l").apply_word(setup_word("la.ri.sa")).unwrap().render(&[]).0, "la.li.sa");
+        assert_eq!(setup_rule("a > e").apply_word(setup_word("hat")).unwrap().render(&[]).0, "het");
+        assert_eq!(setup_rule("a:[+lo] > e").apply_word(setup_word("hat")).unwrap().render(&[]).0, "het");
+        assert_eq!(setup_rule("a:[+lo] > e").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "het");
+        assert_eq!(setup_rule("a:[-long] > e").apply_word(setup_word("hat")).unwrap().render(&[]).0, "het");
+        assert_eq!(setup_rule("a:[+long] > e").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "het");
+        assert_eq!(setup_rule("a > e").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "het");
+        assert_eq!(setup_rule("V > e").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "heːt");
+        assert_eq!(setup_rule("V:[Along] > e:[Along]").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "heːt");
+        assert_eq!(setup_rule("a > [+fr, -lo, +tns]").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "heːt");
+        assert_eq!(setup_rule("V:[+lo] > [+fr, -lo, +tns]").apply_word(setup_word("ha:t")).unwrap().render(&[]).0, "heːt");
     }
 
     #[test]
@@ -635,7 +643,7 @@ mod rule_tests {
         let test_word = setup_word("dark");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "daːk");
 
-        let test_rule = setup_rule("V > [-long]");
+        let test_rule = setup_rule("V:[+long] > [-long]");
         let test_word = setup_word("daːk");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "dak");
     }
@@ -847,6 +855,7 @@ mod rule_tests {
     #[test]
     fn test_sub_skip() {
         assert_eq!(setup_rule("p..t > x..x").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xa.xa.ka");
+        assert_eq!(setup_rule("p..t > t..p").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "ta.pa.ka");
         assert_eq!(setup_rule("p..t > x:[+long]..x").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xːa.xa.ka");
         
         assert!(setup_rule("p..t > xx").apply_word(setup_word("pa.ta.ka")).is_err());
@@ -854,6 +863,13 @@ mod rule_tests {
 
         assert_eq!(setup_rule("a$ > e$").apply_word(setup_word("a.pa.ta.ka.a.da")).unwrap().render(&[]).0, "e.pe.te.ke.e.de");
         assert_eq!(setup_rule("a$ > e$").apply_word(setup_word("a.pa.ta.ki.a.da")).unwrap().render(&[]).0, "e.pe.te.ki.e.de");
+    }
+
+    #[test]
+    fn test_asdasd() {
+        // r(..)l > l(..)r
+        assert_eq!(setup_rule("r(..)l > l(..)r").apply_word(setup_word("ar.la")).unwrap().render(&[]).0, "al.ra");
+        assert_eq!(setup_rule("r(..)l > l(..)r").apply_word(setup_word("ˈpa.ra.bo.la")).unwrap().render(&[]).0, "ˈpa.la.bo.ra");
     }
 
     #[test]
@@ -894,6 +910,7 @@ mod rule_tests {
     #[test]
     fn test_del_ellipsis() {
         assert_eq!(setup_rule("p..t > *").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "a.a.ka");
+        assert_eq!(setup_rule("p..$t > *").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "aː.ka");
     }
 
     #[test]
@@ -1690,7 +1707,7 @@ mod rule_tests {
             // Height Assimilation I
             setup_rule("{ɐ, ə} > [-low, +tense, -red, αhigh, -βback, -γfront, -δround] / _,V:[-low, αhigh, βback, γfront, δround]"),
             // Height Assimilation II
-            setup_rule("V:[-low, +front] > [αhigh] / _,V:[-low, +back, αhigh]"),
+            setup_rule("V:[-low, +front, Blong] > [αhigh, Blong] / _,V:[-low, +back, αhigh]"),
             // Catalan-ish Vowel Reduction
             setup_rule("V:[-lo, -str, -long, -red] > [+hi] | C:[-fr, +bk, -hi, -lo]_"),
             // 2nd Vowel Hiatus Merger

@@ -3039,9 +3039,10 @@ impl SubRule { // Input Matching
 
         if let Some(m) = mods {
             if self.match_ipa_with_modifiers(s, m, phrase, pos, err_pos)? {
-                match m.suprs.length {
-                    [None, None] => captures.push(MatchElement::Segment(*pos, None)),
-                    _            => captures.push(MatchElement::LongSegment(*pos, None))
+                if phrase.seg_length_at(*pos) > 1 {
+                    captures.push(MatchElement::LongSegment(*pos, None));
+                } else {
+                    captures.push(MatchElement::Segment(*pos, None));
                 }
                 self.matrix_increment(phrase, pos);
                 Ok(true)
@@ -3050,7 +3051,11 @@ impl SubRule { // Input Matching
                 Ok(false)
             }
         } else if *s == seg {
-            captures.push(MatchElement::Segment(*pos, None));
+            if phrase.seg_length_at(*pos) > 1 {
+                captures.push(MatchElement::LongSegment(*pos, None));
+            } else {
+                captures.push(MatchElement::Segment(*pos, None));
+            }
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
@@ -3110,14 +3115,13 @@ impl SubRule { // Input Matching
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, phrase, pos, err_pos)? {
             if let Some(r) = refr {
-                // TODO: LongSegment Match
                 self.references.borrow_mut().insert(*r, RefKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
             }
-            // match mods.suprs.length {
-            //     [None, None] => captures.push(MatchElement::Segment(*pos, None)),
-            //     _            => captures.push(MatchElement::LongSegment(*pos, None))
-            // }
-            captures.push(MatchElement::LongSegment(*pos, None));
+            match mods.suprs.length {
+                [None, None] => captures.push(MatchElement::Segment(*pos, None)),
+                _            => captures.push(MatchElement::LongSegment(*pos, None))
+            }
+            // captures.push(MatchElement::LongSegment(*pos, None));
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
