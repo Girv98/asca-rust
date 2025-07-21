@@ -654,6 +654,11 @@ mod rule_tests {
         let test_rule = setup_rule("V$N > VN");
         assert_eq!(test_rule.apply_word(setup_word("da.n")).unwrap().render(&[]).0, "dan");
         assert_eq!(test_rule.apply_word(setup_word("da.na.m")).unwrap().render(&[]).0, "danam");
+
+        assert_eq!(setup_rule("$t > t").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "pata.ka");
+        assert_eq!(setup_rule("$t > t$t").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "pat.ta.ka");
+        assert_eq!(setup_rule("$t > $tc").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "pa.tca.ka");
+        assert_eq!(setup_rule("$t > ts$").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "pats.a.ka");
     }
 
     #[test]
@@ -863,9 +868,19 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_ellipses_prop() {
+        assert_eq!(setup_rule("p..kʷ > kʷ..kʷ").apply_word(setup_word("pa.pa.kʷa")).unwrap().render(&[]).0, "kʷa.pa.kʷa");
+        assert_eq!(setup_rule("p > kʷ / _..kʷ").apply_word(setup_word("pa.pa.kʷa")).unwrap().render(&[]).0, "kʷa.kʷa.kʷa");
+    }
+
+    #[test]
     fn test_sub_del_ellipsis() {
         assert_eq!(setup_rule("pf..t > x..x").apply_word(setup_word("pfa.ta.ka")).unwrap().render(&[]).0, "xa.xa.ka");
         assert!(setup_rule("pf..t..k > x..x").apply_word(setup_word("pfa.ta.ka")).is_err());
+
+        assert_eq!(setup_rule("p..t > x..").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xa.a.ka");
+        
+        assert_eq!(setup_rule("p..$t > x..").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "xaː.ka");
     }
 
     #[test]

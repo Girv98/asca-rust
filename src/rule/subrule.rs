@@ -1170,6 +1170,7 @@ impl SubRule { // Substitution
 
         let mut actions: Vec<SubAction> = Vec::with_capacity(input.len());
         let mut input = input;
+
         for (i, o) in in_parts.iter().zip(out_parts.iter()) {
             actions.extend(match i.len().cmp(&o.len()) {
                 // Delete
@@ -1663,6 +1664,7 @@ impl SubRule { // Substitution
 
     fn substitution_insert_gen_actions(&self, phrase: &Phrase, input_filt: &[ParseItem], output_filt: &[ParseItem], input: &[MatchElement]) -> Result<Vec<SubAction>, RuleRuntimeError> {
         let mut in_index = 0;
+        let mut out_index = 0;
         let mut actions: Vec<SubAction> = Vec::with_capacity(input.len());
 
         let mut insert_pos = None;
@@ -1672,7 +1674,7 @@ impl SubRule { // Substitution
             return Ok(vec![])
         }
 
-        for out_item in output_filt.iter() {
+        loop {
             if insert_pos.is_none() && input.get(in_index).is_none() {
                 let last_action = actions.last().expect("not first item");
                 let SegPos { word_index, syll_index, seg_index } = last_action.pos;
@@ -1694,6 +1696,7 @@ impl SubRule { // Substitution
                 });
             }
 
+            let Some(out_item) = output_filt.get(out_index) else { break };
             match (input.get(in_index), &out_item.kind) {
                 (_, ParseElement::Ellipsis ) | (_, ParseElement::WEllipsis)  | (_, ParseElement::Environment(..)) | (_, ParseElement::Metathesis) |
                 (_, ParseElement::ExtlBound) | (_, ParseElement::WordBound)  | (_, ParseElement::Optional(..))    | (_, ParseElement::EmptySet  ) => unreachable!(),
@@ -1709,6 +1712,7 @@ impl SubRule { // Substitution
                         kind: ActionKind::InsertSegment(Self::non_zero_len(len), seg, suprs, out_item.position), 
                         pos
                     });
+                    out_index += 1;
                 },
                 (None, ParseElement::Structure(items, stress, tone, refr)) => {
                     if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_item.position)) }
@@ -1719,7 +1723,7 @@ impl SubRule { // Substitution
                         kind: ActionKind::InsertSyllable(syll), 
                         pos
                     });
-
+                    out_index += 1;
                 },
                 (None, ParseElement::Reference(num, mods)) => {
                     let binding = self.references.borrow();
@@ -1747,6 +1751,7 @@ impl SubRule { // Substitution
 
                         },
                     }
+                    out_index += 1;
                 },
 
                 (None, ParseElement::Set(_) )=> return Err(RuleRuntimeError::LonelySet(out_item.position)),
@@ -1757,11 +1762,11 @@ impl SubRule { // Substitution
                         kind: ActionKind::PassBoundary, 
                         pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 },
                     });
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
 
                 // V$N > VN$C
-                (Some(MatchElement::SyllBound(wp, sp, _)), _) => {
+                (Some(MatchElement::SyllBound(wp, sp, _)), _) => {                    
                     actions.push(SubAction { 
                         kind: ActionKind::DeleteBoundary, 
                         pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 },
@@ -1777,7 +1782,7 @@ impl SubRule { // Substitution
                         pos,
                     });
 
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
                 (Some(&MatchElement::LongSegment(mut pos, _)), &ParseElement::SyllBound) => {
                     pos.seg_index += phrase.seg_length_at(pos);
@@ -1787,7 +1792,7 @@ impl SubRule { // Substitution
                         pos,
                     });
 
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
 
                 (Some(MatchElement::Syllable(wp, sp, _)), ParseElement::SyllBound) => {
@@ -1796,7 +1801,7 @@ impl SubRule { // Substitution
                         kind: ActionKind::DeleteSyllable,
                         pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 },
                     });
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
 
                 (Some(MatchElement::WordBound(_)), ParseElement::SyllBound) => return Err(RuleRuntimeError::SubstitutionWordBound(input_filt[in_index].position, out_item.position)),
@@ -1807,27 +1812,28 @@ impl SubRule { // Substitution
                         kind: ActionKind::InsertBoundary,
                         pos,
                     });
+                    out_index += 1;
                 },
 
                 (Some(in_match), ParseElement::Structure(items, stress, tone, refr)) => {
                     actions.push(self.sub_structure(phrase, items, stress, tone, refr, *in_match, &input_filt[in_index], out_item)?);
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
                 (Some(in_match), ParseElement::Matrix(mods, refr)) => {
                     actions.push(self.sub_matrix(phrase, mods, refr, *in_match, &input_filt[in_index], out_item)?);
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
                 (Some(in_match), ParseElement::Ipa(seg, mods)) => {
                     actions.push(self.sub_ipa(phrase, seg, mods, *in_match, &input_filt[in_index], out_item)?);
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
                 (Some(in_match), ParseElement::Reference(num, mods)) => {
                     actions.push(self.sub_ref(phrase, num, mods, *in_match, &input_filt[in_index], out_item)?);
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
                 (Some(in_match), ParseElement::Set(set_output)) => {
                     actions.push(self.sub_set(phrase, set_output, *in_match, &input_filt[in_index], out_item)?);
-                    in_index += 1;
+                    in_index += 1; out_index += 1;
                 },
             }
         }
@@ -1841,13 +1847,13 @@ impl SubRule { // Substitution
 
         for (in_index, input_item) in input_filt.iter().enumerate() {
             let Some(cur_out_state) = output_filt.get(out_index) else {
-                match input[in_index] {
+                match input.get(in_index).unwrap() {
                     MatchElement::Segment(pos, _) | MatchElement::LongSegment(pos, _) => {
-                        let seg_len = phrase.seg_length_at(pos) as u8;
-                        actions.push(SubAction { kind: ActionKind::DeleteSegment(Self::non_zero_len(seg_len)), pos })
+                        let seg_len = phrase.seg_length_at(*pos) as u8;
+                        actions.push(SubAction { kind: ActionKind::DeleteSegment(Self::non_zero_len(seg_len)), pos: *pos })
                     },
-                    MatchElement::Syllable(wp, sp, _)  => actions.push(SubAction { kind: ActionKind::DeleteSyllable, pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } }),
-                    MatchElement::SyllBound(wp, sp, _) => actions.push(SubAction { kind: ActionKind::DeleteBoundary, pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } }),
+                    MatchElement::Syllable(wp, sp, _)  => actions.push(SubAction { kind: ActionKind::DeleteSyllable, pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 } }),
+                    MatchElement::SyllBound(wp, sp, _) => actions.push(SubAction { kind: ActionKind::DeleteBoundary, pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 } }),
                     MatchElement::WordBound(_) => return Err(RuleRuntimeError::SubstitutionWordBound(input_item.position, output_filt.last().expect("Output isn't empty").position)),
                 }
                 continue;
@@ -3043,7 +3049,6 @@ impl SubRule { // Input Matching
                     m = false;
                     break;
                 }
-                *state_index += 1;
             }
             if m {
                 return Ok(true)
