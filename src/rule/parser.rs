@@ -5,7 +5,7 @@ use std::{
 use crate :: {
     error :: RuleSyntaxError, 
     rule  :: { BinMod, ModKind, Rule }, 
-    word  :: { FeatKind, FeatureCategory, NodeKind, Segment, SupraKind, Tone }, 
+    word  :: { Diacritic, FeatKind, FeatureCategory, NodeKind, Segment, SupraKind, Tone }, 
     CARDINALS_MAP, DIACRITS
 };
 use super :: { AlphaMod, Modifiers, Mods, Position, Token, TokenKind };
@@ -715,10 +715,45 @@ impl Parser {
         Ok(None)
     }
 
+    fn diacritics_as_params(&mut self, diacrits: &[&Diacritic]) -> Result<Modifiers, RuleSyntaxError> {
+        let mut args = Modifiers::new();
+
+        for diacritic in diacrits {
+            for (ni, node) in diacritic.payload.nodes.iter().enumerate() {
+                if node.is_some() {
+                    args.nodes[ni] = *node;
+                }
+            }
+
+            for (fi, feat) in diacritic.payload.feats.iter().enumerate() {
+                if feat.is_some() {
+                    args.feats[fi] = *feat;
+                }
+            }
+        }
+        
+        Ok(args)
+    }
+
     fn get_ref(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns REF ← [0-9]+ (':' PARAMS)? 
         let Some(t) = self.eat_expect(TokenKind::Number) else { return Ok(None) };     
         let mut pos = t.position;
+
+        if matches!(self.curr_tkn.kind, TokenKind::Diacritic(_)) {
+            let mut diacrits = vec![];
+            let mut end = pos.end;
+            while matches!(self.curr_tkn.kind, TokenKind::Diacritic(_)) {
+                let dia = self.eat();
+                end = dia.position.end;
+                diacrits.push(&DIACRITS[*dia.kind.as_diacritic().unwrap() as usize]);
+            }
+
+            let params = self.diacritics_as_params(&diacrits)?;
+            pos.end = end;
+            return Ok(Some(ParseItem::new(ParseElement::Reference(t, Some(params)), pos)))
+        }
+
         if !self.expect(TokenKind::Colon) {
             let refr = ParseItem::new(ParseElement::Reference(t, None), pos);
             return Ok(Some(refr))
