@@ -1,6 +1,6 @@
-Next (0.9.0)
+0.9.0
 ==================
-[0.8.4...Next](https://github.com/Girv98/asca-rust/compare/0.8.4...master)
+[0.8.4...0.9.0](https://github.com/Girv98/asca-rust/compare/0.8.4...0.9.0)
 
 Features:
 * Lib: 
@@ -9,9 +9,10 @@ Features:
         * Affixation e.g. `/pəɹ ˈsɛnt/ > /pəɹˈsɛnt/`
         * External Sandhi e.g. `an bean > an bhean`
     * Added Retroflex diacritic alias `"r`
+    * References can now be modified with diacritics
     * (Potentially Breaking) New substitution implementation, allowing for:
-        * Meaningful Ellipses e.g. `p..t > pf..s`
-        * Implicit Boundary Deletion e.g. `V$N > VN`
+        * Meaningful Ellipses e.g. `p..t > pf..s` vs `p..t > p..fs`
+        * Implicit Boundary Insertion/Deletion e.g. `V$N > VN`
 
 Fixes:
 * Lib: 
@@ -20,7 +21,10 @@ Fixes:
     * Diacritic payload is applied correctly
     * Long segments are correctly deleted and metathesised
 * Cli:
-    * ANSI escape codes for coloured output render correctly on Windows 10 
+    * ANSI escape codes for coloured output render correctly on Windows 10
+    * Blank lines are omitted from the start of the printed output
+
+Meta: `Variables` renamed to `References`
 
 0.8.4
 ==================
