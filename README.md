@@ -7,9 +7,12 @@ Repo for the web UI is [here](https://github.com/Girv98/asca)
 ## Notable Features
 - Out of the box Distinctive Features and Alpha Notation
 - Manipulation of Syllables, Stress, and Tone
+- Cross Word-Boundary Interactions
+- Syllable Structure Matching
+- Left-to-Right and Right-to-Left Propagation
 - Metathesis and Hyperthesis (Long Range Metathesis)
 - Optional/Repeating Segments
-- Variables
+- References
 - Syntax which adheres to conventional standard notation
 - Digraph and Diacritic Support
 - Romanisation/Deromanisation
