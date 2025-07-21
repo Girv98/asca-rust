@@ -34,7 +34,8 @@ This is documentation for the core principles of defining words and sound change
 * [Optional Segments](#optional-segments)
 * [Alpha Notation](#alpha-notation)
     * [Nodes and Subnodes](#nodes-and-subnodes)
-* [Variables](#variables)
+* [References](#references)
+* [Ellipses](#ellipses)
 * [Syllable Structure Matching](#syllable-structure-matching)
 * [Cross Word-Boundary Operations](#cross-word-boundary-operations)
 * [Propagation](#propagation)
@@ -118,6 +119,7 @@ g => ɡ
 "s => ˢ
 "z => ᶻ
 "l => ˡ
+"r => ʵ
 
 "m => ᵐ
 "n => ⁿ
@@ -359,17 +361,21 @@ a > e ;; This is also a comment!
 
 `#` represents a word boundary.
 
-`##` represents an intraphrase boundary (see more [below](#cross-word-boundary-operations))
+`##` represents an intraphrase boundary (see more [below](#cross-word-boundary-operations)).
 
 Word boundaries `#` may only be used in environments, and must only be used once on either periphery.
 
 ```
- a > e / #_#    ;; valid
- a > e / _s#    ;; valid, /a.has/ > /a.hes/
-
- a > e / _##    ;; invalid
- a > e / _#s    ;; invalid
+a > e / #_#    ;; valid  /a has/ > /e has/
+a > e / _s#    ;; valid, /a has/ > /a hes/
+a > e / _#s    ;; invalid
 ```
+<!-- Intraphrase boundaries `##` are more liberal:
+```
+a > e / _##    ;; valid, /a has/ > /e has/
+a > e / _##h   ;; valid, /a has/ > /e has/
+a > e / #_##   ;; valid, /a ha a/ > /e ha a/
+``` -->
 
 ### Insertion and Deletion Rules
 
@@ -401,18 +407,20 @@ An ellipsis `…` or double `..` or triple dot `...` can be used to implement lo
 
 ```
 Spanish Hyperthesis (Old Spanish parabla => Spanish palabra)
-r...l > &
+r..l > &
 ```
 
 Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule.
 We can achieve both long-range and short-range metathesis by wrapping the ellipsis in brackets `(..)`. This denotes skipping 'zero or more' segments.
 
 ```
-r (...) l > &
+r (..) l > &
 
 parabla => palabra
 arla => alra
 ```
+
+For more about ellipses, see [below](#ellipses).
 
 ### Condensed Rules
 Multiple rules can be condensed into one line. This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments.
@@ -639,7 +647,7 @@ Rule Example: Compensatory Lengthening
 V > [+long] / _C#       ;; A vowel becomes long before a consonant at the end of a word
 C > * / V:[+long]_#     ;; A consonant at the end of a word before a long vowel elides
 
-(or by using variable substitution)
+(or by using reference substitution)
 
 V=1 C > 1:[+long] / _#
 ```
@@ -721,17 +729,17 @@ These sets can be used as part of condensed rules, and are valid in substitution
 They are currently not allowed in insertion rules, however this will change in further updates.
 
 ## Gemination
-Syllable final consonant gemination is as simple as making a vowel long.
+Syllable initial/final consonant gemination is as simple as making a vowel long.
 
 ```
-C > [+long] / V:[-long]_#
+C > [+long] / V:[-long]_#  ('luk => luk: , lu:k => lu:k)
 (A consonant is geminated at the end of a word, before a short vowel)
 ```
 
 To geminate across a syllable boundary, we can do one of a few things (not exhaustive): 
 
 ```
-Insertion with a Variable (see below)
+Insertion with a Reference (see below)
 
 * > 1 / V:[-long, +str] _ $ C=1 ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
 ```
@@ -739,7 +747,14 @@ Insertion with a Variable (see below)
 ```
 Insertion with Structure Matching (see below)
 
-* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1...⟩ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1..⟩ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+```
+
+```
+Substitution with Boundaries and a Reference:
+
+$ C=1 > 1 $ 1 / V:[-long, +str]_ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+
 ```
 
 
@@ -748,11 +763,11 @@ Optional Segments are declared as `(S, M:N)` where:
 ```
 S = the segment(s) to be repeated
 M = the minimum number of iterations (optional, default = 0)
-N = the maximum number of iterations (inclusive). N must be greater than or equal to M.
+N = the maximum number of iterations (inclusive). M must be greater than or equal to N.
 ```
 For example, `(C,5)_`  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
 
-`(C,3:5)` matches `CCC_`, `CCCC_`, and `CCCCC_`.
+`(C,3:5)_` matches `CCC_`, `CCCC_`, and `CCCCC_`.
 
 `(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator (*?)
 
@@ -761,7 +776,7 @@ For example, `(C,5)_`  matches up to 5 consonants preceding the target. This wil
 `([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard (.?)
 
 `([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard (.*?). 
-This can be considered the matching equivalent to `(..)`.
+This can be considered equivalent to `(..)`.
 
 ## Alpha Notation
 
@@ -826,27 +841,67 @@ This can be used with nodes for conditional clustering:
 ```
 In the rule above, plosives and nasals cluster only if they are of a different place of articulation.
 
-## Variables
-Variables allow us to invoke the value of a previously matched element. Variables are declared by using the `=` operator, followed by a number. This number can then be used later in the rule to invoke the variable.
-Currently; matrices, groups, and syllables can be assigned to a variable.
+## References
+References allow us to invoke the value of a previously matched element. References are declared by using the `=` operator, followed by a number. This number can then be used later in the rule to invoke the reference.
+Currently; matrices, groups, and syllables can be referenced.
 
-Using variables, we can implement metathesis without need of the `&` operator.
+Using references, we can implement metathesis without need of the `&` operator:
 ```
 Old English R metathesis (hros > hors)
 [+rho]=1 V=2 > 2 1 / _s
 ```
 
-It can also be used to define a simple haplology rule.
+It can also be used to define a simple haplology rule:
 ```
 %=1 > * / 1_ (A syllable is deleted if preceded by an identical syllable)
 ```
-Despite the name, variables cannot be reassigned. However, they can be modified with a feature matrix as if they were a segment or syllable.
+
+References can be modified with diacritics or a feature matrix as if they were a segment or syllable:
+
+```
+%=1 > * / 1:[+str]_ (A syllable is deleted if preceded by an otherwise identical syllable that is stressed)
+```
+
+## Ellipses
+
+Ellipses have other uses outside of [Metathesis rules](#metathesis-rules). They can be used in
+context blocks to define non-adjacent environment conditions (useful for [propagation](#propagation))
+and also in the input and output of substitution rules:
+
+```
+Example: Latin Labial Assimilation 
+
+Version 1:
+p..kʷ > kʷ..kʷ  (This will only match once per ..kʷ, e.g. pa.pa.kʷa => kʷa.pa.kʷa)
+
+Version 2 (Propagation):
+p > kʷ / _..kʷ  (Whereas this would lead to total assimilation pa.pa.kʷa => kʷa.kʷa.kʷa)
+
+PIE penkʷe => Latin quinque
+```
+
+They can also be used in deletion rules:
+
+```
+p..$t > *
+
+pa.ta.ka => a:.ka
+```
+
+We can also implement Long-range Metathesis without use of the `&` operator:
+
+```
+r(..)l > l(..)r
+
+ar.la => al.ra
+pa.ra.bo.la > pa.la.bo.ra
+```
 
 ## Syllable Structure Matching
 
 Sometimes it can be useful to match a syllable based on the segments within. We can do this by using a Structure. 
 
-Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-than signs `< >`. They can contain segments, matrices, variables, sets, options, or ellipses.
+Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-than signs `< >`. They can contain segments, matrices, references, sets, options, or ellipses.
 Ellipses are useful for matching a certain part of the syllable, such as the onset or coda.
 ```
 ⟨..P:[-voi]⟩ => [tone: 35]
@@ -896,7 +951,6 @@ Example: Word Initial Copy Vowel Insertion
 ```
 
 ## Cross Word-Boundary Operations
-***NOTE: Coming Version 0.9.0***
 
 `##` can be used within the input or environment to match and manipulate word boundaries within a phrase.
 
@@ -1009,7 +1063,7 @@ V ~ [+nasal] / _ ([+son]) [+nasal]      ;; True
 ## Considerations
 
 ### Syllable Stress
-Currently, when a syllable is inserted to the beginning of a word, the added syllable steals the stress/tone of the previously initial syllable.
+Currently, when a syllable is inserted to the beginning of a word with `$`, the added syllable steals the stress/tone of the previously initial syllable.
 This is because the current implementation cannot differentiate between it and the scenario of adding a syllable to the end, or middle, of a word. 
 
 Take this copy vowel insertion rule: 
@@ -1017,12 +1071,7 @@ Take this copy vowel insertion rule:
 * > 1$ / #_CV=1
 ('de.no > 'e.de.no NOT e'de.no)
 ```
-To fix this, we can either use a syllable instead of a boundary and alpha notation to 'save' the stress:
-```
-* > 1:[-str]%:[Astr] / #_CV:[Astr]=1
-(e'de.no as expected)
-```
-Or insert with a [structure](#syllable-structure-matching)
+To fix this, we can insert with a [structure](#syllable-structure-matching)
 ```
 * > <1> / #_CV=1
 (e'de.no as expected)
@@ -1043,7 +1092,7 @@ a > [+fr, -lo, +tns]
 hat  > het  (expected, current behaviour)
 ha:t > he:t (expected, current behaviour)
 ```
-This is a consequence of how we currently iterate through a word, and what we consider a single segment. 
+This is a consequence of how we currently iterate through a word, and what we consider a single segment in certain situations. 
 Whether/How this behaviour will change in future releases is being debated. 
 For now, it is best to think of any ipa character in the output as being inherently `[-long]`. 
 
