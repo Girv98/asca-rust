@@ -3,7 +3,7 @@
 # /m/ > /n/ word finally or before dental consonants e.g. *ḱm̥tóm > *hundan
 
 @ Word-final nasalisation
-    V:[-str]=1 n > 1:[+nasal] / _#
+    V:[-str, Along, Bvlong]=1 n > 1:[+nasal, Along, Bvlong] / _#
 # Word-final /n/ is lost after unstressed syllables, and the preceding vowel is nasalised 
 # e.g. *hundan > *hundą
 

@@ -29,15 +29,14 @@
 #
 
 @ West Germanic Gemination
-    C:[-rho]=1 j > 1:[-bk, +hi] 1:[-bk, +hi]
-    $C:[-rho, -bk, +hi] > & / V_  
+    $ C:[-rho]=1 j > 1ʲ $ 1ʲ
 #
 
 @
     e > i / _{i, j}
 #
 
-@ Gemmination before r and l
+@ Gemination before r and l
     {P:[-voi], h} > [+long] / V_{r, l}
 # TODO: Should only be in disyllables (Ringe, 2014)
 
