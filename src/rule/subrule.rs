@@ -1562,33 +1562,45 @@ impl SubRule { // Substitution
         }
     }
 
-    fn sub_bound(&self, phrase: &Phrase, state: MatchElement) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_bound(&self, phrase: &Phrase, state: MatchElement) -> Result<Vec<SubAction>, RuleRuntimeError> {
         match state {
             MatchElement::SyllBound(wp, sp, _) => {
-                Ok(SubAction { 
+                Ok(vec![SubAction { 
                     kind: ActionKind::PassBoundary, 
                     pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } 
-                })
+                }])
             },
             MatchElement::Segment(mut pos, _) => {
+                let mut v = Vec::with_capacity(2);
+                v.push(SubAction {
+                    kind: ActionKind::DeleteSegment(Self::ONE),
+                    pos,
+                });
                 pos.seg_index += 1;
-                Ok(SubAction {
+                v.push(SubAction {
                     kind: ActionKind::InsertBoundary,
                     pos,
-                })
+                });
+
+                Ok(v)
             },
             MatchElement::LongSegment(mut pos, _) => {
+                let mut v = Vec::with_capacity(2);
+                v.push(SubAction {
+                    kind: ActionKind::DeleteSegment(Self::non_zero_len(phrase.seg_length_at(pos) as u8)),
+                    pos,
+                });
                 pos.seg_index += phrase.seg_length_at(pos);
-                Ok(SubAction {
+                Ok(vec![SubAction {
                     kind: ActionKind::InsertBoundary,
                     pos,
-                })
+                }])
             },
             MatchElement::Syllable(wp, sp, _) => {
-                Ok(SubAction { 
+                Ok(vec![SubAction { 
                     kind: ActionKind::DeleteSyllable,
                     pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
-                })
+                }])
             },
             MatchElement::WordBound(_) => unreachable!("Should be dealt with in gen_actions()"),
         }
@@ -1747,7 +1759,7 @@ impl SubRule { // Substitution
 
                         
                         (_, ParseElement::SyllBound) => {
-                            actions.push(self.sub_bound(phrase, match_el)?);
+                            actions.extend(self.sub_bound(phrase, match_el)?);
                             in_index += 1; out_index += 1;
                         }
                         // Must be placed after sub_bound and before everything else
