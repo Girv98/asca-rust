@@ -365,10 +365,10 @@ a > e ;; This is also a comment!
 
 Word boundaries `#` may only be used in environments, and must only be used once on either periphery.
 
-```
-a > e / #_#    ;; valid  /a has/ > /e has/
-a > e / _s#    ;; valid, /a has/ > /a hes/
-a > e / _#s    ;; invalid
+```wasm
+a > e / #_#     ;; valid  /a has/ > /e has/
+a > e / _s#     ;; valid, /a has/ > /a hes/
+a > e / _#s     ;; invalid
 ```
 <!-- Intraphrase boundaries `##` are more liberal:
 ```
@@ -382,7 +382,7 @@ a > e / #_##   ;; valid, /a ha a/ > /e ha a/
 Unlike [SCA²](https://www.zompist.com/sca2.html), the input and output cannot be omitted. Insertion and deletion are marked by the `*` operator.
 The input or output must contain *only* this operator to be valid.
 
-```
+```wasm
 e > * / #_      ;; Apheresis: /e/ elides at the beginning of a word
 e > * / _#      ;; Apocope: /e/ elides at the end of a word
 * > e / #_      ;; Prothesis: /e/ is inserted at the beginning of a word
@@ -510,12 +510,14 @@ ASCA defines the features it uses as follows:
 │        │         │  tense  │     tense vowels & cons.    │         lax vowels         │
 │        │         │ reduced │    schwa, reduced vowels    │             -              │
 │        ├─────────┼─────────┼─────────────────────────────┼────────────────────────────┤
-│        │ PHARYNG │   atr   │      advanced root segs     │                            │
+│        │ PHARYNG │   atr   │    advanced root segments   │             -              │
 │        │         │   rtr   │         pharyngeals         │        epiglottals         │
 └────────┴─────────┴─────────┴─────────────────────────────┴────────────────────────────┘
 ```
 
 ```
+Table of Laryngeal Features:
+
 s.g. = spread glottis
 c.g. = constricted glottis
 
@@ -538,14 +540,14 @@ Distinctive features are defined between square brackets `e.g. [+cons]`. These a
 ASCA is fairly flexible with distinctive features; Features have many shorthands `e.g. [bk, hi, lo, dr, sg] = [back, high, low, del.rel., spread glottis]` ([full list](#feature-shorthands)), and whitespace is not important, meaning `[+del.rel.]` is identical to `[ + d e l . r e l . ]`.     
 
 A matrix can be used standalone to represent a segment, or can be used to modify a segment by joining them with a colon `:`.
-```
-[-cons, +son, +syll] > [+rtr] / q_  (vowels pharyngealise following /q/)
-a:[-stress, -long] > ə              (unstressed short /a/ becomes schwa) 
+```wasm
+[-cons, +son, +syll] > [+rtr] / q_  ;; vowels pharyngealise following /q/
+a:[-stress, -long] > ə              ;; unstressed short /a/ becomes schwa
 
-note a[-stress, -long] would match two segments: /a/ followed by a short, unstressed segment 
+;; note that  a[-stress, -long] would match two segments: /a/ followed by a short, unstressed segment 
 ```
 
-```
+``` 
 Rule Example: Grimm's Law
 
 Simple IPA:
@@ -558,6 +560,13 @@ Using Distinctive Features:
 [+cons, -son, -cont, +voice, -sg] > [-voice]
 [+cons, +voice, +sg] > [-sg]
 ```
+
+A given feature can only be used once in a matrix. If multiple are present, the last occurence will be used: 
+
+``` wasm
+a > [-reduced, +reduced]    ;; simplifies to  a > [+reduced]
+```
+
 An empty matrix `[]` can be used to match any one segment (similar to a Regex wildcard).
 
 ### Node and Subnode features
@@ -575,12 +584,19 @@ The major nodes Root, Manner, and Largyngeal cannot be positive or negative. See
 
 #### Applying a subnode
 In the output block, these features can be used to add or remove a place of articulation:
-```
+```wasm
 Rule Example: Plosive Debuccalisation
 
-[+cons, -son, -voi] > [-cons, +c.g., -place] ( {p,t,k} > ʔ )
+[+cons, -son, -voi] > [-cons, +c.g., -place]    ;; p, t, k > ʔ
 ```
-When adding a node, all features within the node are set to `-`.
+When adding a node, all features within the node are set to `-`. 
+
+```wasm
+[+cons, -son, +lab] > [-lab, +cor]  ;; p, b > ʈ, ɖ
+;; vs
+[+cons, -son, +lab] > [-lab, +ant]  ;; p, b > t, d
+```
+
 
 Again; Root, Manner, and Largyngeal cannot be used in this way. Place also cannot be `+place` in this case.
 
@@ -605,7 +621,7 @@ For example, if one wanted to match for syllables with primary stress but exclud
 
 Stress can be used on a whole syllable or on a segment. This allows you to change the stress of a syllable based on segments within it and vice-versa.
 
-```
+```wasm
 Rule Example: Latin Stress
 
 % > [+str] / #_#            ;; If there is only one syllable, it is stressed
@@ -641,15 +657,16 @@ Length also has a 3-way distinction; allowing for the overlong vowels of languag
 └──────────────┴────────────────────────────────┘
 ```
 
-```
+```wasm
 Rule Example: Compensatory Lengthening
 
 V > [+long] / _C#       ;; A vowel becomes long before a consonant at the end of a word
 C > * / V:[+long]_#     ;; A consonant at the end of a word before a long vowel elides
 
-(or by using reference substitution)
-
+;; or by using reference substitution, either:
 V=1 C > 1:[+long] / _#
+;; or
+V=1 C > 1 1 / _#
 ```
 
 ### Tone
@@ -986,7 +1003,7 @@ As ASCA changes all matching environments in a word sequentially, left-to-right 
 ```
 Example: Left-to-Right Vowel Backness Harmony
 
-V > [α front, β back] > V:[α front, β back] (C) _ (Vowels assimilate in backness to that of the preceding vowel) 
+V > [α front, β back] / V:[α front, β back] (C) _   ;; Vowels assimilate in backness to that of the preceding vowel
 
 /ki.to.le.nu/ becomes /ki.tø.le.ny/, not /ki.tø.lɤ.ny/
 ```
@@ -996,10 +1013,10 @@ V > [α front, β back] > V:[α front, β back] (C) _ (Vowels assimilate in back
 To achieve right to left harmonies in a "left-to-right" context, we can use a fixed harmonic trigger, which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `(..)` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
 ```
-V > [α front, β back] / _CV:[α front, β back]
+V > [α front, β back] / _ (C) V:[α front, β back]
 /ki.to.le.nu/ becomes /kɯ.tø.lɤ.nu/, no propagation
 
-V > [α front, β back] / _(..)V:[α front, β back]#
+V > [α front, β back] / _ (..) V:[α front, β back]#
 /ki.to.le.nu/ becomes /kɯ.to.lɤ.nu/, as expected
 ```
 
@@ -1032,19 +1049,9 @@ Without '~', only the last would match, becoming /sa.me.ka.se.ne.taˌni.loˈti.n
 We can achieve blocking with an exception clause. For this example, plosives will block the spread such that the /t/ will block the first vowel /i/ from assimilating:
 
 ```
-Faux Right-to-Left:
+V ~ [α front, β back] / _ (C) V:[α front, β back] | _ P
 
-V > [α front, β back] / _ (..) V:[α front, β back]# | _ (..) P (..) V:[α front, β back]#
-
-/ki.to.le.nu/ becomes /ki.to.lɤ.nu/
-```
-
-```
-True Right-to-Left:
-
-V ~ [α front, β back] / _ ([]) V:[α front, β back] | _ P
-
-/ki.to.leu/ becomes /ki.to.lɤu/
+/ki.to.leu/ becomes /ki.to.lɤu/ 
 /ki.to.le.nu/ becomes /ki.to.lɤ.nu/
 ```
 
@@ -1053,8 +1060,7 @@ Blocking can also be achieved in non-explicit ways:
 ```
 Example: Regressive Nasal Vowel-Consonant Harmony that is blocked by obstruents and is transparent through sonorants
 
-V > [+nasal] / _ ([+son],0) [+nasal]    ;; Faux
-V ~ [+nasal] / _ ([+son]) [+nasal]      ;; True
+V ~ [+nasal] / _ ([+son]) [+nasal]
 
 /amakan/ becomes /ãmakãn/
 /palanawasan/ becomes /pãlãnawasãn/
