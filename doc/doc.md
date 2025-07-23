@@ -544,7 +544,7 @@ A matrix can be used standalone to represent a segment, or can be used to modify
 [-cons, +son, +syll] > [+rtr] / q_  ;; vowels pharyngealise following /q/
 a:[-stress, -long] > ə              ;; unstressed short /a/ becomes schwa
 
-;; note that  a[-stress, -long] would match two segments: /a/ followed by a short, unstressed segment 
+note that  a[-stress, -long] would match two segments: /a/ followed by a short, unstressed segment 
 ```
 
 ``` 
@@ -592,11 +592,10 @@ Rule Example: Plosive Debuccalisation
 When adding a node, all features within the node are set to `-`. 
 
 ```wasm
-[+cons, -son, +lab] > [-lab, +cor]  ;; p, b > ʈ, ɖ
+[+cons, -son, +lab] > [-lab, +cor]  ;; p, b > ʈ, ɖ  coronal node = [-,-]
 ;; vs
-[+cons, -son, +lab] > [-lab, +ant]  ;; p, b > t, d
+[+cons, -son, +lab] > [-lab, +ant]  ;; p, b > t, d  coronal node = [+,-]
 ```
-
 
 Again; Root, Manner, and Largyngeal cannot be used in this way. Place also cannot be `+place` in this case.
 
@@ -635,7 +634,7 @@ V > [+str] / _C%# (becomes) C > [+str] / _%#
 V:[+long], C > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed)
 ```
 
-```
+```wasm
 Rule Example: Germanic Inital Stress Shift
 
 %:[+stress] > [-stress]     ;; All stressed syllables become unstressed
@@ -657,7 +656,7 @@ Length also has a 3-way distinction; allowing for the overlong vowels of languag
 └──────────────┴────────────────────────────────┘
 ```
 
-```wasm
+```
 Rule Example: Compensatory Lengthening
 
 V > [+long] / _C#       ;; A vowel becomes long before a consonant at the end of a word
