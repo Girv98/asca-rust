@@ -48,12 +48,34 @@ impl SegPos {
     }
 
     pub(crate) fn reversed(&self, phrase: &Phrase) -> Self {
-        debug_assert!(phrase.in_bounds(*self));
-        SegPos::new(
-            phrase.len() - 1 - self.word_index,
-            phrase[self.word_index].syllables.len() - 1 - self.syll_index, 
-            phrase[self.word_index].syllables[self.syll_index].segments.len() - 1 - self.seg_index
-        )
+        if phrase.in_bounds(*self) {
+            SegPos::new(
+                phrase.len() - 1 - self.word_index,
+                phrase[self.word_index].syllables.len() - 1 - self.syll_index, 
+                phrase[self.word_index].syllables[self.syll_index].segments.len() - 1 - self.seg_index
+            )
+        // At end word boundary
+        } else {
+            let syll_index = if self.syll_index < phrase[self.word_index].syllables.len() {
+                phrase[self.word_index].syllables.len() - 1 - self.syll_index
+            } else {
+                0
+            };
+
+            let bounded_pos = phrase[self.word_index].syllables.len() - 1 - syll_index;
+
+            let seg_index = if self.seg_index < phrase[self.word_index].syllables[bounded_pos].segments.len() {
+                phrase[self.word_index].syllables[bounded_pos].segments.len() - 1 - self.seg_index
+            } else {
+                0
+            };
+
+            SegPos::new(
+                phrase.len() - 1 - self.word_index,
+                syll_index,
+                seg_index
+            )
+        }
     }
 
     pub(crate) fn increment(&mut self, phrase: &Phrase) {

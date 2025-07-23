@@ -2773,7 +2773,12 @@ impl SubRule { // Input Matching
         }
 
         if match_begin.is_none() { // if we've got to the end of the word and we haven't began matching
-            Ok((vec![], None))
+            if self.input.len() == 1 && self.input[0].kind == ParseElement::SyllBound {
+                captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), None));
+                Ok((captures, None))
+            } else {
+                Ok((vec![], None))
+            }
         } else if self.input.last().unwrap().kind == ParseElement::SyllBound {
             // if we've reached the end of the word and the last state is a word boundary
             captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), None));
