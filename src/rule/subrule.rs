@@ -1861,7 +1861,7 @@ impl SubRule { // Substitution
 
         // NOTE: because we are going reverse, the first of multiple syllable tone or stress changes on the same syllable will be final
         // This may not be a problem, but is the opposite of what happened previously
-        for action in actions.iter().rev() {
+        for (i, action) in actions.iter().enumerate().rev() {
             match &action.kind {
                 ActionKind::ReplaceSegment((old_length, new_length), payload, err_pos) => match payload {
                     Payload::Segment(segment, mods) => {
@@ -1965,8 +1965,13 @@ impl SubRule { // Substitution
                 ActionKind::InsertSyllable(insert_syll) => {
                     if !res_phrase.in_bounds(action.pos) {
                         // Push to end
-                        res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1, insert_syll.clone());
-                        word_len_change[action.pos.word_index] += 1;
+                        if res_phrase[action.pos.word_index].syllables.len() > action.pos.syll_index+1 {
+                            res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1, insert_syll.clone());
+                            word_len_change[action.pos.word_index] += 1;
+                        } else {
+                            res_phrase[action.pos.word_index].syllables.push(insert_syll.clone());
+                            word_len_change[action.pos.word_index] += 1;
+                        }
                         continue;
                     }
                     if action.pos.at_syll_start() {
@@ -2020,6 +2025,10 @@ impl SubRule { // Substitution
                 ActionKind::DeleteBoundary => {
                     if action.pos.syll_index == 0 || action.pos.syll_index >= res_phrase[action.pos.word_index].syllables.len() {
                         continue; // can't delete a word boundary
+                    }
+
+                    if let Some(last_action) = actions.get(i+1) && matches!(last_action.kind, ActionKind::InsertSyllable(_)) {
+                        continue; // So that we are not immediately removing the leftside boundary of the syll we just inserted
                     }
 
                     let mut syll_segs = res_phrase[action.pos.word_index].syllables[action.pos.syll_index].segments.clone();
