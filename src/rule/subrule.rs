@@ -2839,8 +2839,11 @@ impl SubRule { // Input Matching
         }
 
         if match_begin.is_none() { // if we've got to the end of the word and we haven't began matching
-            if self.input.len() == 1 && self.input[0].kind == ParseElement::SyllBound {
+            if self.input.len() == 1 && self.input[0].kind == ParseElement::SyllBound  {
                 captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), None));
+                Ok((captures, None))
+            } else if self.input.len() == 1 && let Some(si) =  self.contains_syll_bound(&self.input[0]) {
+                captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), Some(si)));
                 Ok((captures, None))
             } else {
                 Ok((vec![], None))
@@ -2849,9 +2852,25 @@ impl SubRule { // Input Matching
             // if we've reached the end of the word and the last state is a word boundary
             captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), None));
             Ok((captures, None))
+        } else if let Some(si) = self.contains_syll_bound(self.input.last().unwrap()) {
+            // if we've reached the end of the word and the last state is a set containing a word boundary
+            captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), Some(si)));
+            Ok((captures, None))
         } else { // No Match
             Ok((vec![], None))
         }
+    }
+
+    fn contains_syll_bound(&self, x: &ParseItem) -> Option<usize> {
+        let ParseElement::Set(set) = &x.kind else { return None };
+
+        for (i, item) in set.iter().enumerate() {
+            if item.kind == ParseElement::SyllBound {
+                return Some(i)
+            }
+        }
+
+        None
     }
 
     fn input_match_item(
