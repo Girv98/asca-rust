@@ -522,7 +522,7 @@ impl SubRule {
                     // if one has stress and/or tone, joined syll gets them
                     // if they both have stress, highest wins
                     // if they both have tone, join them i.e. ma5a1 > ma:51
-                    
+
                     if i == 0 || i >= res_phrase[wp].syllables.len() {
                         // can't delete a word boundary
                         continue;
@@ -1222,6 +1222,7 @@ impl SubRule { // Substitution
                 })
             },
             MatchElement::WordBound(..) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
+            // This shouldn't occur
             MatchElement::SyllBound(..)  => Err(RuleRuntimeError::SubstitutionBoundMod(in_pos, out_pos)),
         }
     }
@@ -1256,7 +1257,8 @@ impl SubRule { // Substitution
                 })
             },
             MatchElement::WordBound(..) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
-            MatchElement::Syllable(..) | MatchElement::SyllBound(..) => Err(RuleRuntimeError::SubstitutionSylltoMatrix(in_pos, out_pos)),
+            MatchElement::Syllable(..)  => Err(RuleRuntimeError::SubstitutionSylltoMatrix(in_pos, out_pos)),
+            MatchElement::SyllBound(..) => unreachable!("Should be handled in gen_actions()"),
         }
     }
 
@@ -1331,10 +1333,10 @@ impl SubRule { // Substitution
                     pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                 })
             },
-            (MatchElement::WordBound(_), _) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
-            (MatchElement::SyllBound(..), RefKind::Segment(..)) |
             (MatchElement::Syllable(..),  RefKind::Segment(..)) => Err(RuleRuntimeError::SubstitutionSylltoSeg(in_pos, out_pos)),
-            (MatchElement::SyllBound(..), RefKind::Syllable(_), ) => Err(RuleRuntimeError::SubstitutionSyllBound(in_pos, out_pos)),
+            (MatchElement::WordBound(_), _) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
+
+            (MatchElement::SyllBound(..), ..) => unreachable!("Should be handled in gen_actions()"),
         }
     }
 
@@ -1437,7 +1439,7 @@ impl SubRule { // Substitution
                         Ok(v)
                     },
 
-                    ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSylltoSeg(in_state.position, set_output[i].position)),
+                    ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSyll(set_output[i].position)),
                     ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
 
                     ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
@@ -1533,8 +1535,7 @@ impl SubRule { // Substitution
 
                         Ok(v)
                     },
-                    
-                    ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSylltoSeg(in_state.position, set_output[i].position)),
+                    ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSyll(set_output[i].position)),
                     ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
                     
                     ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
@@ -1599,18 +1600,85 @@ impl SubRule { // Substitution
                             pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                         }])
                     },
-                    _ => unreachable!()
+
+                    ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
+                    ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
+                    ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
                 }
             },
             MatchElement::SyllBound(wp, sp, set_index) => {
                 let Some(i) = set_index else { return Err(RuleRuntimeError::LonelySet(in_state.position)) };
 
                 match &set_output[i].kind {
+                    ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
+                    ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSyll(set_output[i].position)),
+                    ParseElement::Matrix(..) => Err(RuleRuntimeError::SubstitutionBoundMod(in_state.position, set_output[i].position)),
+
                     ParseElement::SyllBound => Ok(vec![SubAction {
                         kind: ActionKind::PassBoundary,
                         pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                     }]),
-                    _ => Err(RuleRuntimeError::SubstitutionSyllBound(in_state.position, out_pos))
+                    
+                    ParseElement::Ipa(segment, mods) => {
+                        let mut v = Vec::with_capacity(2);
+                        v.push(SubAction {
+                            kind: ActionKind::DeleteBoundary,
+                            pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 }
+                        });
+                        let (seg, len) = self.gen_seg(*segment, 1, mods.as_ref(), &None, in_state.position)?;
+                        let suprs = mods.as_ref().map(|m| m.suprs);
+
+                        v.push(SubAction {
+                            kind: ActionKind::InsertSegment(Self::non_zero_len(len), seg, suprs, in_state.position),
+                            pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 }
+                        });
+
+                        Ok(v)
+                    }
+                    ParseElement::Structure(items, stress, tone, refr) => {
+                        if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_pos)) }
+                        let syll = self.gen_syll_from_struct(items, stress, tone, refr, out_pos, false)?;
+
+                        Ok(vec![SubAction { 
+                            kind: ActionKind::InsertSyllable(syll),
+                            pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 }
+                        }])
+                    }
+                    ParseElement::Reference(num, mods) => {
+                        let binding = self.references.borrow();
+                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownReference(num.clone())) };
+                        match refr {
+                            RefKind::Segment(segment) => {
+                                let mut v = Vec::with_capacity(2);
+                                v.push(SubAction {
+                                    kind: ActionKind::DeleteBoundary,
+                                    pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 }
+                                });
+
+                                let (seg, len) = self.gen_seg(*segment, 1, mods.as_ref(), &None, in_state.position)?;
+                                let suprs = mods.as_ref().map(|m| m.suprs);
+
+                                v.push(SubAction {
+                                    kind: ActionKind::InsertSegment(Self::non_zero_len(len), seg, suprs, in_state.position),
+                                    pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 }
+                                });
+
+                                Ok(v)
+                            }
+                            RefKind::Syllable(insert_syll) => {
+                                let mut syll = insert_syll.clone();
+                                if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
+                                Ok(vec![SubAction { 
+                                    kind: ActionKind::InsertSyllable(syll.clone()),
+                                    pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 }
+                                }])
+                            },
+                        }
+                    }
+
+                    ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
+                    ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
+                    ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
                 }
             },
         }
@@ -1695,7 +1763,7 @@ impl SubRule { // Substitution
 
                 ActionKind::InsertBoundary => last_action.pos,
                 ActionKind::InsertSyllable(..) |
-                ActionKind::InsertSegment(..) => unreachable!(),
+                ActionKind::InsertSegment(..) => last_action.pos,
             });
         }
     }
@@ -1818,7 +1886,12 @@ impl SubRule { // Substitution
                             actions.extend(self.sub_bound(phrase, match_el)?);
                             in_index += 1; out_index += 1;
                         }
-                        // Must be placed after sub_bound and before everything else
+                        // Note: Must be placed after sub_bound and before everything else
+                        (MatchElement::SyllBound(.., Some(_)), ParseElement::Set(set_output)) => {
+                            actions.extend(self.sub_set(phrase, set_output, match_el, in_item, out_item.position)?);
+                            in_index += 1; out_index += 1;
+                        }
+                        // Note: Must be placed after sub_bound and before everything else
                         (MatchElement::SyllBound(wp, sp, _), _) => {
                             actions.push(SubAction { 
                                 kind: ActionKind::DeleteBoundary, 
@@ -2188,7 +2261,7 @@ impl SubRule { // Substitution
             ActionKind::InsertBoundary => {
                 Some(SegPos{
                     word_index: last_action.pos.word_index,
-                    syll_index: (last_action.pos.syll_index+1).saturating_add_signed(word_len_change),
+                    syll_index: (last_action.pos.syll_index).saturating_add_signed(word_len_change),
                     seg_index: 0
                 })
             },
