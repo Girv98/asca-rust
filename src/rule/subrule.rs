@@ -2047,7 +2047,7 @@ impl SubRule { // Substitution
             }
         }
 
-        for word in res_phrase.iter_mut() { word.syllables.pop_if(| x | x.segments.is_empty()); }
+        for word in res_phrase.iter_mut() { word.syllables.retain(|s| !s.segments.is_empty()); }
 
         Ok((res_phrase, word_len_change[actions.last().expect("Output is not empty").pos.word_index]))
     }
