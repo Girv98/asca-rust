@@ -832,6 +832,10 @@ impl Parser {
         while self.has_more_tokens() {
             if self.expect(TokenKind::RightCurly) { break; }
             if self.expect(TokenKind::Comma)      { continue; }
+            if let Some(x) = self.get_ref()? {
+                terms.push(x);
+                continue;
+            }
             if let Some(x) = self.get_seg()? {
                 terms.push(x);
                 continue;

@@ -25,7 +25,7 @@ SYL     ←   '%' (':' PARAMS)? REF_ASN?
 STRUCT  ←   '<' SYL_TRM+ '>' (':' PARAMS)? REF_ASN?
 SYL_TRM ←   SEG / W_ELLIP / ELLIPSS / REF / SET / OPT               // NOTE: Boundaries and Syllables inside a struct are runtime invalid
 SET     ←   '{' SET_TRM (',' SET_TRM)* '}'                          // NOTE: At the moment, we can't have multi-segment sets i.e. "{nd}" is not allowed 
-SET_TRM ←   SEG / BOUND / SYL                                       // NOTE: WBOUND not valid in input/output
+SET_TRM ←   REF / SEG / BOUND / SYL                                 // NOTE: WBOUND not valid in input/output
 OPT     ←   '(' OPT_TRM+ (',' [0-9]+ (':' [1-9]+)?)? ')'
 OPT_TRM ←   XBOUND / BOUND / SYL / SET / SEG / REF
 SEG     ←   IPA (':' PARAMS)? / MATRIX REF_ASN?
