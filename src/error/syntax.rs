@@ -194,7 +194,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::StuffAfterWordBound  (_) => write!(f, "Can't have segments after the end of a word"),
             Self::FloatingDiacritic    (_) => write!(f, "Floating diacritic. Diacritics can only be used to modify IPA Segments"),
             Self::WordBoundLoc         (_) => write!(f, "Wordboundaries are not allowed in the input or output"),
-            Self::OptLocError          (_) => write!(f, "Optionals can only be used in environments"),
+            Self::OptLocError          (_) => write!(f, "Options can only be used in Environments or Structures"),
             Self::EmptySet             (_) => write!(f, "Sets cannot be empty"),
             Self::UnknownEnbyFeature(feat, pos) => write!(f, "Feature '{feat}' has no modifier at {}:{}-{}.", pos.line, pos.start, pos.end),
             Self::UnknownFeature    (feat, pos) => write!(f, "Unknown feature '{feat}' at {}:{}-{}. Did you mean {}? ", pos.line, pos.start, pos.end, get_feat_closest(feat)),
