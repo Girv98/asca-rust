@@ -430,6 +430,16 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_sub_syll_bound_for_ipa() {
+        assert_eq!(setup_rule("$ > a | :{#_,_#}:").apply_word(setup_word("es.a")).unwrap().render(&[]).0, "esaː");
+        
+        assert_eq!(setup_rule("$ > a").apply_word(setup_word("es.me")).unwrap().render(&[]).0, "aesamea");
+        assert_eq!(setup_rule("$ > a").apply_word(setup_word("es.e")).unwrap().render(&[]).0, "aesaea");
+        assert_eq!(setup_rule("$ > a").apply_word(setup_word("es.a")).unwrap().render(&[]).0, "aesaːː");
+        assert_eq!(setup_rule("$ > a").apply_word(setup_word("sen.me")).unwrap().render(&[]).0, "asenamea");
+    }
+
+    #[test]
     fn test_sub_insert_length() {
         let test_rule = setup_rule("Vr > [+long]l");
         let test_word = setup_word("dark");
@@ -441,6 +451,13 @@ mod rule_tests {
         let test_rule = setup_rule("a > eoi");
         let test_word = setup_word("dak");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "deoik");
+    }
+
+    #[test]
+    fn test_sub_ipa_for_syll_bound() {
+        assert_eq!(setup_rule("a > $").apply_word(setup_word("deane")).unwrap().render(&[]).0, "de.ne");
+        assert_eq!(setup_rule("a:[+long] > $").apply_word(setup_word("dea:ne")).unwrap().render(&[]).0, "de.ne");
+        assert_eq!(setup_rule("V > $").apply_word(setup_word("sen.me.a")).unwrap().render(&[]).0, "s.n.m");
     }
 
     #[test]
@@ -710,6 +727,30 @@ mod rule_tests {
         let test_word = setup_word("pa.at.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "la.la.la");
 
+        let test_rule = setup_rule("{$} > {a}");
+        let test_word = setup_word("p.t.k");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "apataka");
+        
+        let test_rule = setup_rule("{$} > {$}");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "pa.ta.ka");
+
+        let test_rule = setup_rule("{$} > {<u>}");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "u.pa.u.ta.u.ka.u");
+
+        let test_rule = setup_rule("{$} > {u}");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "upautaukau");
+
+        let test_rule = setup_rule("a{$} > a{u}");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "pautaukau");
+
+        let test_rule = setup_rule("V=1{$} > a{1}");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "paːtaːkaː");
+
         // FIXME: THIS SHOULD NOT WORK LOL
         let test_rule = setup_rule("{p, t, k} > {bdg}");
         let test_word = setup_word("pa.ta.ka");
@@ -928,6 +969,20 @@ mod rule_tests {
     fn test_del_ellipsis() {
         assert_eq!(setup_rule("p..t > *").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "a.a.ka");
         assert_eq!(setup_rule("p..$t > *").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]).0, "aː.ka");
+    }
+
+    #[test]
+    fn test_del_syll_bound() {
+        assert_eq!(setup_rule("$ > *").apply_word(setup_word("a.ske.sa.re")).unwrap().render(&[]).0, "askesare");
+        assert_eq!(setup_rule("$ > * / _s").apply_word(setup_word("a.ske.sa.re")).unwrap().render(&[]).0, "askesa.re");
+        assert_eq!(setup_rule("$ > * | _s").apply_word(setup_word("a.ske.sa.re")).unwrap().render(&[]).0, "a.ske.sare");
+
+        assert_eq!(setup_rule("$a > *").apply_word(setup_word("a.ske.sa.re")).unwrap().render(&[]).0, "ske.sa.re");
+
+        assert_eq!(setup_rule("$a > *").apply_word(setup_word("es.a")).unwrap().render(&[]).0, "es");
+        assert_eq!(setup_rule("a$ > *").apply_word(setup_word("es.a")).unwrap().render(&[]).0, "es");
+        assert_eq!(setup_rule("$a > *").apply_word(setup_word("as.a")).unwrap().render(&[]).0, "s");
+        assert_eq!(setup_rule("a$ > *").apply_word(setup_word("as.a")).unwrap().render(&[]).0, "as");
     }
 
     #[test]
