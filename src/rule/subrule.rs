@@ -1173,7 +1173,7 @@ impl SubRule { // Substitution
             MatchElement::LongSegment(pos, _) => {
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
-                        (NonZeroU8::new(phrase.seg_length_at(pos) as u8).unwrap(), Self::ONE),
+                        (Self::non_zero_len(phrase.seg_length_at(pos) as u8), Self::ONE),
                         Payload::Syllable(self.gen_syll_from_struct(items, stress, tone, refr, out_pos, false)?),
                         out_pos
                     ),
@@ -1588,10 +1588,12 @@ impl SubRule { // Substitution
                     pos,
                 });
                 pos.seg_index += phrase.seg_length_at(pos);
-                Ok(vec![SubAction {
+                v.push(SubAction {
                     kind: ActionKind::InsertBoundary,
                     pos,
-                }])
+                });
+
+                Ok(v)
             },
             MatchElement::Syllable(wp, sp, _) => {
                 Ok(vec![SubAction { 
