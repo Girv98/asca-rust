@@ -2007,7 +2007,9 @@ impl SubRule { // Substitution
                     };
 
                     if !old_phrase.in_bounds(old_next_pos) {
-                        let old_next_syll = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1)?;
+                        let Some(old_next_syll) = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1) else {
+                            return Some(old_next_pos)
+                        };
                         // Find next syllable in result, making sure that we don't accidentally match a previous syllable
                         match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
                             Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),
@@ -2063,7 +2065,9 @@ impl SubRule { // Substitution
                 };
 
                 if !old_phrase.in_bounds(old_next_pos) {
-                    let old_next_syll = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1)?;
+                    let Some(old_next_syll) = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1) else {
+                        return Some(old_next_pos)
+                    };
                     // Find next syllable in result, making sure that we don't accidentally match a previous syllable
                     match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
                         Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),
@@ -2081,7 +2085,7 @@ impl SubRule { // Substitution
                     
                     match segs.as_slices().0.windows(sub_arr.len()).position(|w| w == sub_arr) {
                         Some(s) => if s == 0 {
-                            return Some(SegPos { word_index: old_next_pos.word_index, syll_index: i, seg_index: syll.segments.len() - sub_arr.len() })
+                            return Some(SegPos { word_index: old_next_pos.word_index, syll_index: i, seg_index: (syll.segments.len() - 1).saturating_sub(sub_arr.len()) })
                         },
                         None => continue,
                     }
