@@ -697,6 +697,23 @@ mod rule_tests {
         let test_rule = setup_rule("{C, %} > {C, [tone:5]}");
         let test_word = setup_word("pa.at.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "pa.at5.ka");
+
+        let test_rule = setup_rule("{<ka>, O, %} > {<la>, O, [tone:5]}");
+        let test_word = setup_word("pa.at.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "pa.at5.la");
+
+        let test_rule = setup_rule("{k, O, %} > {<l>, O, [tone:5]}");
+        let test_word = setup_word("pa.at.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "pa.at5.l.a5");
+
+        let test_rule = setup_rule("{%} > {<la>}");
+        let test_word = setup_word("pa.at.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "la.la.la");
+
+        // FIXME: THIS SHOULD NOT WORK LOL
+        let test_rule = setup_rule("{p, t, k} > {bdg}");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "ba.da.ɡa");
     }
 
     #[test]

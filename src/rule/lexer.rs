@@ -249,7 +249,7 @@ impl<'a> Lexer<'a> {
                 tokenkind = TokenKind::LeftAngle; value = "⟨"; self.inside_syll = true;
             },
             '{' => { 
-                if self.inside_set {
+                if self.inside_set && !self.inside_syll {
                     return Err(RuleSyntaxError::NestedBrackets(self.group, self.line, start));
                 }
                 tokenkind = TokenKind::LeftCurly; value = "{";  self.inside_set = true;
@@ -1041,6 +1041,60 @@ mod lexer_tests {
         for i in 0..result.len() {
             assert_eq!(result[i], expected_result[i]);
         }
+    }
+
+    #[test]
+    fn test_sets_in_structs() {
+
+        let test_input= String::from("<{a, e}>");
+
+        let expected_result = vec![
+            Token::new(TokenKind::LeftAngle,  "<", 0, 0,  0,  1),
+            Token::new(TokenKind::LeftCurly,  "{", 0, 0,  1,  2),
+            
+            Token::new(TokenKind::Cardinal,   "a", 0, 0,  2,  3),
+            Token::new(TokenKind::Comma,      ",", 0, 0,  3,  4),
+            Token::new(TokenKind::Cardinal,   "e", 0, 0,  5,  6),
+            
+            Token::new(TokenKind::RightCurly, "}", 0, 0,  6,  7),
+            Token::new(TokenKind::RightAngle, ">", 0, 0,  7,  8),
+            Token::new(TokenKind::Eol,         "", 0, 0,  8,  9),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+
+
+        let test_input= String::from("{<{a, e}>}");
+
+        let expected_result = vec![
+            Token::new(TokenKind::LeftCurly,  "{", 0, 0,  0,  1),
+            Token::new(TokenKind::LeftAngle,  "<", 0, 0,  1,  2),
+            Token::new(TokenKind::LeftCurly,  "{", 0, 0,  2,  3),
+            
+            Token::new(TokenKind::Cardinal,   "a", 0, 0,  3,  4),
+            Token::new(TokenKind::Comma,      ",", 0, 0,  4,  5),
+            Token::new(TokenKind::Cardinal,   "e", 0, 0,  6,  7),
+            
+            Token::new(TokenKind::RightCurly, "}", 0, 0,  7,  8),
+            Token::new(TokenKind::RightAngle, ">", 0, 0,  8,  9),
+            Token::new(TokenKind::RightCurly, "}", 0, 0,  9, 10),
+            Token::new(TokenKind::Eol,         "", 0, 0, 10, 11),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+
     }
 
 }

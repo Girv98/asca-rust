@@ -844,6 +844,10 @@ impl Parser {
                 terms.push(x);
                 continue;
             }
+            if let Some(x) = self.get_struct()? {
+                terms.push(x);
+                continue;
+            }
 
             return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
         }
