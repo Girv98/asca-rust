@@ -666,6 +666,10 @@ impl Parser {
             }
         }
 
+        if let Some(eq) = self.eat_expect(TokenKind::Equals) {
+            return Err(RuleSyntaxError::IPARef(eq))
+        }
+
         if !self.expect(TokenKind::Colon) {
             return Ok(ParseItem::new(ParseElement::Ipa(ipa, None), Position::new(self.group, self.line, pos.start, self.token_list[self.pos-1].position.end)))
         }
@@ -674,6 +678,10 @@ impl Parser {
         }
         let params = self.get_params()?;
         let joined_kind = ParseElement::Ipa(ipa, Some(params.kind.as_matrix().unwrap().clone()));
+        
+        if let Some(eq) = self.eat_expect(TokenKind::Equals) {
+            return Err(RuleSyntaxError::IPARef(eq))
+        }
         
         Ok(ParseItem::new(joined_kind, Position::new(self.group, self.line, pos.start, params.position.end )))
     }

@@ -118,6 +118,7 @@ pub enum RuleSyntaxError {
     InsertErr           (Token),
     DeleteErr           (Token),
     MetathErr           (Token),
+    IPARef              (Token),
     OutsideBrackets(GroupIndex, LineIndex, PosIndex),
     NestedBrackets (GroupIndex, LineIndex, PosIndex),
     WrongModTone   (GroupIndex, LineIndex, PosIndex),
@@ -179,6 +180,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::InsertErr           (_)     => write!(f, "The input of an insertion rule must only contain `*` or `∅`"),
             Self::DeleteErr           (_)     => write!(f, "The output of a deletion rule must only contain `*` or `∅`"),
             Self::MetathErr           (_)     => write!(f, "The output of a methathis rule must only contain `&`"),
+            Self::IPARef              (_)     => write!(f, "IPA Literals cannot be assigned to a reference"),
             Self::OutsideBrackets(..) => write!(f, "Features must be inside square brackets"),
             Self::NestedBrackets (..) => write!(f, "Cannot have nested brackets of the same type"),
             Self::WrongModTone   (..) => write!(f, "Tones cannot be ±; they can only be used with numeric values."),
@@ -235,6 +237,7 @@ impl RuleSyntaxError {
             Self::InsertErr           (t) | 
             Self::DeleteErr           (t) | 
             Self::MetathErr           (t) | 
+            Self::IPARef              (t) | 
             Self::BadSyllableMatrix   (t) => (
                 " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start) + "\n", 
                 t.position.group,
