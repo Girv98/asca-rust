@@ -41,7 +41,7 @@ ARG_MOD ←   '+' / '-' / [α-ωA-Z] / '-'[α-ωA-Z]
 
 EMP     ←   '*' / '∅'
 MET     ←   '&'
-XBOUND   ←   WBOUND WBOUND
+XBOUND  ←   WBOUND WBOUND
 BOUND	←   WBOUND / SBOUND
 WBOUND  ←   '#'
 SBOUND  ←   '$'
