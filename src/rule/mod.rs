@@ -1253,15 +1253,9 @@ mod rule_tests {
 
     #[test]
     fn test_insertion_bound_before_segment() {
-        let test_rule = setup_rule("* > $ / _k");
-        let test_word = setup_word("ski");
-        println!("* > e / C_");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "s.ki");
-
-        // let test_rule = setup_rule("* > $ / _k");
-        // let test_word = setup_word("skki");
-        // println!("* > e / C_");
-        // assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]).0, "skːi");
+        assert_eq!(setup_rule("* > $ / _k").apply_word(setup_word("ski")).unwrap().render(&[]).0, "s.ki");
+        assert_eq!(setup_rule("* > $ / _k").apply_word(setup_word("skki")).unwrap().render(&[]).0, "s.k.ki");
+        assert_eq!(setup_rule("* > $ / _k:[+long]").apply_word(setup_word("skki")).unwrap().render(&[]).0, "s.kːi");
     }
 
     #[test]
