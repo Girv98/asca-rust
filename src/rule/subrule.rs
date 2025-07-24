@@ -522,9 +522,6 @@ impl SubRule {
                     // if one has stress and/or tone, joined syll gets them
                     // if they both have stress, highest wins
                     // if they both have tone, join them i.e. ma5a1 > ma:51
-                    if res_phrase[wp].syllables.len() <= 1 {
-                        return Err(RuleRuntimeError::DeletionOnlySyll)
-                    }
                     
                     if i == 0 || i >= res_phrase[wp].syllables.len() {
                         // can't delete a word boundary
@@ -1943,7 +1940,7 @@ impl SubRule { // Substitution
                     }
                 },
                 ActionKind::DeleteSyllable => {
-                    if res_phrase[action.pos.word_index].syllables.len() <= 1 {
+                    if ((!self.inp_x_bound && !self.env_x_bound) || res_phrase.len() == 1) && res_phrase[action.pos.word_index].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     res_phrase[action.pos.word_index].syllables.remove(action.pos.syll_index);
@@ -1964,9 +1961,6 @@ impl SubRule { // Substitution
                 ActionKind::DeleteBoundary => {
                     if action.pos.syll_index == 0 || action.pos.syll_index >= res_phrase[action.pos.word_index].syllables.len() {
                         continue; // can't delete a word boundary
-                    }
-                    if res_phrase[action.pos.word_index].syllables.len() <= 1 {
-                        return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
 
                     let mut syll_segs = res_phrase[action.pos.word_index].syllables[action.pos.syll_index].segments.clone();
