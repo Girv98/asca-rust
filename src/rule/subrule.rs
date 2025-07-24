@@ -2110,11 +2110,20 @@ impl SubRule { // Substitution
                 })
             },
             ActionKind::PassBoundary => {
-                Some(SegPos{
-                    word_index: last_action.pos.word_index,
-                    syll_index: (last_action.pos.syll_index).saturating_add_signed(word_len_change),
-                    seg_index: 0
-                })
+                // Needed incase of `$ > $` which loops forever
+                if old_phrase == res_phrase {
+                    Some(SegPos{
+                        word_index: last_action.pos.word_index,
+                        syll_index: (last_action.pos.syll_index).saturating_add_signed(word_len_change),
+                        seg_index: 1
+                    })
+                } else {
+                    Some(SegPos{
+                        word_index: last_action.pos.word_index,
+                        syll_index: (last_action.pos.syll_index).saturating_add_signed(word_len_change),
+                        seg_index: 0
+                    })
+                }
             },
             ActionKind::InsertSegment(seg_len, ..) | ActionKind::DeleteSegment(seg_len) => {
                 let old_next_pos = SegPos { 
