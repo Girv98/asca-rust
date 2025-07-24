@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "asca"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "clap",
  "clap-stdin",

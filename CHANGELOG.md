@@ -1,6 +1,6 @@
-Next (0.9.1)
+0.9.1
 ==================
-[0.9.0...NEXT](https://github.com/Girv98/asca-rust/compare/0.9.0...master)
+[0.9.0...0.9.1](https://github.com/Girv98/asca-rust/compare/0.9.0...0.9.1)
 
 Feats: 
 * Lib: Structures and References now allowed inside sets

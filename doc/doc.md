@@ -704,11 +704,11 @@ V -> Vowels                                         (equiv. to [-cons, +son, +sy
 Note that purely glottalic consonants such as `/h/ and /ʔ/` are considered `[-cons, -son, -syll]` and are therefore not captured by any grouping other than `C`. 
 
 ## Sets
-Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, or Boundaries.  
+Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries.  
 Currently, sets cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
 
 ```
-p, t, k > b, d, g       (3 Rules)   
+p, t, k > b, d, g       (3 Consecutive Rules)   
 {p, t, k} > {b, d, g}   (1 Rule)
 ```
 A set in the output, if matched to a set in the input, must contain the same number of segments. 
