@@ -1,3 +1,18 @@
+Next (0.9.1)
+==================
+[0.9.0...NEXT](https://github.com/Girv98/asca-rust/compare/0.9.0...master)
+
+Feats: 
+* Lib: Structures and References now allowed inside sets
+
+Fixes:
+* Lib: 
+    * Syllable boundaries match the end of the word just as they currently match the start of the word (use `| :{#_,_#}:` to only match internal syllable boundaries)
+    * Sets with syllable boundaries work properly in substitution rules
+    * Long segment to syllable boundary substitution works properly
+    * Substituting a syllable boundary with a Structure works as it should
+    * `$ > $` no longer hangs
+
 0.9.0
 ==================
 [0.8.4...0.9.0](https://github.com/Girv98/asca-rust/compare/0.8.4...0.9.0)
