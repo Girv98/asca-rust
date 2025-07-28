@@ -710,18 +710,47 @@ V -> Vowels                                         (equiv. to [-cons, +son, +sy
 Note that purely glottalic consonants such as `/h/ and /ʔ/` are considered `[-cons, -son, -syll]` and are therefore not captured by any grouping other than `C`. 
 
 ## Sets
-Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries.  
-Currently, sets cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
+Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries (a set in the input or output
+cannot contain word boundaries). They represent a choice between their items.
+Currently, set items cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
+
+If corresponding sets are used in the input and output, then the nth element in the input will be substituted by the nth element in the output. In a rule with nothing 
+but sets, this is analogous to a condensed rule, however a set is applied in just one pass.
+
+```wasm
+p, t, k > b, d, g   ;; 3 passes, equivalent to 3 consecutive rules
+{p,t,k} > {b,d,g}   ;; 1 pass
+```
+
+A set in the output, if matched to a set in the input, must contain the same number of segments. A set also cannot be empty:
+```
+{p, t, k} > {b, d}      (ERROR)
+{p, t} > {b, d, g}      (ERROR)
+{} > {}                 (ERROR)
+```
+
+If used in the input without a corresponding set in the output, the corresponding output element will be applied to any of the set items. Again, analogous to 
+a similarly structured condensed rule, except applied in one pass.
+```wasm
+ f, x  > [+voi] / V_V   ;; 2 passes, equivalent to 2 consecutive rules
+{f, x} > [+voi] / V_V   ;; 1 pass
+```
+
+A set in the output without a corresponding set is invalid.
+```
+ʔ > { p, t, k }     (ERROR)
+```
+
+Sets can also be used in an environment block:
 
 ```
-p, t, k > b, d, g       (3 Consecutive Rules)   
-{p, t, k} > {b, d, g}   (1 Rule)
+Example: Japanese High Vowel Devoicing
+
+V:[+hi] > [-voice] / [-voi]_{[-voi], #}
+
+/de.sɨ/    => /de.sɨ̥/
+/de.sɨ.ka/ => /de.sɨ̥.ka/
 ```
-A set in the output, if matched to a set in the input, must contain the same number of segments. 
-```
-{p, t} > {b, d, g}      (ERROR)
-```
-A set in the input or output cannot contain word boundaries.
 
 ## Environment Sets
 
