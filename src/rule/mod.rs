@@ -1510,7 +1510,7 @@ mod rule_tests {
     fn test_latin_stress() {
         let test_rule = setup_rule("% => [+str] / #_#");
         assert_eq!(test_rule.apply_word(setup_word("sar")).unwrap().render(&[]).0, "ˈsar");
-        let test_rule = setup_rule("V:[+lng]=> [+str] / _%#");
+        let test_rule = setup_rule("V:[+lng] => [+str] / _%#");
         assert_eq!(test_rule.apply_word(setup_word("peː.diː.kaː.boː")).unwrap().render(&[]).0, "peː.diːˈkaː.boː");
         // let test_rule = setup_rule("V => [+str] / _C%#");
         let test_rule = setup_rule("C => [+str] / _%#");
@@ -1528,7 +1528,29 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("juː.li.us")).unwrap().render(&[]).0, "ˈjuː.li.us");
         assert_eq!(test_rule.apply_word(setup_word("a.ba.ki.noː")).unwrap().render(&[]).0, "aˈba.ki.noː"); 
         assert_eq!(test_rule.apply_word(setup_word("sep.ti.mus")).unwrap().render(&[]).0, "ˈsep.ti.mus"); 
-        assert_eq!(test_rule.apply_word(setup_word("sep.tem.ber")).unwrap().render(&[]).0, "sepˈtem.ber"); 
+        assert_eq!(test_rule.apply_word(setup_word("sep.tem.ber")).unwrap().render(&[]).0, "sepˈtem.ber");
+
+
+        let test_rule = setup_rule("%, {⟨(..)V:[+long]⟩, ⟨(..)VC⟩}, % ~> [+str] / #_#, _%#, _%:[-str]%#");
+        assert_eq!(test_rule.apply_word(setup_word("sar")).unwrap().render(&[]).0, "ˈsar");
+        assert_eq!(test_rule.apply_word(setup_word("peː.diː.kaː.boː")).unwrap().render(&[]).0, "peː.diːˈkaː.boː");
+        assert_eq!(test_rule.apply_word(setup_word("kae̯.sar")).unwrap().render(&[]).0, "ˈkae̯.sar");
+        assert_eq!(test_rule.apply_word(setup_word("de.kem.ber")).unwrap().render(&[]).0, "deˈkem.ber");
+        assert_eq!(test_rule.apply_word(setup_word("juː.li.us")).unwrap().render(&[]).0, "ˈjuː.li.us");
+        assert_eq!(test_rule.apply_word(setup_word("a.ba.ki.noː")).unwrap().render(&[]).0, "aˈba.ki.noː"); 
+        assert_eq!(test_rule.apply_word(setup_word("sep.ti.mus")).unwrap().render(&[]).0, "ˈsep.ti.mus"); 
+        assert_eq!(test_rule.apply_word(setup_word("sep.tem.ber")).unwrap().render(&[]).0, "sepˈtem.ber");
+        
+
+        let test_rule = setup_rule("%, ⟨(..){V:[+long], C}⟩, % ~> [+str] / #_#, _%#, _%:[-str]%#");
+        assert_eq!(test_rule.apply_word(setup_word("sar")).unwrap().render(&[]).0, "ˈsar");
+        assert_eq!(test_rule.apply_word(setup_word("peː.diː.kaː.boː")).unwrap().render(&[]).0, "peː.diːˈkaː.boː");
+        assert_eq!(test_rule.apply_word(setup_word("kae̯.sar")).unwrap().render(&[]).0, "ˈkae̯.sar");
+        assert_eq!(test_rule.apply_word(setup_word("de.kem.ber")).unwrap().render(&[]).0, "deˈkem.ber");
+        assert_eq!(test_rule.apply_word(setup_word("juː.li.us")).unwrap().render(&[]).0, "ˈjuː.li.us");
+        assert_eq!(test_rule.apply_word(setup_word("a.ba.ki.noː")).unwrap().render(&[]).0, "aˈba.ki.noː"); 
+        assert_eq!(test_rule.apply_word(setup_word("sep.ti.mus")).unwrap().render(&[]).0, "ˈsep.ti.mus"); 
+        assert_eq!(test_rule.apply_word(setup_word("sep.tem.ber")).unwrap().render(&[]).0, "sepˈtem.ber");
     }
 
     #[test]
