@@ -338,11 +338,11 @@ e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
 The 'arrow' can be `=>`, `->`, or just `>`. The exception block can be introduced by either `|` or `//`.
 
 An environment can only contain one underline `_` or a series of joined underlines. An empty environment can be omitted:
-```
-a > e           (/saj/ > /sej/)
-a > e / _       (this is equivalent to the above)
-a > e / ___     (this is valid)
-a > e / _ _     (this is invalid)
+```wasm
+a > e           ;; /saj/ > /sej/
+a > e / _       ;; this is equivalent to the above
+a > e / ___     ;; this is valid
+a > e / _ _     ;; this is invalid
 ```
 
 ### Single Line Comments
@@ -399,15 +399,21 @@ The ampersand operator `&` states that the order of the matched input is reverse
 Like deletion, the output of a metathesis rule must contain *only* `&` and nothing else. 
 
 ```
-Old English R Metathesis (hros => hors)
+Example: Old English R Metathesis
+
 [+rhotic]V > & / _s
+
+/hros/ => /hors/
 ```
 
 An ellipsis `…` or double `..` or triple dot `...` can be used to implement long-range metathesis:
 
 ```
-Spanish Hyperthesis (Old Spanish parabla => Spanish palabra)
+Example: Spanish Hyperthesis 
+
 r..l > &
+
+Old Spanish parabla => Spanish palabra
 ```
 
 Note that the ellipsis must match at least one segment, so a word such as `ar.la` would not change under the above rule.
@@ -440,9 +446,9 @@ It is important to remember that the rules are still applied sequentially and no
 
 You may often have condensed rules like the one above where the same environs are being matched both before and after the input. As this can be common, there is a shorthand form of `_,` followed by the environment elements in question.
 
-```
+``` wasm
 e > * / #_, _#
-(becomes)
+;; becomes
 e > * / _,#
 ```
 The before case always comes first.
@@ -458,10 +464,10 @@ This can be done by metathesising, inserting, or deleting syllable boundaries `$
 For example, imagine a input word of `'si.tu`. If we apply the rule `V > * / C_#`, we end up with a floating consonant `'si.t`.
 
 This can be repaired in a few ways, including: 
-```
-$C > & / _# (the consonant is moved into the preceding syllable, with the now empty second syllable being deleted)
-or
-$ > * / _C# (the two syllables are merged by deleting the boundary between them)
+```wasm
+$ C > & / _# ;; the consonant is moved into the preceding syllable, with the now empty second syllable being deleted
+;; or
+$ > * / _C#  ;; the two syllables are merged by deleting the boundary between them
 ```
 
 ## Segment Features
@@ -544,13 +550,13 @@ A matrix can be used standalone to represent a segment, or can be used to modify
 [-cons, +son, +syll] > [+rtr] / q_  ;; vowels pharyngealise following /q/
 a:[-stress, -long] > ə              ;; unstressed short /a/ becomes schwa
 
-note that  a[-stress, -long] would match two segments: /a/ followed by a short, unstressed segment 
+Note that a[-stress, -long] would match two segments: /a/ followed by a short, unstressed segment 
 ```
 
 ``` 
 Rule Example: Grimm's Law
 
-Simple IPA:
+IPA Only:
 p, t, k, kʷ > ɸ, θ, x, xʷ 
 b, d, g, gʷ > p, t, k, kʷ
 bʱ, dʱ, gʱ, gʷʱ > b, d, g, gʷ
@@ -628,9 +634,9 @@ V:[+long] > [+str] / _%#    ;; A penult syll ending with a long vowel becomes st
 V > [+str] / _C%#           ;; A penult syll ending with a consonant or glide becomes stressed
 % > [+str] / _%:[-str]%#    ;; If the penult is unstressed, the antepenult becomes stressed
 
-(Rules 2 and 3 could be condensed into one by matching to the consonant instead of the vowel in rule 3)
+;; Rules 2 and 3 could be condensed into one by matching to the consonant instead of the vowel in rule 3
 V > [+str] / _C%# (becomes) C > [+str] / _%#
-(therefore)
+;; therefore
 V:[+long], C > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed)
 ```
 
@@ -676,15 +682,15 @@ As of yet, tone cannot be used with alpha notation; nor can it be 'negated'.
 Rule Example: Mandarin 3rd Tone Sandhi
 
 %:[tone: 214] > [tone:35] / _%[tone: 214] 
-(3rd tone becomes 2nd tone before another 3rd tone)
+;; 3rd tone becomes 2nd tone before another 3rd tone
 ```
 
 ```
 Rule Example: Middle Chinese Tonogenesis
 
-% > [tone: 33]                       (平 and 入)
-V > [tone: 35], [tone: 51] / _ʔ, _s  (上 then 去)
-ʔ , s > * / _$                       (Phonemicisation)
+% > [tone: 33]                       ;; 平 and 入
+V > [tone: 35], [tone: 51] / _ʔ, _s  ;; 上 then 去
+ʔ , s > * / _$                       ;; Phonemicisation
 ```
 
 ## Groupings
@@ -730,12 +736,12 @@ u:[+long] => əw | _C:[+lab], j_
 duːt => dəwt, suːp => səwp, juːθ => jəwθ (does not work!)
 ```
 
-This is fixed by placing the two environments inside an environment set, which is delimited with `:{` and `}:` (Note: this is not the same as a regular set, which is delimited by `{` and `}`, though regular sets are valid inside an environment set).
+This is fixed by placing the two environments inside an environment set, which is delimited with `:{` and `}:` (Note: this is not the same as a regular set, which 
+is delimited by `{` and `}`, though regular sets are valid inside an environment set).
 
-```
+```wasm
 u:[+long] => əw | :{ _C:[+lab], j_ }:
-
-(/u:/ becomes /əw/ everywhere except after /j/ or before a labial consonant)
+;; /u:/ becomes /əw/ everywhere except after /j/ or before a labial consonant
 
 duːt => dəwt (doubt)
 suːp => suːp (soup)
@@ -747,9 +753,11 @@ They are currently not allowed in insertion rules, however this will change in f
 ## Gemination
 Syllable initial/final consonant gemination is as simple as making a vowel long.
 
-```
-C > [+long] / V:[-long]_#  ('luk => luk: , lu:k => lu:k)
-(A consonant is geminated at the end of a word, before a short vowel)
+```wasm
+C > [+long] / V:[-long]_#
+;; A consonant is geminated at the end of a word, after a short vowel
+
+/'luk/ => /luk:/, /lu:k/ => /lu:k/
 ```
 
 To geminate across a syllable boundary, we can do one of a few things (not exhaustive): 
@@ -757,20 +765,25 @@ To geminate across a syllable boundary, we can do one of a few things (not exhau
 ```
 Insertion with a Reference (see below)
 
-* > 1 / V:[-long, +str] _ $ C=1 ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+* > 1 / V:[-long, +str] _ $ C=1
+
+/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
 ```
 
 ```
 Insertion with Structure Matching (see below)
 
-* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1..⟩ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1..⟩
+
+/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
 ```
 
 ```
 Substitution with Boundaries and a Reference:
 
-$ C=1 > 1 $ 1 / V:[-long, +str]_ ('lu.ka => 'luk.ka, 'lu:.ka => 'lu:.ka)
+$ C=1 > 1 $ 1 / V:[-long, +str]_
 
+/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
 ```
 
 
@@ -839,21 +852,23 @@ P:[α DOR] > [α round]
 
 ### Inversion
 Imagine we have two debuccalisation rules, one for plosives and one for fricatives
-```
-O:[-voi, -cont] > [-cons, -c.g., -place] / _#           (pat > paʔ)
-O:[-voi, +cont] > [-cons, +s.g., -place, -strid] / _#   (pas > pah)
+```wasm
+O:[-voi, -cont] > [-cons, -c.g., -place] / _#           ;; /pat/ => /paʔ/
+O:[-voi, +cont] > [-cons, +s.g., -place, -strid] / _#   ;; /pas/ => /pah/
 ```
 It would be nice if we were able to join them into one rule. To accomplish this, we can use inversion:
-```
+```wasm
 O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid] / _#
-(pat, pas > paʔ, pah)
+
+/pat/ => /paʔ/, /pas/ => /pah/
 ```
 The above means that when matching an obstruent that is `[-cont]` the output becomes `[-s.g., +c.g.]`, while when the obstruent is `[+cont]`, the output is `[+s.g., -c.g.]`
 
 This can be used with nodes for conditional clustering:
 ```
 ə$ > * / P:[-nas, αPLACE]_N:[-αPLACE]
-(pə.no > pno, pə.mo > pə.mo)
+
+/pə.no/ => /pno/, /pə.mo/ => /pə.mo/
 ```
 In the rule above, plosives and nasals cluster only if they are of a different place of articulation.
 
@@ -863,19 +878,23 @@ Currently; matrices, groups, and syllables can be referenced.
 
 Using references, we can implement metathesis without need of the `&` operator:
 ```
-Old English R metathesis (hros > hors)
+Old English R metathesis
+
 [+rho]=1 V=2 > 2 1 / _s
+
+/hros/ => /hors/
 ```
 
 It can also be used to define a simple haplology rule:
 ```
-%=1 > * / 1_ (A syllable is deleted if preceded by an identical syllable)
+%=1 > * / 1_    ;; A syllable is deleted if preceded by an identical syllable
 ```
 
 References can be modified with diacritics or a feature matrix as if they were a segment or syllable:
 
 ```
-%=1 > * / 1:[+str]_ (A syllable is deleted if preceded by an otherwise identical syllable that is stressed)
+%=1 > * / 1:[+str]_ 
+;; A syllable is deleted if preceded by a stressed syllable that is otherwise identical
 ```
 
 ## Ellipses
@@ -888,10 +907,10 @@ and also in the input and output of substitution rules:
 Example: Latin Labial Assimilation 
 
 Version 1:
-p..kʷ > kʷ..kʷ  (This will only match once per ..kʷ, e.g. pa.pa.kʷa => kʷa.pa.kʷa)
+p..kʷ > kʷ..kʷ  ;; This will only match once per ..kʷ, e.g. pa.pa.kʷa => kʷa.pa.kʷa
 
 Version 2 (Propagation):
-p > kʷ / _..kʷ  (Whereas this would lead to total assimilation pa.pa.kʷa => kʷa.kʷa.kʷa)
+p > kʷ / _..kʷ  ;; Whereas this would lead to total assimilation pa.pa.kʷa => kʷa.kʷa.kʷa
 
 PIE penkʷe => Latin quinque
 ```
@@ -901,7 +920,7 @@ They can also be used in deletion rules:
 ```
 p..$t > *
 
-pa.ta.ka => a:.ka
+/pa.ta.ka/ => /a:.ka/
 ```
 
 We can also implement Long-range Metathesis without use of the `&` operator:
@@ -909,8 +928,8 @@ We can also implement Long-range Metathesis without use of the `&` operator:
 ```
 r(..)l > l(..)r
 
-ar.la => al.ra
-pa.ra.bo.la > pa.la.bo.ra
+/ar.la/ => /al.ra/
+/pa.ra.bo.la/ => /pa.la.bo.ra/
 ```
 
 ## Syllable Structure Matching
@@ -921,23 +940,23 @@ Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-tha
 Ellipses are useful for matching a certain part of the syllable, such as the onset or coda.
 ```
 ⟨..P:[-voi]⟩ => [tone: 35]
-(A closed syllable ending with a voiceless plosive gains rising tone)
+;; A closed syllable ending with a voiceless plosive gains rising tone
 ```
 
 ```
 ⟨(..)r(..)⟩ => [tone: 51]
-(A syllable that contains an /r/ anywhere gains falling tone)
+;; A syllable that contains an /r/ anywhere gains falling tone
 ```
 
-```
+``` wasm
 Example: Latin Stress Rule using Structures
 
-% > [+str] / #_#                (If there is only one syllable, it is stressed)
-⟨(..)V:[+long]⟩ > [+str] / _%#  (A penult syllable ending with a long vowel becomes stressed)
-⟨(..)VC⟩ > [+str] / _%#         (A penult syllable ending with a consonant becomes stressed)
-% > [+stress] / _ %:[-str]%#    (If the penult is unstressed, the antepenult becomes stressed)
+% > [+str] / #_#                ;; If there is only one syllable, it is stressed
+⟨(..)V:[+long]⟩ > [+str] / _%#  ;; A penult syllable ending with a long vowel becomes stressed
+⟨(..)VC⟩ > [+str] / _%#         ;; A penult syllable ending with a consonant becomes stressed
+% > [+stress] / _ %:[-str]%#    ;; If the penult is unstressed, the antepenult becomes stressed
 
-(Like the previous Latin stress example, rules 2 and 3 can be condensed)
+;; Like the previous Latin stress example, rules 2 and 3 can be condensed
 
 ⟨(..){V:[+long], C}⟩ => [+str] / _%#
 ```
@@ -946,13 +965,15 @@ Structures can also be used to insert whole syllables:
 ```
 Example: Expletive Infixation
 
-* > ⟨blʉw⟩:[+sec.stress] ⟨mɪn⟩ / %_%:[+stress] (absolutely => abso-bloomin'-lutely)
+* > ⟨blʉw⟩:[+sec.stress] ⟨mɪn⟩ / %_%:[+stress] 
+
+absolutely => abso-bloomin'-lutely
 ```
 
 ```
 Example: Conditional Reduplication
 
-* > 1:[-stress] / <CV>:[+stress]=1 _ (A stressed CV syllable is reduplicated)
+* > 1:[-stress] / <CV>:[+stress]=1 _    ;; A stressed CV syllable is reduplicated
 
 /'to.ka/ => /'to.to.ka/, /'ton.ka/ => /'ton.ka/
 ```
@@ -970,25 +991,25 @@ Example: Word Initial Copy Vowel Insertion
 
 `##` can be used within the input or environment to match and manipulate word boundaries within a phrase.
 
-```
+```wasm
 Example: Rebracketing
 
-## n > & / ə_   (A word-initial /n/ moves to the end of the previous word if it ends in schwa)
+## n > & / ə_   ;; A word-initial /n/ moves to the end of the previous word if it ends in schwa
 
 /ə ˈneɪ.pɹən/ => /ən ˈeɪ.pɹən/ (English: a napron => an apron)
 ```
 
-```
+```wasm
 Example: Norwegian Retroflex Sandhi
 
-C:[+cor] > [-ant, -dist] / r(##)_   (A coronal cons. becomes retroflex if preceded by /r/, even across a word boundary)
-r > * / _(##)[-ant, -dist]          (/r/ deletes before a retroflex consonant, even across a word boundary)
+C:[+cor] > [-ant, -dist] / r(##)_   ;; A coronal cons. becomes retroflex if preceded by /r/, even across a word boundary
+r > * / _(##)[-ant, -dist]          ;; /r/ deletes before a retroflex consonant, even across a word boundary
 
 /ʋæːr sɔ 'ɡuː/ => /ʋæːr ʂɔ 'ɡuː/ => /ʋæː ʂɔ 'ɡuː/
 ```
 
 ```
-Example: French Pronoun Contraction
+Example: French 1st Person Pronoun Contraction
 
 ə## > * / ʒ_
 ʒ$s > ʃ
@@ -999,7 +1020,7 @@ Example: French Pronoun Contraction
 ## Propagation 
 As ASCA changes all matching environments in a word sequentially, left-to-right harmonies naturally propagate.
 
-```
+```wasm
 Example: Left-to-Right Vowel Backness Harmony
 
 V > [α front, β back] / V:[α front, β back] (C) _   ;; Vowels assimilate in backness to that of the preceding vowel
@@ -1033,13 +1054,13 @@ V ~ [α front, β back] / _ (C) V:[α front, β back]
 /ki.to.le.nu/ becomes /kɯ.to.lɤ.nu/
 ```
 
-``` 
+``` wasm
 Rule Example: Secondary Stressing
 
 % > [+str] / #_#, _%#           ;; The penultimate (or ultimate if none) syllable is stressed.
 % ~ [+sec.str] / _%%:[+str]     ;; Every other syllable before another stressed syllable has secondary stress.
 
-/sa.me.ka.se.ne.ta.ni.lo.ti.ne/ becomes /ˌsa.meˌka.seˌne.taˌni.loˈti.ne/
+/sa.me.ka.se.ne.ta.ni.lo.ti.ne/ => /ˌsa.meˌka.seˌne.taˌni.loˈti.ne/
 Without '~', only the last would match, becoming /sa.me.ka.se.ne.taˌni.loˈti.ne/
 ```
 
@@ -1050,8 +1071,8 @@ We can achieve blocking with an exception clause. For this example, plosives wil
 ```
 V ~ [α front, β back] / _ (C) V:[α front, β back] | _ P
 
-/ki.to.leu/ becomes /ki.to.lɤu/ 
-/ki.to.le.nu/ becomes /ki.to.lɤ.nu/
+/ki.to.leu/   => /ki.to.lɤu/ 
+/ki.to.le.nu/ => /ki.to.lɤ.nu/
 ```
 
 Blocking can also be achieved in non-explicit ways:
@@ -1061,8 +1082,8 @@ Example: Regressive Nasal Vowel-Consonant Harmony that is blocked by obstruents 
 
 V ~ [+nasal] / _ ([+son]) [+nasal]
 
-/amakan/ becomes /ãmakãn/
-/palanawasan/ becomes /pãlãnawasãn/
+/amakan/      => /ãmakãn/
+/palanawasan/ => /pãlãnawasãn/
 ```
 
 ## Considerations
@@ -1074,12 +1095,14 @@ This is because the current implementation cannot differentiate between it and t
 Take this copy vowel insertion rule: 
 ```
 * > 1$ / #_CV=1
-('de.no > 'e.de.no NOT e'de.no)
+
+/'de.no/ => /'e.de.no/ NOT /e'de.no/
 ```
 To fix this, we can insert with a [structure](#syllable-structure-matching)
 ```
 * > <1> / #_CV=1
-(e'de.no as expected)
+
+/e'de.no/ as expected
 ```
 ### Substituting Long IPA
 
@@ -1087,15 +1110,15 @@ When doing IPA substitution, you may come across behaviour such as this
 ```
 a > e
 
-hat  > het (expected, current behaviour)
-ha:t > het (unexpected, current behaviour)
+hat  > het  ;; expected, current behaviour
+ha:t > het  ;; unexpected, current behaviour
 ```
 This doesn't happen with matrices.
 ```
 a > [+fr, -lo, +tns]
 
-hat  > het  (expected, current behaviour)
-ha:t > he:t (expected, current behaviour)
+hat  > het  ;; expected, current behaviour
+ha:t > he:t ;; expected, current behaviour
 ```
 This is a consequence of how we currently iterate through a word, and what we consider a single segment in certain situations. 
 Whether/How this behaviour will change in future releases is being debated. 
@@ -1104,7 +1127,7 @@ For now, it is best to think of any ipa character in the output as being inheren
 The 'fix' for this is to use alpha notation:
 
 ```
-a:[Along] > e:[Along]   ([Along, Boverlong] if you have overlong vowels)
+a:[Along] > e:[Along]   ;; [Along, Boverlong] if you have overlong vowels
 hat  > het
 ha:t > he:t
 ```
