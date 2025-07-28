@@ -932,14 +932,14 @@ Ellipses are useful for matching a certain part of the syllable, such as the ons
 ```
 Example: Latin Stress Rule using Structures
 
-% > [+str] / #_#                 (If there is only one syllable, it is stressed)
-⟨(..)V[+long]⟩ > [+stress] / _%# (A penult syllable ending with a long vowel becomes stressed)
-⟨(..)VC⟩ > [+stress] / _%#       (A penult syllable ending with a consonant becomes stressed)
-% > [+stress] / _ %:[-str]%#     (If the penult is unstressed, the antepenult becomes stressed)
+% > [+str] / #_#                (If there is only one syllable, it is stressed)
+⟨(..)V:[+long]⟩ > [+str] / _%#  (A penult syllable ending with a long vowel becomes stressed)
+⟨(..)VC⟩ > [+str] / _%#         (A penult syllable ending with a consonant becomes stressed)
+% > [+stress] / _ %:[-str]%#    (If the penult is unstressed, the antepenult becomes stressed)
 
-(Like the previous Latin stress example, rules 2 and 3 can be condensed, but slightly differently)
+(Like the previous Latin stress example, rules 2 and 3 can be condensed)
 
-⟨(..)V[+long]⟩, ⟨(..)VC⟩ > [+stress] / _%#
+⟨(..){V:[+long], C}⟩ => [+str] / _%#
 ```
 
 Structures can also be used to insert whole syllables:
