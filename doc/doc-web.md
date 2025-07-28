@@ -36,8 +36,8 @@ is collapsed or expanded. Rule blocks can also be moved with the keyboard (see [
 
 ### Cloning Rules
 As a language can go through the same sound change multiple times, it is useful to not have to rewrite the same rules again and again. 
-A rule block can be duplicated using the copy widget on the block. This has the effect of copying the block below itself. This rule block 
-can then be moved to the desired location with the drag and drop feature.
+A rule block can be duplicated below itself using the copy widget on the block. This rule block can then be moved to the desired location 
+with the drag and drop feature.
 
 ### Temporarily Disabling Rules
 A rule block can be disabled using the toggle switch widget present on each block. This makes the block transparent to ASCA and therefore 
@@ -56,7 +56,8 @@ unknown is color-coded (and hoverable) so that you can easily discern each value
 
 ## Aliasing/Romanisation
 Aliases can be defined through the `aliases` button, which will bring up a modal containing the input fields,see [Custom aliasing](./doc.md#custom-aliasing--deromanisation) 
-for more
+for more. Output Romanisation can be turned on and off using the toggle switch widget within the aliases dialog. When turned off, the aliases button 
+will become red - indicating its state without the need to open the dialog.
 
 Note that aliases, like the input, are not cleared with the `Clear All` button.
 
