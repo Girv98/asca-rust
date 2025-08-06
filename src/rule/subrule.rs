@@ -172,39 +172,39 @@ impl SubRule {
             self.alphas.borrow_mut().clear();
             self.references.borrow_mut().clear();
             let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
-            if !res.is_empty() {
-                let (start, inc_start) = self.set_start(&res,  &phrase);
-                let (end, inc_end) = self.set_end(&res, &phrase);
-
-                if !self.match_contexts_and_exceptions(&phrase, start, end, inc_start, inc_end)? {
-                    if let Some(ni) = next_index { 
-                        cur_index = ni;
-                        continue;
-                    }
-                    // end of word
-                    if cur_index.word_index < phrase.len() - 1 {
-                        cur_index.word_increment(&phrase);
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-
-                phrase = self.transform(&phrase, res, &mut next_index)?;
-                
-                if let Some(ci) = next_index { 
-                    cur_index = ci;
-                } else {
-                    // End of Word
-                    if cur_index.word_index < phrase.len() - 1 {
-                        cur_index.word_increment(&phrase);
-                        continue
-                    } else {
-                        break
-                    }
-                }
-            } else {
+            if res.is_empty() {
                 // No match
+                if cur_index.word_index < phrase.len() - 1 {
+                    cur_index.word_increment(&phrase);
+                    continue
+                } else {
+                    break
+                }
+            }
+
+            let (start, inc_start) = self.set_start(&res,  &phrase);
+            let (end, inc_end) = self.set_end(&res, &phrase);
+
+            if !self.match_contexts_and_exceptions(&phrase, start, end, inc_start, inc_end)? {
+                if let Some(ni) = next_index { 
+                    cur_index = ni;
+                    continue;
+                }
+                // end of word
+                if cur_index.word_index < phrase.len() - 1 {
+                    cur_index.word_increment(&phrase);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            phrase = self.transform(&phrase, res, &mut next_index)?;
+            
+            if let Some(ci) = next_index { 
+                cur_index = ci;
+            } else {
+                // End of Word
                 if cur_index.word_index < phrase.len() - 1 {
                     cur_index.word_increment(&phrase);
                     continue
