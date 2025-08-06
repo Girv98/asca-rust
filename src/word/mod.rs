@@ -36,6 +36,26 @@ pub struct SegPos {
     pub seg_index: usize
 }
 
+impl PartialOrd for SegPos {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SegPos {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.word_index.cmp(&other.word_index) {
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.syll_index.cmp(&other.syll_index) {
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.seg_index.cmp(&other.seg_index)
+    }
+}
+
 impl fmt::Debug for SegPos {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}:{}", self.word_index, self.syll_index, self.seg_index)
