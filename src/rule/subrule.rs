@@ -2874,7 +2874,7 @@ impl SubRule { // Input Matching
                 // if we have a full match
                 if state_index > self.input.len() - 1 { 
                     // As matching a syllbound doesn't increment, this is to avoid an infinite loop
-                    if self.input.last().unwrap().kind == ParseElement::SyllBound {
+                    if matches!(captures.last(), Some(MatchElement::SyllBound(..))) {
                         cur_index.increment(phrase);
                     }
                     return Ok((captures, Some(cur_index)));
