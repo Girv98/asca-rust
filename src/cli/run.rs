@@ -140,7 +140,7 @@ fn output_result(output: Option<PathBuf>, res: &[String]) -> io::Result<()> {
 pub(crate) fn run(in_group: InGroup, maybe_words: Vec<PathBuf>, maybe_alias: Option<PathBuf>, maybe_output: Option<PathBuf>, maybe_compare: Option<PathBuf>) -> io::Result<()> {
     let (words, rules, into, from) = get_input(in_group, maybe_words, maybe_alias)?;
 
-    match asca::run_unparsed(&rules, &words, &into, &from) {
+    match asca::par_run_unparsed(&rules, &words, &into, &from) {
         Ok(res) => {
             print_result(&res, &words, maybe_compare)?;
             output_result(maybe_output, &res)

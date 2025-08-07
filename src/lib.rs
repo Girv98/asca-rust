@@ -5,6 +5,7 @@ pub mod error;
 mod alias;
 
 use indexmap::IndexMap;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::Deserialize;
 use std::collections::HashMap;
 use lazy_static::lazy_static;
@@ -118,7 +119,7 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
     let mut unknowns = Vec::new();
 
     for phrase in phrases {
-        let mut phr_res = String::new();
+        let mut phr_res = String::with_capacity(phrase.len());
         for word in phrase.iter() {
             let (w, u) = word.render(&alias_from);
             phr_res.push(' ');
@@ -190,6 +191,43 @@ pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[Stri
     let (output, unknowns) = phrases_to_string(res, alias::parse_from(alias_from)?);
 
     Ok((input_phrases_to_string(&phrases), output, unknowns))
+}
+
+pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Result<Vec<String>, ASCAError> {
+    let rules = parallel_parse_rule_groups(unparsed_rules)?;
+    let alias_into = alias::parse_into(unparsed_into)?;
+    let alias_from = alias::parse_from(unparsed_from)?;
+
+    unparsed_phrases.par_iter().map(|up| {
+        let phrase = match up.split(' ').map(|w| Word::new(w, &alias_into)).collect::<Result<Phrase, _>>() {
+            Ok(ph) => ph,
+            Err(e) => return Err(e),
+        };
+
+        let applied = match phrase.apply_all(&rules) {
+            Ok(ap) => ap,
+            Err(e) => return Err(e),
+        };
+
+        Ok(applied.par_iter().map(|word| word.render(&alias_from).0).collect::<Vec<_>>().join(" "))
+
+    }).collect()
+}
+
+fn parallel_parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
+    unparsed_rule_groups.par_iter().enumerate().map(|(rgi, rg)| {
+        rg.rule.par_iter().enumerate().filter_map(|(ri, r): (usize, &String)| {
+            match rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line() {
+                Ok(tokens) => {
+                    match rule::Parser::new(tokens, rgi, ri).parse() {
+                        Ok(rule) => rule.map(Ok),
+                        Err(e) => Some(Err(e)),
+                    }
+                }
+                Err(e) => Some(Err(e)),
+            }
+        }).collect::<Result<Vec<Rule>, RuleSyntaxError>>()
+    }).collect::<Result<Vec<Vec<Rule>>, RuleSyntaxError>>()
 }
 
 // For interop with WebASCA

@@ -1,5 +1,5 @@
 use std::{
-    fmt, rc::Rc,
+    fmt, sync::Arc,
 };
 
 use crate :: {
@@ -213,7 +213,7 @@ impl Parser {
         self.curr_tkn = if self.has_more_tokens() && self.curr_tkn.kind != TokenKind::Comment {
             self.token_list[self.pos].clone()
         } else {
-            Token { kind: TokenKind::Eol, value: Rc::default(), position: Position::new(self.group, self.line, self.pos, self.pos+1) }
+            Token { kind: TokenKind::Eol, value: Arc::default(), position: Position::new(self.group, self.line, self.pos, self.pos+1) }
         };
     }
 

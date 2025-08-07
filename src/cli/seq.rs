@@ -413,7 +413,7 @@ fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<Str
 #[inline]
 fn run_once(trace: &mut Vec<Vec<String>>, files: &mut Vec<PathBuf>, entry: &Entry, index: usize, into: &[String], from: &[String]) -> Option<()> {
     files.push(entry.name.clone());
-    match asca::run_unparsed(&entry.rules, &trace[index], into, from) {
+    match asca::par_run_unparsed(&entry.rules, &trace[index], into, from) {
         Ok(res) => {
             trace.push(res);
             Some(())

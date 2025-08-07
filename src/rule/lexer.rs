@@ -1,6 +1,6 @@
 use std :: {
     fmt :: { self, Display }, 
-    rc  :: Rc
+    sync::Arc
 };
 
 use crate :: {
@@ -126,13 +126,13 @@ impl Display for Position {
 #[derive(Clone, PartialEq, Eq)]
 pub struct Token {
     pub(crate) kind: TokenKind,
-    pub(crate) value: Rc<str>, 
+    pub(crate) value: Arc<str>, 
     pub(crate) position: Position,
 }
 
 impl Token {
     pub(crate) fn new(kind: TokenKind, value: &str, group: usize, line: usize, start: usize, end: usize) -> Self {
-        Self { kind, value: Rc::from(value), position: Position::new(group, line, start, end) }
+        Self { kind, value: Arc::from(value), position: Position::new(group, line, start, end) }
     }
 }
 
