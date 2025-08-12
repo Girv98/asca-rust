@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{alias::{self, Transformation}, rule::Rule, word::SegPos, ASCAError};
+use crate::{alias::{self, Transformation}, rule::Rule, word::{SegPos, Segment}, ASCAError};
 
 use super::Word;
 
@@ -52,17 +52,28 @@ impl Phrase {
         unparsed_phrase.split(' ').map(|w| Word::new(w, &alias_into)).collect()
     }
 
-    pub fn render(&self, aliases: &[Transformation]) -> (String, Vec<String>) {
+    pub fn render_debug(&self, aliases: &[Transformation]) -> (String, Vec<Segment>) {
         let mut buffer = String::new();
         let mut unknowns = Vec::new();
         for word in self.iter() {
-            let (w, u) = word.render(aliases);
+            let (w, u) = word.render_debug(aliases);
             buffer.push(' ');
             buffer.push_str(&w);
             unknowns.extend(u);
         }
 
         (buffer.trim().to_string(), unknowns)
+    }
+
+    pub fn render(&self, aliases: &[Transformation]) -> String {
+        let mut buffer = String::new();
+        for word in self.iter() {
+            let w = word.render(aliases);
+            buffer.push(' ');
+            buffer.push_str(&w);
+        }
+
+        buffer.trim().to_string()
     }
 
     #[inline]

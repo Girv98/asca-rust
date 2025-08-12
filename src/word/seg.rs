@@ -595,13 +595,13 @@ mod seg_tests {
     fn test_edge_cases() {
         let word = Word::new("i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ".to_owned(), &[]).unwrap();
 
-        assert_eq!(&word.render(&[]).0, "i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ")
+        assert_eq!(&word.render(&[]), "i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ")
     }
     
     #[test]
     fn test_diacritics() {
         let word = Word::new("iʵ.t̪.".to_owned(), &[]).unwrap();
             
-        assert_eq!(&word.render(&[]).0, "iʵ.t̪")
+        assert_eq!(&word.render(&[]), "iʵ.t̪")
     }
 }

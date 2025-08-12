@@ -102,11 +102,11 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>
 
     let mut res_phrase = phrase.clone();
     for (i, rule_group) in rules.iter().enumerate() {
-        let res_step = res_phrase.clone();
+        let res_before = res_phrase.clone();
         for rule in rule_group {
             res_phrase = rule.apply(res_phrase)?;
         }
-        if res_phrase != res_step {
+        if res_phrase != res_before {
             changes.push(Change { rule_index: i, after: res_phrase.clone() });
         }
     }
@@ -114,14 +114,16 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>
     Ok(changes)
 }
 
-fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (Vec<String>, Vec<String>) {
+fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (Vec<String>, Vec<Segment>) {
     let mut res = Vec::with_capacity(phrases.len());
     let mut unknowns = Vec::new();
 
+    let mut phr_res = String::with_capacity(1);
     for phrase in phrases {
-        let mut phr_res = String::with_capacity(phrase.len());
+        phr_res.clear();
+        // let mut phr_res = String::with_capacity(phrase.len());
         for word in phrase.iter() {
-            let (w, u) = word.render(&alias_from);
+            let (w, u) = word.render_debug(&alias_from);
             phr_res.push(' ');
             phr_res.push_str(&w);
             unknowns.extend(u);
@@ -132,65 +134,72 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
     (res, unknowns)
 }
 
-fn input_phrases_to_string(phrases: &[Phrase]) -> Vec<String> {
-    let mut res = Vec::with_capacity(phrases.len());
-
-    for phrase in phrases {
-        let mut phr_res = String::new();
-        for word in phrase.iter() {
-            let (w, _) = word.render(&[]);
-            phr_res.push(' ');
-            phr_res.push_str(&w);
-        }
-        res.push(phr_res.trim().to_string());
-    }
-
-    res
+fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
+    unparsed_rule_groups.iter().enumerate().map(|(rgi, rg)| {
+        rg.rule.iter().enumerate().filter_map(|(ri, r)| {
+            match rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line() {
+                Ok(tokens) => {
+                    match rule::Parser::new(tokens, rgi, ri).parse() {
+                        Ok(rule) => rule.map(Ok),
+                        Err(e) => Some(Err(e)),
+                    }
+                }
+                Err(e) => Some(Err(e)),
+            }
+        }).collect::<Result<Vec<Rule>, RuleSyntaxError>>()
+    }).collect::<Result<Vec<Vec<Rule>>, RuleSyntaxError>>()
 }
 
-fn parse_phrases(unparsed_phrases: &[String], alias_into: &[Transformation]) -> Result<Vec<Phrase>, ASCAError> {
-    unparsed_phrases.iter().map(|phrase| -> Result<Phrase, ASCAError> {
-        phrase.split(' ')
-        .map(|w| Word::new(w, alias_into))
-        .collect()
+pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Result<Vec<String>, ASCAError> {
+    let rules = parse_rule_groups(unparsed_rules)?;
+    let alias_into = alias::parse_into(unparsed_into)?;
+    let alias_from = alias::parse_from(unparsed_from)?;
+
+    unparsed_phrases.iter().map(|up| {
+        let phrase = match up.split(' ').map(|w| Word::new(w, &alias_into)).collect::<Result<Phrase, _>>() {
+            Ok(ph) => ph,
+            Err(e) => return Err(e),
+        };
+
+        let applied = match phrase.apply_all(&rules) {
+            Ok(ap) => ap,
+            Err(e) => return Err(e),
+        };
+
+        Ok(applied.iter().map(|word| word.render(&alias_from)).collect::<Vec<_>>().join(" "))
     }).collect()
 }
 
-fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
-    let mut rule_groups = Vec::with_capacity(unparsed_rule_groups.len());
+type ParsedPhrases = Vec<String>;
+type OutputPhrases = Vec<String>;
+type UnknownSegments = Vec<String>;
 
-    for (rgi, rg) in unparsed_rule_groups.iter().enumerate() {
-        let mut rule_group = Vec::with_capacity(rg.rule.len());
-        for (ri, r) in rg.rule.iter().enumerate() {
-            if let Some(asdf) = rule::Parser::new(rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line()?, rgi, ri).parse()? {
-                rule_group.push(asdf);
-            }
-        }
-        rule_groups.push(rule_group);
-    }
-
-    Ok(rule_groups)
-}
-
-pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<Vec<String>, ASCAError> {
-    let phrases = parse_phrases(unparsed_phrases, &alias::parse_into(alias_into)?)?;
-    let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rule_groups(&rules, &phrases)?;
-
-    let (res, _) = phrases_to_string(res, alias::parse_from(alias_from)?);
-
-    Ok(res)
-}
-
-#[allow(clippy::type_complexity)]
-pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], alias_into: &[String], alias_from: &[String]) -> Result<(Vec<String>, Vec<String>, Vec<String>), ASCAError> {
-    let phrases = parse_phrases(unparsed_phrases, &alias::parse_into(alias_into)?)?;
-    let rules = parse_rule_groups(unparsed_rules)?;
-    let res = apply_rule_groups(&rules, &phrases)?;
+pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Result<(ParsedPhrases, OutputPhrases, UnknownSegments), ASCAError> {
+    let rules = parallel_parse_rule_groups(unparsed_rules)?;
+    let alias_into = alias::parse_into(unparsed_into)?;
+    let alias_from = alias::parse_from(unparsed_from)?;
     
-    let (output, unknowns) = phrases_to_string(res, alias::parse_from(alias_from)?);
+    let (input, applied) = unparsed_phrases.par_iter().map(|up| {
+        let phrase = match up.split(' ').map(|w| Word::new(w, &alias_into)).collect::<Result<Phrase, _>>() {
+            Ok(ph) => ph,
+            Err(e) => return Err(e),
+        };
 
-    Ok((input_phrases_to_string(&phrases), output, unknowns))
+        let rendered_input = phrase.iter().map(|word| word.render(&alias_from)).collect::<Vec<_>>().join(" ");
+
+        let applied = match phrase.apply_all(&rules) {
+            Ok(ap) => ap,
+            Err(e) => return Err(e),
+        };
+
+        Ok((rendered_input, applied))
+    }).collect::<Result<(Vec<String>, Vec<Phrase>), ASCAError>>()?;
+
+    let (output, unknowns) = phrases_to_string(applied, alias_from);
+
+    let unknowns = unknowns.iter().map(|seg| format!("{seg:?}")).collect();
+
+    Ok((input, output, unknowns))
 }
 
 pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], unparsed_into: &[String], unparsed_from: &[String]) -> Result<Vec<String>, ASCAError> {
@@ -209,8 +218,7 @@ pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String
             Err(e) => return Err(e),
         };
 
-        Ok(applied.par_iter().map(|word| word.render(&alias_from).0).collect::<Vec<_>>().join(" "))
-
+        Ok(applied.iter().map(|word| word.render(&alias_from)).collect::<Vec<_>>().join(" "))
     }).collect()
 }
 

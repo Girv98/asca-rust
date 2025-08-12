@@ -27,7 +27,7 @@ pub fn get_string(unparsed_rules: &[RuleGroup], unparsed_phrase: &str, alias_int
 pub(crate) fn to_string(original: &Phrase, changes: Vec<Change>, rules: &[RuleGroup]) -> Vec<String> {
     let mut res = Vec::with_capacity(changes.len());
     let mut last = original.iter().fold(String::new(), |acc, w| {
-        acc + &w.render(&[]).0 + " "
+        acc + &w.render(&[]) + " "
     });
     for change in changes {
         res.push(format!("Applied \"{}\":", rules[change.rule_index].name));
@@ -38,7 +38,7 @@ pub(crate) fn to_string(original: &Phrase, changes: Vec<Change>, rules: &[RuleGr
 
         let mut word = String::new();
         for aw in change.after.iter() {
-            word.push_str(&aw.render(&[]).0);
+            word.push_str(&aw.render(&[]));
             word.push(' ');
         }
         last = word;
@@ -55,7 +55,7 @@ pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[R
     let mut last = String::new();
     
     for word in original.iter() {
-        let (w, u) = word.render(&[]);
+        let (w, u) = word.render_debug(&[]);
         unk.extend(u);
         last.push_str(&w);
         last.push(' ');
@@ -75,7 +75,7 @@ pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[R
         unk.append(&mut last_unk);
         let mut word = String::new();
         for aw in change.after.iter() {
-            let (w, u) = aw.render(&[]);
+            let (w, u) = aw.render_debug(&[]);
             last_unk.extend(u);
             word.push_str(&w);
             word.push(' ');
@@ -86,5 +86,7 @@ pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[R
 
         res.push(st);
     }
+    let unk = unk.iter().map(|seg| format!("{seg:?}")).collect();
+
     (res, unk, trace_indices)
 }
