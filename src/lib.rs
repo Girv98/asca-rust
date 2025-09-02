@@ -273,7 +273,7 @@ impl WasmResult {
     }
 }
 
-
+#[doc(hidden)]
 #[wasm_bindgen]
 pub fn run_wasm(val: JsValue, unparsed_phrases: Vec<String>, unparsed_into: Vec<String>, unparsed_from: Vec<String>, trace_index: Option<usize>) -> WasmResult {
     let unparsed_rules: Vec<RuleGroup> = serde_wasm_bindgen::from_value(val).expect("Rules are in valid JSObject format");
