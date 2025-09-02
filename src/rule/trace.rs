@@ -11,14 +11,14 @@ pub struct Change {
 
 pub fn get_changes(unparsed_rules: &[RuleGroup], unparsed_phrase: &str, alias_into: &[String]) -> Result<Vec<Change>, ASCAError> {
     let phrase = Phrase::try_from(unparsed_phrase, alias_into)?;
-    let rules = crate::parse_rule_groups(unparsed_rules)?;
+    let rules = crate::parallel_parse_rule_groups(unparsed_rules)?;
 
     crate::apply_rules_trace(&rules, &phrase)
 }
 
 pub fn get_string(unparsed_rules: &[RuleGroup], unparsed_phrase: &str, alias_into: &[String]) -> Result<Vec<String>, ASCAError> {
     let phrase = Phrase::try_from(unparsed_phrase, alias_into)?;
-    let rules = crate::parse_rule_groups(unparsed_rules)?;
+    let rules = crate::parallel_parse_rule_groups(unparsed_rules)?;
     let res = crate::apply_rules_trace(&rules, &phrase)?;
 
     Ok(to_string(&phrase, res, unparsed_rules))

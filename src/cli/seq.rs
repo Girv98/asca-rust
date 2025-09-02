@@ -393,7 +393,7 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
             }
         }
         // Concat final result
-        str = format!("\n{str} {arr} {}", &trace[num_steps-1][word].bright_green().bold());
+        str = format!("\n{str}{arr} {}", &trace[num_steps-1][word].bright_green().bold());
         output += &str;
     }
     println!("{}", output.trim());
