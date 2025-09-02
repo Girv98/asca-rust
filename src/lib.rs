@@ -185,7 +185,7 @@ pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[Stri
             Err(e) => return Err(e),
         };
 
-        let rendered_input = phrase.iter().map(|word| word.render(&alias_from)).collect::<Vec<_>>().join(" ");
+        let rendered_input = phrase.iter().map(|word| word.render(&[])).collect::<Vec<_>>().join(" ");
 
         let applied = match phrase.apply_all(&rules) {
             Ok(ap) => ap,
