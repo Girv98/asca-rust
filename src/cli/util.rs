@@ -28,8 +28,8 @@ pub(super) fn ask(question: &str, auto: Option<bool>) -> io::Result<bool> {
         let _ = std::io::stdin().read_line(&mut buf);
         match buf.chars().next() {
             Some('y' | 'Y') => return Ok(true),
-            Some('\r') | Some('\n') |
             Some('n' | 'N') => return Ok(false),
+            Some(x) if x.is_control() => return Ok(false),
             _ => println!("{}", "   yes/no only".yellow()),
         }
     }
