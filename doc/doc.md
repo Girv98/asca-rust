@@ -10,41 +10,43 @@ This is documentation for the core principles of defining words and sound change
     * [Suprasegmentals](#suprasegmentals)
     * [Inbuilt Aliases](#inbuilt-aliases)
     * [(De)Romanisation](#custom-aliasing--deromanisation)
-* [Defining Basic Sound Changes](#defining-basic-sound-changes)
+* [Defining Sound Changes](#defining-sound-changes)
     * [The Basics](#the-basics)
-    * [Single Line Comments](#single-line-comments)
-    * [Special Characters](#special-characters)
-    * [Insertion and Deletion](#insertion-and-deletion-rules)
-    * [Metathesis](#metathesis-rules)
-    * [Condensed Rules](#condensed-rules)
-    * [Special Environment](#special-environment)
-    * [Syllable Structure](#syllable-structure)
-* [Segment Features](#segment-features)
-    * [Using Distinctive Features](#using-distinctive-features)
-    * [Nodes and Subnodes](#node-and-subnode-features)
-    * [Inversion](#inversion)
-* [Suprasegmental Features](#suprasegmental-features)
-    * [Stress](#stress-1)
-    * [Length](#length-1)
-    * [Tone](#tone-1)
-* [Groupings](#groupings)
-* [Sets](#sets)
-* [Environment Sets](#environment-sets)
-* [Gemination](#gemination)
-* [Optional Segments](#optional-segments)
-* [Alpha Notation](#alpha-notation)
-    * [Nodes and Subnodes](#nodes-and-subnodes)
-* [References](#references)
-* [Ellipses](#ellipses)
-* [Syllable Structure Matching](#syllable-structure-matching)
-* [Cross Word-Boundary Operations](#cross-word-boundary-operations)
-* [Propagation](#propagation)
-    * [Faux Right-to-left Propagation](#faux-right-to-left-propagation)
-    * [True Right-to-left Propagation](#true-right-to-left-propagation)
-    * [Blocking](#blocking)
-* [Considerations](#considerations) 
+        * [Single Line Comments](#single-line-comments)
+        * [Special Characters](#special-characters)
+        * [Insertion and Deletion](#insertion-and-deletion-rules)
+        * [Metathesis](#metathesis-rules)
+        * [Condensed Rules](#condensed-rules)
+        * [Special Environment](#special-environment)
+        * [Syllable Structure](#syllable-structure)
+    * [Segment Features](#segment-features)
+        * [Using Distinctive Features](#using-distinctive-features)
+        * [Nodes and Subnodes](#node-and-subnode-features)
+        * [Inversion](#inversion)
+    * [Suprasegmental Features](#suprasegmental-features)
+        * [Stress](#stress-1)
+        * [Length](#length-1)
+        * [Tone](#tone-1)
+    * [Alpha Notation](#alpha-notation)
+        * [Nodes and Subnodes](#nodes-and-subnodes)
+    * [Advanced Operators and Constructs](#advanced-operators-and-constructs)
+        * [Groupings](#groupings)
+        * [Sets](#sets)
+        * [Environment Sets](#environment-sets)
+        * [Optional Segments](#optional-segments)
+        * [References](#references)
+        * [Ellipses](#ellipses)
+        * [Syllable Structure Matching](#syllable-structure-matching)
+    * [Gemination](#gemination)
+    * [Cross Word-Boundary Operations](#cross-word-boundary-operations)
+    * [Propagation](#propagation)
+        * [Faux Right-to-left Propagation](#faux-right-to-left-propagation)
+        * [True Right-to-left Propagation](#true-right-to-left-propagation)
+        * [Blocking](#blocking)
+* [Considerations](#considerations)
+* [Feature Shorthands](#feature-shorthands)
 
-## Defining Words
+# Defining Words
 
 ### IPA Characters
 
@@ -317,9 +319,9 @@ Inserting syllable boundaries:
 ```
 
 
-## Defining Basic Sound Changes
+# Defining Sound Changes
 
-### The Basics
+## The Basics
 ASCA tries to stick to commonly used [notation](https://en.wikipedia.org/wiki/Phonological_rule) wherever possible. Though, it may differ from other sound change appliers.
 In general, a rule is made of 4 parts:
 ```
@@ -706,149 +708,6 @@ V > [tone: 35], [tone: 51] / _ʔ, _s  ;; 上 then 去
 ʔ , s > * / _$                       ;; Phonemicisation
 ```
 
-## Groupings
-
-Groupings can be used as shorthand to match often used parts of speech.
-```
-C -> Consonants (obstruents and sonorants)          (equiv. to [-syll])
-O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -son, -syll])
-S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, +son, -syll])
-P -> Plosives                                       (equiv, to [+cons, -son, -syll, -delrel, -cont])
-F -> Fricatives                                     (equiv, to [+cons, -son, -syll, -approx, +cont])
-L -> Liquids                                        (equiv. to [+cons, +son, -syll, +approx])
-N -> Nasals                                         (equiv. to [+cons, +son, -syll, -approx, +nasal])
-G -> Glides                                         (equiv. to [-cons, +son, -syll])
-V -> Vowels                                         (equiv. to [-cons, +son, +syll])
-```
-Note that purely glottalic consonants such as `/h/ and /ʔ/` are considered `[-cons, -son, -syll]` and are therefore not captured by any grouping other than `C`. 
-
-## Sets
-Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries (a set in the input or output
-cannot contain word boundaries). They represent a choice between their items.
-Currently, set items cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
-
-If corresponding sets are used in the input and output, then the nth element in the input will be substituted by the nth element in the output. In a rule with nothing 
-but sets, this is analogous to a condensed rule, however a set is applied in just one pass.
-
-```wasm
-p, t, k > b, d, g   ;; 3 passes, equivalent to 3 consecutive rules
-{p,t,k} > {b,d,g}   ;; 1 pass
-```
-
-A set in the output, if matched to a set in the input, must contain the same number of segments. A set also cannot be empty:
-```
-{p, t, k} > {b, d}      (ERROR)
-{p, t} > {b, d, g}      (ERROR)
-{} > {}                 (ERROR)
-```
-
-If used in the input without a corresponding set in the output, the corresponding output element will be applied to any of the set items. Again, analogous to 
-a similarly structured condensed rule, except applied in one pass.
-```wasm
- f, x  > [+voi] / V_V   ;; 2 passes, equivalent to 2 consecutive rules
-{f, x} > [+voi] / V_V   ;; 1 pass
-```
-
-A set in the output without a corresponding set is invalid.
-```
-ʔ > { p, t, k }     (ERROR)
-```
-
-Sets can also be used in an environment block:
-
-```
-Example: Japanese High Vowel Devoicing
-
-V:[+hi] > [-voice] / [-voi]_{[-voi], #}
-
-/de.sɨ/    => /de.sɨ̥/
-/de.sɨ.ka/ => /de.sɨ̥.ka/
-```
-
-## Environment Sets
-
-It can be necessary to check for multiple environmental matches in a single pass.
-This is especially true of exception clauses and, in some cases, propagation. 
-For example, in the English 'Great Vowel Shift', /uː/ does not shift if it is followed by a labial consonant, or preceded by /j/.
-Representing this normally would be rather tricky as, in this case, consecutive environments would override each other:
-
-```
-u:[+long] => əw | _C:[+lab], j_
-
-duːt => dəwt, suːp => səwp, juːθ => jəwθ (does not work!)
-```
-
-This is fixed by placing the two environments inside an environment set, which is delimited with `:{` and `}:` (Note: this is not the same as a regular set, which 
-is delimited by `{` and `}`, though regular sets are valid inside an environment set).
-
-```wasm
-u:[+long] => əw | :{ _C:[+lab], j_ }:
-;; /u:/ becomes /əw/ everywhere except after /j/ or before a labial consonant
-
-duːt => dəwt (doubt)
-suːp => suːp (soup)
-juːθ => juːθ (youth)
-```
-These sets can be used as part of condensed rules, and are valid in substitution, deletion, and metathesis rules.
-They are currently not allowed in insertion rules, however this will change in further updates.
-
-## Gemination
-Syllable initial/final consonant gemination is as simple as making a vowel long.
-
-```wasm
-C > [+long] / V:[-long]_#
-;; A consonant is geminated at the end of a word, after a short vowel
-
-/'luk/ => /luk:/, /lu:k/ => /lu:k/
-```
-
-To geminate across a syllable boundary, we can do one of a few things (not exhaustive): 
-
-```
-Insertion with a Reference (see below)
-
-* > 1 / V:[-long, +str] _ $ C=1
-
-/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
-```
-
-```
-Insertion with Structure Matching (see below)
-
-* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1..⟩
-
-/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
-```
-
-```
-Substitution with Boundaries and a Reference:
-
-$ C=1 > 1 $ 1 / V:[-long, +str]_
-
-/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
-```
-
-
-## Optional Segments
-Optional Segments are declared as `(S, M:N)` where: 
-```
-S = the segment(s) to be repeated
-M = the minimum number of iterations (optional, default = 0)
-N = the maximum number of iterations (inclusive). M must be greater than or equal to N.
-```
-For example, `(C,5)_`  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
-
-`(C,3:5)_` matches `CCC_`, `CCCC_`, and `CCCCC_`.
-
-`(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
-
-`(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_` or `(C,0:1)_`.
-
-`([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard `(.?)`.
-
-`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard `(.*?)`. 
-This can be considered equivalent to an optional ellipsis `(..)`.
-
 ## Alpha Notation
 
 Take these two rules:
@@ -857,7 +716,7 @@ Take these two rules:
 [+son] > [+nasal] / [+nasal]_
 ``` 
 Both are identical, except both `nasal` features are positive in one and negative in the other. These rules will also be applied sequentially.
-We can replace these with a single rule, which is only applied once, by replacing the +/- with a greek character `α..ω`. If greek characters are not available, latin capitals `A..Z` can be used instead.
+We can replace these with a single rule, which is only applied once, by replacing the +/- with a greek character `α..ω`. If greek characters are not available, ASCII capitals `A..Z` can be used instead.
 
 ```
 Rule Example: Malay Nasalisation
@@ -908,13 +767,121 @@ The above means that when matching an obstruent that is `[-cont]` the output bec
 
 This can be used with nodes for conditional clustering:
 ```
-ə$ > * / P:[-nas, αPLACE]_N:[-αPLACE]
+ə$ > * / P:[αPLACE]_N:[-αPLACE]
 
 /pə.no/ => /pno/, /pə.mo/ => /pə.mo/
 ```
 In the rule above, plosives and nasals cluster only if they are of a different place of articulation.
 
-## References
+## Advanced Operators and Constructs
+
+### Groupings
+
+Groupings can be used as shorthand to match often used parts of speech.
+```
+C -> Consonants (obstruents and sonorants)          (equiv. to [-syll])
+O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -son, -syll])
+S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, +son, -syll])
+P -> Plosives                                       (equiv, to [+cons, -son, -syll, -delrel, -cont])
+F -> Fricatives                                     (equiv, to [+cons, -son, -syll, -approx, +cont])
+L -> Liquids                                        (equiv. to [+cons, +son, -syll, +approx])
+N -> Nasals                                         (equiv. to [+cons, +son, -syll, -approx, +nasal])
+G -> Glides                                         (equiv. to [-cons, +son, -syll])
+V -> Vowels                                         (equiv. to [-cons, +son, +syll])
+```
+Note that purely glottalic consonants such as `/h/ and /ʔ/` are considered `[-cons, -son, -syll]` and are therefore not captured by any grouping other than `C`. 
+
+### Sets
+Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries (a set in the input or output
+cannot contain word boundaries). They represent a choice between their items.
+Currently, set items cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
+
+If corresponding sets are used in the input and output, then the nth element in the input will be substituted by the nth element in the output. In a rule with nothing 
+but sets, this is analogous to a condensed rule, however a set is applied in just one pass.
+
+```wasm
+p, t, k > b, d, g   ;; 3 passes, equivalent to 3 consecutive rules
+{p,t,k} > {b,d,g}   ;; 1 pass
+```
+
+A set in the output, if matched to a set in the input, must contain the same number of segments. A set also cannot be empty:
+```
+{p, t, k} > {b, d}      (ERROR)
+{p, t} > {b, d, g}      (ERROR)
+{} > {}                 (ERROR)
+```
+
+If used in the input without a corresponding set in the output, the corresponding output element will be applied to any of the set items. Again, analogous to 
+a similarly structured condensed rule, except applied in one pass.
+```wasm
+ f, x  > [+voi] / V_V   ;; 2 passes, equivalent to 2 consecutive rules
+{f, x} > [+voi] / V_V   ;; 1 pass
+```
+
+A set in the output without a corresponding set is invalid.
+```
+ʔ > { p, t, k }     (ERROR)
+```
+
+Sets can also be used in an environment block:
+
+```
+Example: Japanese High Vowel Devoicing
+
+V:[+hi] > [-voice] / [-voi]_{[-voi], #}
+
+/de.sɨ/    => /de.sɨ̥/
+/de.sɨ.ka/ => /de.sɨ̥.ka/
+```
+
+### Environment Sets
+
+It can be necessary to check for multiple environmental matches in a single pass.
+This is especially true of exception clauses and, in some cases, propagation. 
+For example, in the English 'Great Vowel Shift', /uː/ does not shift if it is followed by a labial consonant, or preceded by /j/.
+Representing this normally would be rather tricky as, in this case, consecutive environments would override each other:
+
+```
+u:[+long] => əw | _C:[+lab], j_
+
+duːt => dəwt, suːp => səwp, juːθ => jəwθ (does not work!)
+```
+
+This is fixed by placing the two environments inside an environment set, which is delimited with `:{` and `}:` (Note: this is not the same as a regular set, which 
+is delimited by `{` and `}`, though regular sets are valid inside an environment set).
+
+```wasm
+u:[+long] => əw | :{ _C:[+lab], j_ }:
+;; /u:/ becomes /əw/ everywhere except after /j/ or before a labial consonant
+
+duːt => dəwt (doubt)
+suːp => suːp (soup)
+juːθ => juːθ (youth)
+```
+These sets can be used as part of condensed rules, and are valid in substitution, deletion, and metathesis rules.
+They are currently not allowed in insertion rules, however this will change in further updates.
+
+### Optional Segments
+Optional Segments are declared as `(S, M:N)` where: 
+```
+S = the segment(s) to be repeated
+M = the minimum number of iterations (optional, default = 0)
+N = the maximum number of iterations (inclusive). M must be greater than or equal to N.
+```
+For example, `(C,5)_`  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
+
+`(C,3:5)_` matches `CCC_`, `CCCC_`, and `CCCCC_`.
+
+`(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
+
+`(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_` or `(C,0:1)_`.
+
+`([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard `(.?)`.
+
+`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard `(.*?)`. 
+This can be considered equivalent to an optional ellipsis `(..)`.
+
+### References
 References allow us to invoke the value of a previously matched element. References are declared by using the `=` operator, followed by a number. This number can then be used later in the rule to invoke the reference.
 Currently; matrices, groups, and syllables can be referenced.
 
@@ -939,7 +906,7 @@ References can be modified with diacritics or a feature matrix as if they were a
 ;; A syllable is deleted if preceded by a stressed syllable that is otherwise identical
 ```
 
-## Ellipses
+### Ellipses
 
 Ellipses have other uses outside of [Metathesis rules](#metathesis-rules). They can be used in
 context blocks to define non-adjacent environment conditions (useful for [propagation](#propagation))
@@ -974,7 +941,7 @@ r(..)l > l(..)r
 /pa.ra.bo.la/ => /pa.la.bo.ra/
 ```
 
-## Syllable Structure Matching
+### Syllable Structure Matching
 
 Sometimes it can be useful to match a syllable based on the segments within. We can do this by using a Structure. 
 
@@ -1027,6 +994,41 @@ Example: Word Initial Copy Vowel Insertion
 * > <1> / #_CV=1
 
 /'de.no/ => /e'de.no/
+```
+
+## Gemination
+Syllable initial/final consonant gemination is as simple as making a vowel long.
+
+```wasm
+C > [+long] / V:[-long]_#   ;; A consonant is geminated at the end of a word, after a short vowel
+
+/'luk/ => /luk:/, /lu:k/ => /lu:k/
+```
+
+To geminate across a syllable boundary, we can do one of a few things (not exhaustive): 
+
+```
+Insertion with a Reference
+
+* > 1 / V:[-long, +str] _ $ C=1
+
+/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
+```
+
+```
+Insertion with Structure Matching
+
+* > 1 / ⟨(..)V:[-long]⟩:[+str] _ ⟨C=1..⟩
+
+/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
+```
+
+```
+Substitution with Boundaries and a Reference:
+
+$ C=1 > 1 $ 1 / V:[-long, +str]_
+
+/'lu.ka/ => /'luk.ka/, /'lu:.ka/ => /'lu:.ka/
 ```
 
 ## Cross Word-Boundary Operations
@@ -1128,7 +1130,7 @@ V ~ [+nasal] / _ ([+son]) [+nasal]
 /palanawasan/ => /pãlãnawasãn/
 ```
 
-## Considerations
+# Considerations
 
 ### Syllable Stress
 Currently, when a syllable is inserted to the beginning of a word with `$`, the added syllable steals the stress/tone of the previously initial syllable.
@@ -1175,7 +1177,7 @@ ha:t > he:t
 ```
 
 
-## Feature Shorthands
+# Feature Shorthands
 
 ASCA tries to be as flexible as possible to fit any notational style (even some silly ones).
 The following can be upper or lower case, or with any whitespace between characters.
