@@ -341,8 +341,9 @@ An environment can only contain one underline `_` or a series of joined underlin
 ```wasm
 a > e           ;; /saj/ > /sej/
 a > e / _       ;; this is equivalent to the above
-a > e / ___     ;; this is valid
+a > e / ___     ;; this is also valid
 a > e / _ _     ;; this is invalid
+a > e /         ;; this is invalid
 ```
 
 ### Single Line Comments
@@ -429,7 +430,18 @@ arla => alra
 For more about ellipses, see [below](#ellipses).
 
 ### Condensed Rules
-Multiple rules can be condensed into one line. This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments.
+Multiple rules can be condensed into one line by joining each of their parts, separated by commas:
+
+```
+a > e / #_ 
+u > y / _#
+
+(becomes)
+
+a, u > e, y / #_, _# 
+```
+
+This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments; as these can be condensed into one item:
 
 For Example:
 ```
@@ -441,6 +453,7 @@ can be condensed into:
 e > * / #_, _#
 ```
 It is important to remember that the rules are still applied sequentially and not at the same time (see [environment sets](#environment-sets) for this).
+Parts of a condensed rule must either be of the same length or contain only one item.
 
 ### Special Environment
 
@@ -451,7 +464,7 @@ e > * / #_, _#
 ;; becomes
 e > * / _,#
 ```
-The before case always comes first.
+The before case is always done first.
 Any elements past the comma are mirrored such that:
 ```
 _,ABC => ABC_ , _CBA
@@ -465,9 +478,9 @@ For example, imagine a input word of `'si.tu`. If we apply the rule `V > * / C_#
 
 This can be repaired in a few ways, including: 
 ```wasm
-$ C > & / _# ;; the consonant is moved into the preceding syllable, with the now empty second syllable being deleted
+$C > & / _# ;; the consonant is moved into the preceding syllable, with the now empty second syllable being deleted
 ;; or
-$ > * / _C#  ;; the two syllables are merged by deleting the boundary between them
+$ > * / _C# ;; the two syllables are merged by deleting the boundary between them
 ```
 
 ## Segment Features
@@ -480,23 +493,23 @@ ASCA defines the features it uses as follows:
 
 ```
 ┌────────┬─────────┬─────────┬─────────────────────────────┬────────────────────────────┐
-│  Node  │ SubNode │ Feature │              +              │             -              │
+│  Node  │ Subnode │ Feature │              +              │             -              │
 ├────────┼─────────┴─────────┼─────────────────────────────┼────────────────────────────┤
 │        │    consonantal    │ obstruents, nasals, liquids │ vowels, glides, laryngeals │
 │  ROOT  │      sonorant     │      vowels, sonorants      │         obstruents         │
 │        │      syllabic     │ vowels, syllabic consonants │     glides, consonants     │
 ├────────┼───────────────────┼─────────────────────────────┼────────────────────────────┤
-│        │    continuant     │  fricatives, approximants,  │    Plosives, affricates,   │
+│        │    continuant     │  fricatives, approximants,  │    plosives, affricates,   │
 │        │                   │       vowels, trills        │        nasals, flaps       │
 │        │    approximant    │   vowels, glides, liquids   │     nasals, obstruents     │
 │        │      lateral      │ l-like and lateralised segs │             -              │
-│ MANNER │       nasal       │  nasals, nasalised vowels,  │ oral consonants and vowels │
-│        │                   │      prenasalised stops     │                            │
+│        │       nasal       │  nasals, nasalised vowels,  │ oral consonants and vowels │
+│ MANNER │                   │      prenasalised stops     │                            │
 │        │  delayed release  │     affricate consonants    │       Plosives, etc.       │
 │        │     strident      │    f, v, s, z, ʃ, ʒ etc.    │   ɸ, β, θ, ð, ç, ʝ, etc.   │
 │        │      rhotic       │    r-like trills & flaps    │             -              │
-│        │                   │ rhoticised vowels and cons. │             -              │
-│        │       click       │       click consonants      │             _              │
+│        │                   │ rhoticised vowels and cons. │                            │
+│        │       click       │       click consonants      │     non click segments     │
 ├────────┼───────────────────┼─────────────────────────────┼────────────────────────────┤
 │        │       voice       │       voiced segments       │     voiceless segments     │
 │ LARYNG │   spread glottis  │   aspirates, breathy voice  │             -              │
@@ -637,7 +650,7 @@ V > [+str] / _C%#           ;; A penult syll ending with a consonant or glide be
 ;; Rules 2 and 3 could be condensed into one by matching to the consonant instead of the vowel in rule 3
 V > [+str] / _C%# (becomes) C > [+str] / _%#
 ;; therefore
-V:[+long], C > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed)
+V:[+long], C > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed
 ```
 
 ```wasm
@@ -827,14 +840,14 @@ For example, `(C,5)_`  matches up to 5 consonants preceding the target. This wil
 
 `(C,3:5)_` matches `CCC_`, `CCCC_`, and `CCCCC_`.
 
-`(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator (*?)
+`(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
 
-`(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_` or `(C,0:1)_`
+`(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_` or `(C,0:1)_`.
 
-`([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard (.?)
+`([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard `(.?)`.
 
-`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard (.*?). 
-This can be considered equivalent to `(..)`.
+`([],0)_` matches zero or more of *any* segment preceding the target. This is equal to regex’s Lazy-Zero-Or-More operator with a wildcard `(.*?)`. 
+This can be considered equivalent to an optional ellipsis `(..)`.
 
 ## Alpha Notation
 
