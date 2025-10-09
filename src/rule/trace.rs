@@ -62,7 +62,7 @@ pub(crate) fn to_string_wasm(original: &Phrase, changes: Vec<Change>, rules: &[R
     }
 
     let mut last_unk = unk.clone();
-    let mut trace_indices = Vec::new();
+    let mut trace_indices = Vec::with_capacity(changes.len());
 
     for change in changes {
         res.push(format!("Applied \"{}\":", rules[change.rule_index].name));
