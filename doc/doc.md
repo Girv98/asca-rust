@@ -1165,7 +1165,7 @@ hat  > het  ;; expected, current behaviour
 ha:t > he:t ;; expected, current behaviour
 ```
 This is a consequence of how we currently iterate through a word, and what we consider a single segment in certain situations. 
-Whether/How this behaviour will change in future releases is being debated. 
+Whether/How this behaviour will change in future releases is being debated as it could effect the ergonomics of other rules. 
 For now, it is best to think of any ipa character in the output as being inherently `[-long]`. 
 
 The 'fix' for this is to use alpha notation:
