@@ -213,14 +213,11 @@ impl Word {
         Ok(w)
     }
 
+    // FIXME: In the docs, we say that no normalisation is done before the aliasing stage
     fn normalise(input_txt: String) -> String {
         let mut output = String::with_capacity(input_txt.len());
         for ch in input_txt.chars() {
             match ch {
-                '\'' => output.push('ˈ'),
-                ',' => output.push('ˌ'),
-                ':' => output.push('ː'),
-                ';' => output.push_str("ː."),
                 'ã' => output.push_str("ã"),
                 'ẽ' => output.push_str("ẽ"),
                 'ĩ' => output.push_str("ĩ"),
@@ -596,78 +593,75 @@ impl Word {
         let mut sy = Syllable::new();
 
         while i < txt.len() {
-
-            // Primary or Secondary Stress
-            if txt[i] == 'ˌ' || txt[i] == 'ˈ' {
-                if !sy.segments.is_empty() {
+            match txt[i] {
+                'ˈ' | '\'' => { // Primary Stress
+                    if !sy.segments.is_empty() { self.syllables.push(sy); }
+                    sy = Syllable { segments: VecDeque::new(), stress: StressKind::Primary, tone: 0 };
+                }
+                'ˌ' | ','  => { // Secondary Stress
+                    if !sy.segments.is_empty() { self.syllables.push(sy); }
+                    sy = Syllable { segments: VecDeque::new(), stress: StressKind::Secondary, tone: 0 };
+                }
+                ';' => { // Length and Close
+                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt, i).into()) }
+                    sy.segments.push_back(*sy.segments.back().unwrap()); 
                     self.syllables.push(sy);
+                    sy = Syllable::new();
                 }
-                // Reset for next syllable
-                sy = Syllable::new();
-                // set stress for next syllable
-                match txt[i] {
-                    'ˌ' => sy.stress = StressKind::Secondary,
-                    'ˈ' => sy.stress = StressKind::Primary,
-                    _ => unreachable!()
+                'ː' | ':' => { // Length
+                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt, i).into()) }
+                    sy.segments.push_back(*sy.segments.back().unwrap());
                 }
-                i+=1;
-                continue;
-            }
-            // Break or Tone
-            if txt[i] == '.' || txt[i].is_ascii_digit() {
-                if sy.segments.is_empty() {
-                    i+=1;           // NOTE: We could (or maybe should) error here, but we can just skip
-                    continue;
+                '.' => { // Close
+                    if !sy.segments.is_empty() { self.syllables.push(sy); }
+                    sy = Syllable::new();
                 }
-                // Tone
-                if txt[i].is_ascii_digit() {
+
+                ch if ch.is_ascii_digit() => { // Tone
+                    if sy.segments.is_empty() { continue; }
+
                     let mut tone_buffer = String::new();
                     while i < txt.len() && txt[i].is_ascii_digit() {
-                        tone_buffer.push(txt[i]);
-                        i+=1;
+                        tone_buffer.push(txt[i]); i+=1;
                     }
+                    i-=1;
+                    
                     tone_buffer = tone_buffer.replace('0', "");
                     if tone_buffer.chars().count() > 4 {
                         Err(WordSyntaxError::ToneTooBig(input_txt.clone(), i-tone_buffer.chars().count()))?
                     }
                     sy.tone = tone_buffer.parse().unwrap_or(0);
+
+                    self.syllables.push(sy.clone());
+                    sy = Syllable::new();
+                }
+                _ => { // Get Segment
+                    let _ = self.fill_segments(&input_txt, &mut txt, &mut i, &mut sy, aliases)?;
                     i-=1;
                 }
-                self.syllables.push(sy.clone());
-                // Reset syllable for next pass
-                sy = Syllable::new();
-                i+=1;
-                continue;
             }
-            // Length
-            if txt[i] == 'ː' {
-                if sy.segments.is_empty() {
-                    return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt, i).into())
-                }
-                sy.segments.push_back(*sy.segments.back().unwrap());
-                i += 1;
-                continue;
-            }
-            
-            // GET SEG
-            self.fill_segments(&input_txt, &mut txt, &mut i, &mut sy, aliases)?;
+            i+=1;
         }
-        if sy.segments.is_empty() {
-            if sy.tone != 0 || sy.stress != StressKind::Unstressed {
-                if sy.stress == StressKind::Primary {
-                    if let Some(syll) = self.syllables.last() {
-                        if !syll.segments.is_empty() {
-                            return Err(WordSyntaxError::CouldNotParseEjective(input_txt).into())
-                        }
-                    }
-                }
-                return Err(WordSyntaxError::CouldNotParse(input_txt).into());
-            } 
-        } else {
-            self.syllables.push(sy);
-        }
-        Ok(())
 
+        if !sy.segments.is_empty() {
+            self.syllables.push(sy);
+            return Ok(())
+        }
+
+        // Check for dangling '
+        if sy.stress == StressKind::Primary {
+            // Check if previous syllable had a segment which would indicate that ' might have been meant as ejective
+            if  let Some(syll) = self.syllables.last() && !syll.segments.is_empty() { 
+                return Err(WordSyntaxError::CouldNotParseEjective(input_txt).into())
+            }
+        }
+        
+        // if tone or stress is set
+        if sy.tone != 0 || sy.stress != StressKind::Unstressed {
+            return Err(WordSyntaxError::CouldNotParse(input_txt).into());
+        } 
+
+        Ok(())
     }
 
     fn render_normal_debug(&self) -> (String, Vec<Segment>) {
