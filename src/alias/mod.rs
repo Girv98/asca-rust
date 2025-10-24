@@ -151,47 +151,41 @@ impl TryFrom<&str> for NamedEscape {
     
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value.to_lowercase().as_str() {
-            "space" | "spac" | "spc"    => Ok(Self::Space),
+            "space" | "spac" | "spc" => Ok(Self::Space),
             // "ayin" | "ayn"             => Ok(Self::Ayin),
-            "grave" | "grav" | "grv"    => Ok(Self::Grave),
-            "acute" | "acut" | "acu"    | 
-            "apex"  | "act"  | "apx"    => Ok(Self::Acute),
-            "circumflex" | "circum"     | 
-            "circflex"   | "cflex"      => Ok(Self::Circumflex),
-            "tilde" | "tild" | "tlde"   |
-            "tld"                       => Ok(Self::Tilde),
-            "macron"   | "mcrn"         => Ok(Self::Macron),
-            "overline" | "lineabove"    |
-            "line"                      => Ok(Self::OverLine),
-            "breve" | "brev" | "brv"    => Ok(Self::Breve),
-            "overdot"  | "dotabove"     => Ok(Self::OverDot),
-            "umlaut"   | "diaeresis"    |
-            "dubdot"   | "doubledot"    => Ok(Self::Umlaut),
-            "overhook" | "hookabove"    |
-            "hook"                      => Ok(Self::OverHook),
-            "overring" | "ringabove"    | 
-            "ring"                      => Ok(Self::OverRing),
-            "doubleacute" | "dubacute"  |
-            "doubleapex"  | "dubapex"   => Ok(Self::DoubleAcute),
-            "caron" | "karen" | "crn"   => Ok(Self::Caron),
+            "grave" | "grav" | "grv" => Ok(Self::Grave),
+            "acute" | "acut" | "apex" | "acu" | "act" | "apx" => Ok(Self::Acute),
+            "tilde" | "tild" | "tlde" | "tld" => Ok(Self::Tilde),
+            "breve" | "brev" | "brve" | "brv" => Ok(Self::Breve),
+            
+            "circumflex" | "circum" | "circflex" | "cflex" => Ok(Self::Circumflex),
+
+            "macron"   | "mcrn"               => Ok(Self::Macron),
+            "overline" | "lineabove" | "line" => Ok(Self::OverLine),
+            "overdot"  | "dotabove"  | "dot"  => Ok(Self::OverDot),
+            
+            "umlaut"   | "diaeresis" | "dubdot" | "doubledot" => Ok(Self::Umlaut),
+
+            "overhook" | "hookabove" | "hook" => Ok(Self::OverHook),
+            "overring" | "ringabove" | "ring" => Ok(Self::OverRing),
+            
+            "doubleacute" | "dubacute" | "doubleapex" | "dubapex" => Ok(Self::DoubleAcute),
+            
+            "caron" | "karon"  | "karen" | "crn"   => Ok(Self::Caron),
             /* ... */
-            "doublegrave" | "dubgrave"  |
-            "dubgrav" | "dubgrv"        => Ok(Self::DoubleGrave),
+            "doublegrave" | "dubgrave" |
+            "dubgrav" | "dubgrv" => Ok(Self::DoubleGrave),
             /* ... */
-            "invertedbreve" | "invbrev" |
-            "invbreve" | "invbrv"       => Ok(Self::InvBreve),
+            "invertedbreve" | "invbrev" | "invbreve" | "invbrv" => Ok(Self::InvBreve),
             /* ... */
             "horn" | "hrn" => Ok(Self::Horn),
             /* ... */
-            "underdot" | "dotbelow"     => Ok(Self::UnderDot),
-            "underumlaut" | "underdiaeresis" |
-            "umlautbelow" | "diaeresisbelow" 
-                                        => Ok(Self::UnderUmlaut),
-            "underring"  | "ringbelow"  => Ok(Self::UnderRing),
-            "undercomma" | "commabelow" => Ok(Self::UnderComma),
+            "underdot"    | "dotbelow" | "dotbel" | "dotblw" | "unddot" | "udot"   => Ok(Self::UnderDot),
+            "underumlaut" | "underdiaeresis" | "umlautbelow" | "diaeresisbelow"    => Ok(Self::UnderUmlaut),
+            "underring"   | "ringbelow" | "ringbel" | "ringblw" | "undring" | "uring" => Ok(Self::UnderRing),
+            "undercomma"  | "commabelow" | "undcomma" | "ucomma" => Ok(Self::UnderComma),
             "cedilla" | "cedi" | "ced"  => Ok(Self::Cedilla),
-            "ogonek"  | "ogon" | 
-            "ogonk"   | "ognk"          => Ok(Self::Ogonek),
+            "ogonek"  | "ogon" | "ogonk" | "ognk" => Ok(Self::Ogonek),
             _ => Err(())
         }
     }
