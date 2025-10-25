@@ -1256,6 +1256,17 @@ mod word_tests {
 
         let w = Word::new("ma1965", &[]).unwrap(); 
         assert_eq!(w.render(&[]), "ma1965");
+
+        let w = Word::new("ma190065", &[]).unwrap(); 
+        assert_eq!(w.render(&[]), "ma1965");
+    }
+
+    #[test]
+    fn test_render_tone_multi() {
+        assert_eq!(Word::new("ma12ma12", &[]).unwrap().render(&[]), "ma12.ma12");
+        assert_eq!(Word::new("ma00ma12", &[]).unwrap().render(&[]), "ma.ma12");
+        assert_eq!(Word::new("ma12ma00", &[]).unwrap().render(&[]), "ma12.ma");
+        assert_eq!(Word::new("ma12ma1009", &[]).unwrap().render(&[]), "ma12.ma19");
     }
 
 
