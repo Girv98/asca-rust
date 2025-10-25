@@ -191,9 +191,9 @@ impl<'a> AliasLexer<'a> {
             return Err(AliasSyntaxError::UnknownFeature(buffer, AliasPosition::new(self.kind, self.line, start, self.pos)))
         };
         
-        if let AliasTokenKind::Feature(FeatureCategory::Supr(SupraKind::Tone)) = tkn_kind { if mod_val == "+" || mod_val == "-" {
+        if let AliasTokenKind::Feature(FeatureCategory::Supr(SupraKind::Tone)) = tkn_kind && (mod_val == "+" || mod_val == "-") {
             return Err(AliasSyntaxError::WrongModTone(self.kind, self.line, start))
-        } }
+        }
 
         Ok(Some(AliasToken::new(tkn_kind, mod_val, AliasPosition::new(self.kind, self.line, start, self.pos))))
     }
@@ -320,12 +320,10 @@ impl<'a> AliasLexer<'a> {
                         continue;
                     }
                     // if a contour click
-                    if let 'q'| 'ɢ' | 'ɴ' | 'χ' | 'ʁ' = self.next_char() {
-                        if let Some('ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ') = tmp.chars().next() {
-                            tmp.pop(); tmp.push(self.cur_as_ipa());
-                            self.advance();
-                            continue;
-                        }
+                    if let 'q'| 'ɢ' | 'ɴ' | 'χ' | 'ʁ' = self.next_char() && let Some('ʘ' | 'ǀ' | 'ǁ' | 'ǃ' | '!' | '‼' | 'ǂ') = tmp.chars().next() {
+                        tmp.pop(); tmp.push(self.cur_as_ipa());
+                        self.advance();
+                        continue;
                     }
                 }
                 return Some(AliasToken::new(AliasTokenKind::Cardinal, buffer, AliasPosition::new(self.kind, self.line, start, self.pos)))

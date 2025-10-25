@@ -330,10 +330,8 @@ impl OldParser{
 
         // Check all pipeline tags exist
         for c in &conf {
-            if let Some(from_tag) = &c.from {
-                if !tag_set.contains(from_tag) {
-                    return Err(self.error(format!("tag '{from_tag}' does not exist")))
-                }
+            if let Some(from_tag) = &c.from && !tag_set.contains(from_tag) {
+                return Err(self.error(format!("tag '{from_tag}' does not exist")))
             }
         }
         // Check for loops

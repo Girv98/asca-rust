@@ -2412,10 +2412,8 @@ impl SubRule { // Context Matching
         if !self.match_stress(stress, cur_syll)? {
             return Ok(false)
         }
-        if let Some(t) = tone.as_ref() {
-            if !self.match_tone(t, cur_syll) {
-                return Ok(false)
-            }
+        if let Some(t) = tone.as_ref() && !self.match_tone(t, cur_syll) {
+            return Ok(false)
         }
 
         let mut items = items.to_vec().clone();
@@ -2788,10 +2786,8 @@ impl SubRule { // Context Matching
             if !self.match_stress(&suprs.stress, cur_syll)? {
                 return Ok(false)
             }
-            if let Some(t) = suprs.tone.as_ref()  {
-                if !self.match_tone(t, cur_syll) {
-                    return Ok(false)
-                }
+            if let Some(t) = suprs.tone.as_ref() && !self.match_tone(t, cur_syll) {
+                return Ok(false)
             }
             if cur_syll.segments != syll_to_match.segments {
                 return Ok(false)
@@ -2815,10 +2811,8 @@ impl SubRule { // Context Matching
         if !self.match_stress(stress, cur_syll)? {
             return Ok(false)
         }
-        if let Some(t) = tone.as_ref() {
-            if !self.match_tone(t, cur_syll) {
-                return Ok(false)
-            }
+        if let Some(t) = tone.as_ref() && !self.match_tone(t, cur_syll) {
+            return Ok(false)
         }
         if let Some(r) = refr {
             if forwards {
@@ -3021,10 +3015,8 @@ impl SubRule { // Input Matching
         if !self.match_stress(stress, cur_syll)? {
             return Ok(false)
         }
-        if let Some(t) = tone.as_ref() {
-            if !self.match_tone(t, cur_syll) {
-                return Ok(false)
-            }
+        if let Some(t) = tone.as_ref() && !self.match_tone(t, cur_syll) {
+            return Ok(false)
         }
 
         for (mut i, item) in items.iter().enumerate() {
@@ -3142,10 +3134,8 @@ impl SubRule { // Input Matching
             if !self.match_stress(stress, cur_syll)? {
                 return Ok(false)
             }
-            if let Some(t) = tone.as_ref() {
-                if !self.match_tone(t, cur_syll) {
-                    return Ok(false)
-                }
+            if let Some(t) = tone.as_ref() && !self.match_tone(t, cur_syll) {
+                return Ok(false)
             }
             if let Some(r) = refr {
                 self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
@@ -3249,15 +3239,12 @@ impl SubRule { // Input Matching
             if !self.match_stress(&m.suprs.stress, cur_syll)? {
                 return Ok(false)
             } 
-            if let Some(t) = &m.suprs.tone.as_ref() {
-                if !self.match_tone(t, cur_syll) {
-                    return Ok(false)
-                }
+            if let Some(t) = &m.suprs.tone.as_ref() && !self.match_tone(t, cur_syll) {
+                return Ok(false)
             }
             if cur_syll.segments != syll_to_match.segments {
                 return Ok(false)
             }
-
         } else if *cur_syll != *syll_to_match {
             return Ok(false)
         }
@@ -3584,11 +3571,9 @@ impl SubRule { // Insertion
                         state_index +=1;
                     }
                     // Fix for insertion before a mid-word syllable boundary
-                    if let ParseElement::SyllBound | ParseElement::Structure(..) = aft_states[0].kind {
-                        if ins_pos.at_syll_start() {
-                            ins_pos.decrement(phrase);
-                            ins_pos.seg_index += 1;
-                        }
+                    if let ParseElement::SyllBound | ParseElement::Structure(..) = aft_states[0].kind && ins_pos.at_syll_start() {
+                        ins_pos.decrement(phrase);
+                        ins_pos.seg_index += 1;
                     }
                     return Ok(Some(ins_pos)) 
                 },
