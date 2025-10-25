@@ -115,12 +115,8 @@ impl Phrase {
     }
 
     pub(crate) fn swap_sylls(&mut self, lw: usize, ls: usize, rw: usize, rs: usize) {
-        if lw == rw {
-            self[lw].swap_sylls(ls, rs);
-            return;
-        } 
-
-        todo!("Swap between words")
+        let lft_temp = self[lw].syllables[ls].clone();
+        self[lw].syllables[ls] = self[rw].syllables[rs].clone();
+        self[rw].syllables[rs] = lft_temp;
     }
-
 }

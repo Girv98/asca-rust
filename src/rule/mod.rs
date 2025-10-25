@@ -870,6 +870,8 @@ mod rule_tests {
     fn test_met_cross_bound_syll() {
         assert_eq!(setup_rule("## % > &").apply(setup_phrase("a nej.prun")).unwrap().render(&[]), "a.nej prun");
         assert_eq!(setup_rule("% ## > &").apply(setup_phrase("a.nej prun")).unwrap().render(&[]), "a nej.prun");
+        
+        assert_eq!(setup_rule("% ## % > &").apply(setup_phrase("a.nej prun")).unwrap().render(&[]), "a.prun nej");
     }
 
     #[test]
