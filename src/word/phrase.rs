@@ -49,7 +49,7 @@ impl Phrase {
 
     pub fn try_from(unparsed_phrase: &str, aliases: &[String]) -> Result<Self, ASCAError> {
         let alias_into = alias::parse_into(aliases)?;
-        unparsed_phrase.split(' ').map(|w| Word::new(w, &alias_into)).collect()
+        unparsed_phrase.trim_end().split(' ').map(|w| Word::new(w, &alias_into)).collect()
     }
 
     pub fn render_debug(&self, aliases: &[Transformation]) -> (String, Vec<Segment>) {

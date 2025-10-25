@@ -2394,4 +2394,14 @@ mod rule_tests {
         let test_rule = setup_rule("r > * / _(##)[-ant, -dist] ");
         assert_eq!(test_rule.apply(setup_phrase("væːr ʂɔ væːr.ʂɔ væːrʂɔ")).unwrap().render(&[]), "væː ʂɔ væː.ʂɔ væːʂɔ");
     }
+
+    #[test]
+    fn test_phrase_padding() {
+        let test_rule = setup_rule(" a > e");
+        assert_eq!(test_rule.apply(setup_phrase("an ban")).unwrap().render(&[]),   "en ben");
+        assert_eq!(test_rule.apply(setup_phrase("an  ban")).unwrap().render(&[]),  "en  ben");
+        assert_eq!(test_rule.apply(setup_phrase("an   ban")).unwrap().render(&[]), "en   ben");
+        assert_eq!(test_rule.apply(setup_phrase("an   ban ")).unwrap().render(&[]), "en   ben");
+        assert_eq!(test_rule.apply(setup_phrase(" an ban")).unwrap().render(&[]),  "en ben"); // TODO: See NOTE in Phrase::render()
+    }
 }
