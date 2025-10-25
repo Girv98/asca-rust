@@ -62,6 +62,10 @@ impl Phrase {
             unknowns.extend(u);
         }
 
+        // TODO / NOTE: the trim() here means that phrases with leading
+        // spaces will be stripped of such padding in the output.
+        // This is currently advantageous for word boundary deletion rules,
+        // however this means that the user's formatting is not respected.
         (buffer.trim().to_string(), unknowns)
     }
 
@@ -73,6 +77,10 @@ impl Phrase {
             buffer.push_str(&w);
         }
 
+        // TODO / NOTE: the trim() here means that phrases with leading
+        // spaces will be stripped of such padding in the output.
+        // This is currently advantageous for word boundary deletion rules,
+        // however this means that the user's formatting is not respected.
         buffer.trim().to_string()
     }
 

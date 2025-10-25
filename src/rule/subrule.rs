@@ -116,7 +116,7 @@ impl SubRule {
     fn is_cross_bound(&self) -> bool { self.inp_x_bound || self.env_x_bound }
 
     pub(crate) fn apply(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
-        if phrase.is_empty() || phrase[0].syllables.is_empty() { return Ok(phrase) }
+        if phrase.is_empty() || (phrase.len() == 1 && phrase[0].syllables.is_empty()) { return Ok(phrase) }
 
         // '##' will not match if there's less that 2 words, 
         if self.is_cross_bound() && phrase.len() < 2 { return Ok(phrase) }
