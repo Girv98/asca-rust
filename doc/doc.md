@@ -1061,6 +1061,14 @@ Example: French 1st Person Pronoun Contraction
 /ʒə sɥi/ => /ʒ.sɥi/ => /ʃɥi/
 ```
 
+```
+Example: Cross-Word Syllable Metathesis
+
+% ## % > &
+
+sa.lo sa.lo => sa.sa lo.lo
+```
+
 ## Propagation 
 As ASCA changes all matching environments in a word sequentially, left-to-right harmonies naturally propagate.
 

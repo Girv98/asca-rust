@@ -871,7 +871,8 @@ mod rule_tests {
         assert_eq!(setup_rule("## % > &").apply(setup_phrase("a nej.prun")).unwrap().render(&[]), "a.nej prun");
         assert_eq!(setup_rule("% ## > &").apply(setup_phrase("a.nej prun")).unwrap().render(&[]), "a nej.prun");
         
-        assert_eq!(setup_rule("% ## % > &").apply(setup_phrase("a.nej prun")).unwrap().render(&[]), "a.prun nej");
+        assert_eq!(setup_rule("% ## % > &").apply(setup_phrase("a.nej prun")).unwrap().render(&[]), "a.prun nej"); 
+        assert_eq!(setup_rule("% ## % > &").apply(setup_phrase("sa.lo sa.lo")).unwrap().render(&[]), "sa.sa lo.lo"); 
     }
 
     #[test]

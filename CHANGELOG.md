@@ -1,3 +1,14 @@
+0.9.2
+==================
+[0.9.1...0.9.2](https://github.com/Girv98/asca-rust/compare/0.9.1...0.9.2)
+
+Fixes:
+* Lib: 
+    * Trying to swap syllables between words i.e. `% ## % > &` now works
+    * Leading spaces before a phrase do not affect output
+
+Perf: Rule parsing and application is now parallelised
+
 0.9.1
 ==================
 [0.9.0...0.9.1](https://github.com/Girv98/asca-rust/compare/0.9.0...0.9.1)
