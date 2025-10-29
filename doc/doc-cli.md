@@ -25,6 +25,8 @@ See [pie-uvular](../examples/indo-european/pie-uvular-common.wsca) for an exampl
 
 ### Rule file (.rsca)
 
+***NOTE: This format is to be updated by the next minor release. Like the 0.7.0 config format changes, automatic conversion to the new format will be provided through `asca conv` ([see usage](#conv-command))***
+
 The rule file mimics the structure of rules in the web implementation.
 Each rule group is defined as follows:
 
@@ -77,7 +79,7 @@ The seq command allows you to run language family projects, defined within a `.a
 For an example project, see the indo-european example folder [here](../examples/indo-european/germanic).
 
 ### The Config File
-***This is the updated syntax as of version 0.7.0. Automatic conversion of old configs can be done through `asca conv config` ([see usage](#conv-command))***
+***NOTE: This is the updated syntax as of version 0.7.0. Automatic conversion of old configs can be done through `asca conv config` ([see usage](#conv-command))***
 
 Each unit is called a sequence. 
 A simple sequence consists of a sequence tag followed by a semicolon separated list of paths to rule files which describe the sequence. 
