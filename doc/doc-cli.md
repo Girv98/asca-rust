@@ -18,8 +18,8 @@ Asca-cli differs from the web implementation by using three file formats that de
 An existing web json file can be converted into these formats (and vice-versa) using the [conv command](#conv-command).
 
 ### Word file (.wsca)
-Words are defined similarly as to the input field on [asca-web](doc.md). That is, each word is declared on a new line in ipa form.
-Unlike the current web format, wsca files allow for comments marked by `#`. These comments do not appear in the output.
+Words are defined similarly as to the input field on [asca-web](doc.md). That is, each word is declared on a new line in ipa form,
+with optional comments marked by `#`. These comments do not appear in the output.
 
 See [pie-uvular](../examples/indo-european/pie-uvular-common.wsca) for an example.
 
