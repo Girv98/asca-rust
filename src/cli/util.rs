@@ -400,14 +400,14 @@ pub(super) fn fix_combining_char_pad(string: &str) -> usize {
     pad
 }
 
-pub(super) fn print_asca_errors(err: ASCAError, rules: &[RuleGroup], into: &[String], from: &[String]) {
-    match err {
-        ASCAError::AliasSyn(e) => eprintln!("{}", e.format(into, from)),
-        ASCAError::AliasRun(e) => eprintln!("{}", e.format(into, from)),
-        ASCAError::WordSyn(e)  => eprintln!("{}", e.format()),
-        ASCAError::RuleSyn(e)  => eprintln!("{}", e.format(rules)),
-        ASCAError::RuleRun(e)  => eprintln!("{}", e.format(rules)),
-    }
+pub(super) fn get_asca_errors(err: ASCAError, rules: &[RuleGroup], into: &[String], from: &[String]) -> io::Error {
+    io::Error::other(match err {
+        ASCAError::AliasSyn(e) => e.format(into, from),
+        ASCAError::AliasRun(e) => e.format(into, from),
+        ASCAError::WordSyn(e)  => e.format(),
+        ASCAError::RuleSyn(e)  => e.format(rules),
+        ASCAError::RuleRun(e)  => e.format(rules),
+    })
 }
 
 pub(super) fn lev(a: &str, b: &str) -> usize {

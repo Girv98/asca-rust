@@ -411,16 +411,15 @@ fn get_aliases(dir: &Path, seq: &ASCAConfig) -> io::Result<(Vec<String>, Vec<Str
 }
 
 #[inline]
-fn run_once(trace: &mut Vec<Vec<String>>, files: &mut Vec<PathBuf>, entry: &Entry, index: usize, into: &[String], from: &[String]) -> Option<()> {
+fn run_once(trace: &mut Vec<Vec<String>>, files: &mut Vec<PathBuf>, entry: &Entry, index: usize, into: &[String], from: &[String]) -> io::Result<()> {
     files.push(entry.name.clone());
     match asca::par_run_unparsed(&entry.rules, &trace[index], into, from) {
         Ok(res) => {
             trace.push(res);
-            Some(())
+            Ok(())
         },
         Err(err) => {
-            util::print_asca_errors(err, &entry.rules, into, from);
-            None
+            Err(util::get_asca_errors(err, &entry.rules, into, from))
         },
     }
 }
@@ -442,15 +441,15 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>
     if num_steps == 0 {
         return Ok(Some((trace, files, false)))
     } else if num_steps == 1 {
-        if run_once(&mut trace, &mut files, &seq.entries[0], 0, &into, &from).is_none() { return Ok(None) }
+        run_once(&mut trace, &mut files, &seq.entries[0], 0, &into, &from)?;
         return Ok(Some((trace, files, !from.is_empty())))
     }
 
     // Head Iteration
-    if run_once(&mut trace, &mut files, &seq.entries[0], 0, &into, &[]).is_none() { return Ok(None) }
+    run_once(&mut trace, &mut files, &seq.entries[0], 0, &into, &[])?;
     // Tail Iterations
     for (i, entry) in seq.entries.iter().enumerate().skip(1) {
-        if run_once(&mut trace, &mut files, entry, i, &[], &[]).is_none() { return Ok(None) }
+        run_once(&mut trace, &mut files, entry, i, &[], &[])?;
     }
     // Hack to apply romanisation as a separate step
     // TODO: What to do with the this in output
@@ -460,7 +459,7 @@ pub fn run_sequence(config: &[ASCAConfig], dir: &Path, words_path: &Vec<PathBuf>
         // let x = y.file_name().unwrap().to_str().unwrap().to_owned() + "-romanised";
         // y.set_file_name(x);
         let empty_entry = Entry { name, rules: Vec::new() };
-        let _ = run_once(&mut trace, &mut files, &empty_entry, num_steps, &[], &from).is_none();
+        run_once(&mut trace, &mut files, &empty_entry, num_steps, &[], &from)?;
     }
     
     Ok(Some((trace, files,!from.is_empty())))

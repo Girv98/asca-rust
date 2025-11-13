@@ -146,8 +146,7 @@ pub(crate) fn run(in_group: InGroup, maybe_words: Vec<PathBuf>, maybe_alias: Opt
             output_result(maybe_output, &res)
         },
         Err(err) => { 
-            util::print_asca_errors(err, &rules, &into, &from); 
-            Ok(())
+            Err(util::get_asca_errors(err, &rules, &into, &from))
         },
     }
 }
