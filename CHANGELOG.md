@@ -1,3 +1,13 @@
+0.9.3
+==================
+[0.9.2...0.9.3](https://github.com/Girv98/asca-rust/compare/0.9.2...0.9.3)
+
+Fixes: 
+* Cli: Core ASCA errors return with exit code 1
+* Lib: 
+    * Avoid infinite loop after lengthening a segment in certain situations at the end of a word
+    * Enforce use of commas within a set i.e. `{p,t,k}` not `{ptk}` (trailing comma allowed)
+
 0.9.2
 ==================
 [0.9.1...0.9.2](https://github.com/Girv98/asca-rust/compare/0.9.1...0.9.2)
