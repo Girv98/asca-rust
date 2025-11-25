@@ -484,70 +484,58 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_add_length_to_matrix() {
+        assert_eq!(setup_rule("V > [+long]").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "peː.maː");
+        assert_eq!(setup_rule("V > [+long] / _#").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "pe.maː");
+        assert_eq!(setup_rule("V > [+long] | _#").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "peː.ma");
+
+        assert_eq!(setup_rule("V > [+overlong]").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "peːː.maːː");
+        assert_eq!(setup_rule("V > [+overlong] / _#").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "pe.maːː");
+        assert_eq!(setup_rule("V > [+overlong] | _#").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "peːː.ma");
+        
+        assert_eq!(setup_rule("[] > [+long]").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "pːeː.mːaː");
+        assert_eq!(setup_rule("[] > [+overlong]").apply_word(setup_word("pe.ma")).unwrap().render(&[]), "pːːeːː.mːːaːː");
+
+        assert_eq!(setup_rule("V:[-long] > [+long]").apply_word(setup_word("pe:.ma")).unwrap().render(&[]), "peː.maː");
+        assert_eq!(setup_rule("V:[+long] > [+long]").apply_word(setup_word("pe:.ma")).unwrap().render(&[]), "peː.ma");
+        // TODO: assert_eq!(setup_rule("V > [+long]").apply_word(setup_word("pe:.ma")).unwrap().render(&[]), "peː.maː");
+    }
+
+    #[test]
     fn test_long_vowel_breaking() {
-        let test_rule = setup_rule("e > ie");
-        let test_word = setup_word("'pe.ma");
-        println!("e > ie");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpie.ma");
-
-        let test_rule = setup_rule("e:[+long] > ie");
-        let test_word = setup_word("'pe:.ma");
-        println!("e:[+long] > ie");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpie.ma");
-
-        let test_rule = setup_rule("V:[-long, -hi, -lo]=1 > 1:[+hi] 1");
-        let test_word = setup_word("'pe.ma");
-        println!("V:[-long, -hi, -lo]=1 > 1:[+hi] 1");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpie.ma");
-
+        assert_eq!(setup_rule("e > ie").apply_word(setup_word("'pe.ma")).unwrap().render(&[]), "ˈpie.ma");
+        assert_eq!(setup_rule("e:[+long] > ie").apply_word(setup_word("'pe:.ma")).unwrap().render(&[]), "ˈpie.ma");
+        assert_eq!(setup_rule("V:[-long, -hi, -lo]=1 > 1:[+hi] 1").apply_word(setup_word("'pe.ma")).unwrap().render(&[]), "ˈpie.ma");
 
         let test_rule = setup_rule("V:[+long, -hi, -lo]=1 > 1:[+hi, -long] 1:[-long]");
-        println!("V:[+long, -hi, -lo]=1 > 1:[+hi, -long] 1:[-long]");
-        let test_word = setup_word("'pe:.ma");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpie.ma");
-        let test_word = setup_word("'po:.ma");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpuo.ma");
+        assert_eq!(test_rule.apply_word(setup_word("'pe:.ma")).unwrap().render(&[]), "ˈpie.ma");
+        assert_eq!(test_rule.apply_word(setup_word("'po:.ma")).unwrap().render(&[]), "ˈpuo.ma");
 
         let test_rule = setup_rule("V:[+hi, +long]=1 > ə1:[-long]");
-        println!("V:[+hi, +long]=1 > ə1:[-long]");
-        let test_word = setup_word("'i:s");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈəis");
-        let test_word = setup_word("'hu:s");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈhəus");
+        assert_eq!(test_rule.apply_word(setup_word("'i:s")).unwrap().render(&[]), "ˈəis");
+        assert_eq!(test_rule.apply_word(setup_word("'hu:s")).unwrap().render(&[]), "ˈhəus");
     }
 
     #[test]
     fn test_spanish_breaking() {
         let test_rule = setup_rule("V:[+str,-lng, -hi, -lo]=1 > 1:[+hi] e");
-        let test_word = setup_word("'pe.dra");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpie.dra");
-        let test_word = setup_word("'fo.go");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈfue.ɡo");
-        let test_word = setup_word("'fes.ta");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈfies.ta");
-        let test_word = setup_word("'por.to");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpuer.to");
+        assert_eq!(test_rule.apply_word(setup_word("'pe.dra")).unwrap().render(&[]), "ˈpie.dra");
+        assert_eq!(test_rule.apply_word(setup_word("'fo.go")).unwrap().render(&[]), "ˈfue.ɡo");
+        assert_eq!(test_rule.apply_word(setup_word("'fes.ta")).unwrap().render(&[]), "ˈfies.ta");
+        assert_eq!(test_rule.apply_word(setup_word("'por.to")).unwrap().render(&[]), "ˈpuer.to");
     }
 
     #[test]
     fn test_match_stress() {
         let test_rule = setup_rule("V > [Astress] / _C:[Astr]");
-        let test_word = setup_word("pe'sa");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpeˈsa");
+        assert_eq!(test_rule.apply_word(setup_word("pe'sa")).unwrap().render(&[]), "ˈpeˈsa");
 
         let test_rule = setup_rule("V:[Astress] > [+long] / _C:[Astr]");
-        let test_word = setup_word("'pe'sa");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈpeːˈsa");
-        let test_word = setup_word("pe'sa");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "peˈsa");
-        let test_word = setup_word("sa'pe.sa.so");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "saˈpe.saː.so");
-
-        let test_word = setup_word("sa'pe'sa.so");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "saˈpeːˈsa.so");
-
-        let test_word = setup_word("'sa'pe'sa.so");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈsaːˈpeːˈsa.so");
+        assert_eq!(test_rule.apply_word(setup_word("'pe'sa")).unwrap().render(&[]), "ˈpeːˈsa");
+        assert_eq!(test_rule.apply_word(setup_word("pe'sa")).unwrap().render(&[]), "peˈsa");
+        assert_eq!(test_rule.apply_word(setup_word("sa'pe.sa.so")).unwrap().render(&[]), "saˈpe.saː.so");
+        assert_eq!(test_rule.apply_word(setup_word("sa'pe'sa.so")).unwrap().render(&[]), "saˈpeːˈsa.so");
+        assert_eq!(test_rule.apply_word(setup_word("'sa'pe'sa.so")).unwrap().render(&[]), "ˈsaːˈpeːˈsa.so");
     }
 
     // #[test]
@@ -581,61 +569,43 @@ mod rule_tests {
     #[test]
     fn test_empty_word() {
         let test_rule = setup_rule("* > z / #wej_#");
-        let test_word = setup_word("ˈwej");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ˈwejz");
-        let test_word = setup_phrase("ˈeg  ˈwej");
-        assert_eq!(test_rule.apply(test_word).unwrap().render(&[]), "ˈeɡ  ˈwejz");
+        assert_eq!(test_rule.apply_word(setup_word("ˈwej")).unwrap().render(&[]), "ˈwejz");
+        assert_eq!(test_rule.apply_word(setup_word("ˈwej")).unwrap().render(&[]), "ˈwejz");
+        assert_eq!(test_rule.apply(setup_phrase("ˈeg  ˈwej")).unwrap().render(&[]), "ˈeɡ  ˈwejz");
     }
 
     #[test]
     fn test_sub_syll_ref() {
-        let test_rule = setup_rule("% > 1:[-str] / %:[+str]=1_");
-        let test_word = setup_word("keˈsa.lo");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "keˈsa.sa");
+        assert_eq!(setup_rule("% > 1:[-str] / %:[+str]=1_").apply_word(setup_word("keˈsa.lo")).unwrap().render(&[]), "keˈsa.sa");
     }
 
     #[test]
     fn test_sub_assim() {
-        let test_rule = setup_rule("V > [αround] / _C[αround]");
-        let test_word = setup_word("le.ro");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "lø.ro");
+        assert_eq!(setup_rule("V > [αround] / _C[αround]").apply_word(setup_word("le.ro")).unwrap().render(&[]), "lø.ro");
     }
 
     #[test]
     fn test_sub_turkish_suffix_vowel_harmony() {
         let test_rule = setup_rule("V:[+hi] > [αbk, βfr, γrnd] / V:[αbk, βfr, γrnd] (C,0) _ (C) #");
-        let test_word = setup_word("desun");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "desin");
-        let test_word = setup_word("røstin");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "røstyn");
-        let test_word = setup_word("kɨzlik");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "kɨzlɨk");
-        let test_word = setup_word("sɨdyn");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "sɨdɨn");
-        let test_word = setup_word("sodɨn");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "sodun");
-        let test_word = setup_word("dasin");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "dasɨn");
+        assert_eq!(test_rule.apply_word(setup_word("desun")).unwrap().render(&[]), "desin");
+        assert_eq!(test_rule.apply_word(setup_word("røstin")).unwrap().render(&[]), "røstyn");
+        assert_eq!(test_rule.apply_word(setup_word("kɨzlik")).unwrap().render(&[]), "kɨzlɨk");
+        assert_eq!(test_rule.apply_word(setup_word("sɨdyn")).unwrap().render(&[]), "sɨdɨn");
+        assert_eq!(test_rule.apply_word(setup_word("sodɨn")).unwrap().render(&[]), "sodun");
+        assert_eq!(test_rule.apply_word(setup_word("dasin")).unwrap().render(&[]), "dasɨn");
     }
 
     #[test]
     fn test_optional_bounded() {
-        let test_rule = setup_rule("a > e / _(C,3:6)");
-        let test_word = setup_word("ak.ka.k.k.k");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ak.ke.k.k.k");
-
-        let test_rule = setup_rule("a > e / (C,3:6)_");
-        let test_word = setup_word("k.k.k.ak.ka");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "k.k.k.ek.ka");
+        assert_eq!(setup_rule("a > e / _(C,3:6)").apply_word(setup_word("ak.ka.k.k.k")).unwrap().render(&[]), "ak.ke.k.k.k");
+        assert_eq!(setup_rule("a > e / (C,3:6)_").apply_word(setup_word("k.k.k.ak.ka")).unwrap().render(&[]), "k.k.k.ek.ka");
     }
 
     #[test]
     fn test_optional_unbounded() {
         let test_rule = setup_rule("V > [-back, +front, +tense] / _(..) V:[+hi, -back]");
-        let test_word = setup_word("aki");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "æki");
-        let test_word = setup_word("ak.k.k.ki");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "æk.k.k.ki");
+        assert_eq!(test_rule.apply_word(setup_word("aki")).unwrap().render(&[]), "æki");
+        assert_eq!(test_rule.apply_word(setup_word("ak.k.k.ki")).unwrap().render(&[]), "æk.k.k.ki");
     }
 
     #[test]
