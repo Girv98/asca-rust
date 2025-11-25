@@ -2148,9 +2148,7 @@ impl SubRule { // Substitution
                     };
 
                     if !old_phrase.in_bounds(old_next_pos) {
-                        let Some(old_next_syll) = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1) else {
-                            return None
-                        };
+                        let old_next_syll = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1)?;
                         // Find next syllable in result, making sure that we don't accidentally match a previous syllable
                         match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
                             Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),

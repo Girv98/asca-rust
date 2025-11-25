@@ -6,25 +6,20 @@ use crate   :: {
 };
 
 /// The stress level of the syllable
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum StressKind {
-    Primary,
+    #[default]
+    Unstressed,
     Secondary,
-    Unstressed
-}
-
-impl Default for StressKind {
-    fn default() -> Self {
-        Self::Unstressed
-    }
+    Primary,
 }
 
 impl fmt::Display for StressKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StressKind::Primary    => write!(f, "P"),
-            StressKind::Secondary  => write!(f, "S"),
             StressKind::Unstressed => write!(f, "-"),
+            StressKind::Secondary  => write!(f, "S"),
+            StressKind::Primary    => write!(f, "P"),
         }
     }
 }
@@ -93,18 +88,13 @@ impl Syllable {
     /// assert_eq!(None, seg_iter.next());
     /// ```
     pub fn seg_indices(&self) -> Vec<usize> {
-        let mut segments = self.segments.iter();
-
         let mut vec = Vec::new();
-        
         let mut i = 0;
         
         while i < self.segments.len() {
-            let index = i;
             let len = self.get_seg_length_at(i);
-            segments.nth(len);
+            vec.push(i);
             i+=len;
-            vec.push(index);
         }
         vec
     }
