@@ -721,10 +721,15 @@ mod rule_tests {
         let test_word = setup_word("pa.ta.ka");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "paːtaːkaː");
 
-        // FIXME: THIS SHOULD NOT WORK LOL
-        let test_rule = setup_rule("{p, t, k} > {bdg}");
-        let test_word = setup_word("pa.ta.ka");
-        assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ba.da.ɡa");
+        assert_eq!(setup_rule("{p, t, k} > {b, d, g}").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]), "ba.da.ɡa");
+        // test trailing commas
+        assert_eq!(setup_rule("{p, t, k} > {b, d, g,}").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]), "ba.da.ɡa");
+        assert_eq!(setup_rule("{p, t, k,} > {b, d, g}").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]), "ba.da.ɡa");
+        assert_eq!(setup_rule("{p, t, k,} > {b, d, g,}").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]), "ba.da.ɡa");
+
+        assert_eq!(setup_rule("{p} > {b}").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]), "ba.ta.ka");        
+        assert_eq!(setup_rule("{p,} > {b,}").apply_word(setup_word("pa.ta.ka")).unwrap().render(&[]), "ba.ta.ka");        
+
     }
 
     #[test]

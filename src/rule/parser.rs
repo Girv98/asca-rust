@@ -834,33 +834,20 @@ impl Parser {
 
         if !self.expect(TokenKind::LeftCurly) { return Ok(None) }
         let mut terms = Vec::new();
-        // NOTE: this while condition may allow  "/ _{A, B, C <eol>" as valid input
-        // should probably return SyntaxError::ExpectedRightBracketAtEol
-        // bug or feature? ¯\_(ツ)_/¯
+
         while self.has_more_tokens() {
             if self.expect(TokenKind::RightCurly) { break; }
-            if self.expect(TokenKind::Comma)      { continue; }
-            if let Some(x) = self.get_ref()? {
-                terms.push(x);
-                continue;
-            }
-            if let Some(x) = self.get_seg()? {
-                terms.push(x);
-                continue;
-            }
-            if let Some(x) = self.get_bound() {
-                terms.push(x);
-                continue;
-            }
-            if let Some(x) = self.get_syll()? {
-                terms.push(x);
-                continue;
-            }
-            if let Some(x) = self.get_struct()? {
-                terms.push(x);
-                continue;
+            if !terms.is_empty() && !self.expect(TokenKind::Comma) {
+            return Err(RuleSyntaxError::ExpectedComma(self.curr_tkn.clone()))
             }
 
+            if let Some(x) = self.get_ref()?    { terms.push(x); continue; }
+            if let Some(x) = self.get_seg()?    { terms.push(x); continue; }
+            if let Some(x) = self.get_bound()   { terms.push(x); continue; }
+            if let Some(x) = self.get_syll()?   { terms.push(x); continue; }
+            if let Some(x) = self.get_struct()? { terms.push(x); continue; }
+            
+            if self.expect(TokenKind::RightCurly) { break; } // To allow for trailing commas
             return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
         }
 
