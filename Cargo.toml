@@ -31,6 +31,6 @@ wasm-bindgen = "0.2.95"
 clap = { version = "4.5.23", features = ["derive", "color"] }
 serde-wasm-bindgen = "0.6.5"
 clap_complete = "4.5.40"
-clap-stdin = "0.6.0"
+clap-stdin = "0.8.0"
 indexmap = { version = "2.10.0", features = ["serde"]}
 rayon = "1.10.0"
