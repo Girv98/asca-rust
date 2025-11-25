@@ -135,7 +135,7 @@ impl SubRule {
     }
 
     fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
-        match res[0] {
+        match *res.first().expect("res is not empty") {
             MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => (sp, true),
             MatchElement::Syllable(wp, s, _)  |
             MatchElement::SyllBound(wp, s, _) => (SegPos::new(wp, s, 0), true),
@@ -148,7 +148,7 @@ impl SubRule {
     }
 
     fn set_end(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
-        match *res.last().unwrap() {
+        match *res.last().expect("res is not empty") {
             MatchElement::Segment(mut sp, _) | MatchElement::LongSegment(mut sp, _)  => {
                 // So that long vowels work
                 let mut seg_len = phrase.seg_length_at(sp);
