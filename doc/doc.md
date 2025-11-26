@@ -865,16 +865,22 @@ They are currently not allowed in insertion rules, however this will change in f
 Optional Segments are declared as `(S, M:N)` where: 
 ```
 S = the segment(s) to be repeated
-M = the minimum number of iterations (optional, default = 0)
+M = the minimum number of iterations
 N = the maximum number of iterations (inclusive). N must be greater than or equal to M.
 ```
-For example, `(C,5)_`  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
+Both `M` and `N` can be omitted, with default values being `0` and `Max` respectfully. When `M` is omitted, an option can be declared simply as `(S, N)`.
+
+For example, `(C,5)_` is equivalent to `(C, 0:5)` or `(C, :5)` and matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
 
 `(C,3:5)_` matches `CCC_`, `CCCC_`, and `CCCCC_`.
 
-`(C,0)_` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
+`(C, 3:)` matches 3 or more consonants preceding the target.
 
-`(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_` or `(C,0:1)_`.
+`(C, 3:3)` matches exactly `CCC_`
+
+`(C,0)_` or `(C,:)` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
+
+`(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_`, `(C,0:1)_` or `(C, :1)`.
 
 `([])_` matches zero or one of *any* segment preceding the target. This is equal to regex’s Zero-Or-One operator with a wildcard `(.?)`.
 
