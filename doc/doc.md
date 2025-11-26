@@ -866,7 +866,7 @@ Optional Segments are declared as `(S, M:N)` where:
 ```
 S = the segment(s) to be repeated
 M = the minimum number of iterations (optional, default = 0)
-N = the maximum number of iterations (inclusive). M must be greater than or equal to N.
+N = the maximum number of iterations (inclusive). N must be greater than or equal to M.
 ```
 For example, `(C,5)_`  matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
 
