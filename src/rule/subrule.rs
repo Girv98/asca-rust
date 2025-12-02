@@ -10,7 +10,7 @@ use std ::{
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, EnvItem, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, RuleType, SupraSegs, Token }, 
+    rule   :: { Alpha, AlphaMod, BinMod, EnvItem, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, Reference, RuleType, SupraSegs }, 
     word   :: { FeatKind, NodeKind, Phrase, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
@@ -658,7 +658,7 @@ impl SubRule {
                 
                 },
                 ParseElement::Reference(num, modifiers) => {
-                    if let Some(refr) = self.references.borrow().get(&num.value.parse().unwrap()) {
+                    if let Some(refr) = self.references.borrow().get(&num.value) {
                         match refr {
                             RefKind::Syllable(_) => return Err(RuleRuntimeError::SyllRefInsideStruct(item.position)),
                             &RefKind::Segment(mut segment) => {
@@ -1256,9 +1256,9 @@ impl SubRule { // Substitution
         }
     }
 
-    fn sub_ref(&self, phrase: &Phrase, num: &Token, mods: &Option<Modifiers>, state: MatchElement, in_pos: Position, out_pos: Position) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_ref(&self, phrase: &Phrase, num: &Reference, mods: &Option<Modifiers>, state: MatchElement, in_pos: Position, out_pos: Position) -> Result<SubAction, RuleRuntimeError> {
         let binding = self.references.borrow();
-        let Some(refr) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownReference(num.clone())) };
+        let Some(refr) = binding.get(&num.value) else { return Err(RuleRuntimeError::UnknownReference(*num)) };
         match (state, refr) {
             (MatchElement::LongSegment(pos, _), RefKind::Segment(seg)) => {
                 let old_len = phrase.seg_length_at(pos) as u8;
@@ -1371,8 +1371,8 @@ impl SubRule { // Substitution
                     },
                     ParseElement::Reference(num, mods) => {
                         let binding = self.references.borrow();
-                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else {
-                            return Err(RuleRuntimeError::UnknownReference(num.clone()))
+                        let Some(refr) = binding.get(&num.value) else {
+                            return Err(RuleRuntimeError::UnknownReference(*num))
                         };
 
                         let old_len = phrase.seg_length_at(pos) as u8; 
@@ -1471,8 +1471,8 @@ impl SubRule { // Substitution
                     },
                     ParseElement::Reference(num, mods) => { 
                         let binding = self.references.borrow();
-                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else {
-                            return Err(RuleRuntimeError::UnknownReference(num.clone()))
+                        let Some(refr) = binding.get(&num.value) else {
+                            return Err(RuleRuntimeError::UnknownReference(*num))
                         };
 
                         match refr {
@@ -1570,8 +1570,8 @@ impl SubRule { // Substitution
                     }
                     ParseElement::Reference(num, mods) => {
                         let binding = self.references.borrow();
-                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else {
-                            return Err(RuleRuntimeError::UnknownReference(num.clone()))
+                        let Some(refr) = binding.get(&num.value) else {
+                            return Err(RuleRuntimeError::UnknownReference(*num))
                         };
 
                         match refr {
@@ -1644,7 +1644,7 @@ impl SubRule { // Substitution
                     }
                     ParseElement::Reference(num, mods) => {
                         let binding = self.references.borrow();
-                        let Some(refr) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownReference(num.clone())) };
+                        let Some(refr) = binding.get(&num.value) else { return Err(RuleRuntimeError::UnknownReference(*num)) };
                         match refr {
                             RefKind::Segment(segment) => {
                                 let mut v = Vec::with_capacity(2);
@@ -1819,7 +1819,7 @@ impl SubRule { // Substitution
                         }
                         ParseElement::Reference(num, mods) => {
                             let binding = self.references.borrow();
-                            let Some(refr) = binding.get(&num.value.parse().unwrap()) else { return Err(RuleRuntimeError::UnknownReference(num.clone())) };
+                            let Some(refr) = binding.get(&num.value) else { return Err(RuleRuntimeError::UnknownReference(*num)) };
                             match refr {
                                 RefKind::Segment(segment) => {
                                     let pos = insert_pos.expect("insert_pos is set");
@@ -2748,18 +2748,18 @@ impl SubRule { // Context Matching
         Ok(false)
     }
 
-    fn context_match_ref(&self, vt: &Token, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
-        if let Some(refr) = self.references.borrow().get(&vt.value.parse::<usize>().unwrap()) {
-            match refr {
+    fn context_match_ref(&self, refr: &Reference, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position, within_struct: bool) -> Result<bool, RuleRuntimeError> {
+        if let Some(rk) = self.references.borrow().get(&refr.value) {
+            match rk {
                 RefKind::Segment(s) => if self.context_match_ipa(s, mods, phrase, *pos, err_pos)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                RefKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllRefInsideStruct(vt.position)),
+                RefKind::Syllable(_) if within_struct => Err(RuleRuntimeError::SyllRefInsideStruct(refr.position)),
                 RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards),
             }            
         } else {
-            Err(RuleRuntimeError::UnknownReference(vt.clone()))
+            Err(RuleRuntimeError::UnknownReference(*refr))
         }
     }
 
@@ -2956,7 +2956,7 @@ impl SubRule { // Input Matching
     ) -> Result<bool, RuleRuntimeError> {
         let err_pos = states[*state_index].position;
         match &states[*state_index].kind {
-            ParseElement::Reference(vt, m) => if self.input_match_ref(captures, state_index, vt, m, phrase, seg_pos, err_pos)? {
+            ParseElement::Reference(refr, m) => if self.input_match_ref(captures, state_index, refr, m, phrase, seg_pos, err_pos)? {
                 *state_index += 1;
                 Ok(true)
             } else { Ok(false) },
@@ -3041,14 +3041,14 @@ impl SubRule { // Input Matching
                 ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, item.position)? {
                     return Ok(false)
                 },
-                ParseElement::Reference(num, mods) => match self.references.borrow().get(&num.value.parse::<usize>().unwrap()) {
+                ParseElement::Reference(num, mods) => match self.references.borrow().get(&num.value) {
                     Some(refr) => match refr {
                         RefKind::Segment(s) => if self.context_match_ipa(s, mods, phrase, *pos, item.position)? {
                             pos.increment(phrase);
                         } else { return Ok(false) },
                         RefKind::Syllable(_) => return Err(RuleRuntimeError::SyllRefInsideStruct(item.position)),
                     },
-                    None => return Err(RuleRuntimeError::UnknownReference(num.clone())),
+                    None => return Err(RuleRuntimeError::UnknownReference(*num)),
                 }
                 ParseElement::Optional(states, min, max) => if self.context_match_option(items, &mut i, phrase, pos, true, states, *min, *max, true)? {
                     // This works i guess
@@ -3175,7 +3175,7 @@ impl SubRule { // Input Matching
                 } else { Ok(false) },
                 ParseElement::Syllable(stress, tone, refr) => self.input_match_syll(captures, state_index, stress, tone, refr, phrase, pos),
                 ParseElement::SyllBound => if pos.at_syll_start() {
-                    captures.push(MatchElement::SyllBound(pos.word_index, pos.syll_index, Some(i))); // FIXME: `i` is being unnecessarily reassigned
+                    captures.push(MatchElement::SyllBound(pos.word_index, pos.syll_index, Some(i)));
                     Ok(true)
                 } else { Ok(false) },
                 ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(s.position)),
@@ -3255,16 +3255,16 @@ impl SubRule { // Input Matching
         
     }
 
-    fn input_match_ref(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, vt: &Token, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        match self.references.borrow_mut().get(&vt.value.parse::<usize>().unwrap()) {
-            Some(refr) => match refr {
+    fn input_match_ref(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, refr: &Reference, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        match self.references.borrow_mut().get(&refr.value) {
+            Some(rk) => match rk {
                 RefKind::Segment(s)  => if self.input_match_ipa(captures, s, mods, phrase, pos, err_pos)? {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
                 RefKind::Syllable(s) => self.input_match_syll_ref(captures, state_index , s, mods, phrase, pos),
             },
-            None => Err(RuleRuntimeError::UnknownReference(vt.clone())),
+            None => Err(RuleRuntimeError::UnknownReference(*refr)),
         }
     }
 
@@ -3409,7 +3409,7 @@ impl SubRule { // Insertion
                     pos.seg_index = 0;
                 },
                 ParseElement::Reference(num, mods) => {
-                    if let Some(refr) = self.references.borrow().get(&num.value.parse().unwrap()) {
+                    if let Some(refr) = self.references.borrow().get(&num.value) {
                         match refr {
                             RefKind::Segment(seg) => {
                                 if let Some(syll) = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index) { 
@@ -3455,7 +3455,7 @@ impl SubRule { // Insertion
                             },
                         }
                     } else {
-                        return Err(RuleRuntimeError::UnknownReference(num.clone()))
+                        return Err(RuleRuntimeError::UnknownReference(*num))
                     }
                 },
                 ParseElement::Ellipsis | ParseElement::WEllipsis => {/* Do Nothing */},

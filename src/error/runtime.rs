@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use crate :: { 
     alias :: { AliasKind, AliasPosition }, 
-    rule  :: { Position, Token }
+    rule  :: { Position, Reference }
 };
 use super :: { ASCAError, RuleGroup };
 
@@ -46,7 +46,7 @@ pub enum RuleRuntimeError {
     InsertionOpt        (Position),
     AlphaUnknown        (Position),
     LonelySet           (Position),
-    UnknownReference(Token),
+    UnknownReference(Reference),
     DeletionOnlySeg,
     DeletionOnlySyll,
     UnevenEllipsis(Vec<Position>),

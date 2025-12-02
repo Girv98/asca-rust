@@ -77,6 +77,13 @@ impl Env {
     }
 }
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reference {
+    pub(crate) value: usize, 
+    pub(crate) position: Position,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ParseElement {
     EmptySet    ,
@@ -92,7 +99,7 @@ pub(crate) enum ParseElement {
     Syllable    ([Option<ModKind>; 2], Option<Tone>, Option<usize>),
     Structure   (Vec<ParseItem>, [Option<ModKind>; 2], Option<Tone>, Option<usize>),
     Optional    (Vec<ParseItem>, usize, usize),
-    Reference   (Token, Option<Modifiers>),
+    Reference   (Reference, Option<Modifiers>),
 }
 
 impl ParseElement {
@@ -758,8 +765,10 @@ impl Parser {
 
     fn get_ref(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // returns REF ← [0-9]+ (':' PARAMS)? 
-        let Some(t) = self.eat_expect(TokenKind::Number) else { return Ok(None) };     
-        let mut pos = t.position;
+        let Some(Token { value, position, .. }) = self.eat_expect(TokenKind::Number) else { return Ok(None) };
+        let refr = Reference { value: value.parse().unwrap(), position };
+
+        let mut pos = refr.position;
 
         if matches!(self.curr_tkn.kind, TokenKind::Diacritic(_)) {
             let mut diacrits = vec![];
@@ -772,11 +781,11 @@ impl Parser {
 
             let params = self.diacritics_as_params(&diacrits)?;
             pos.end = end;
-            return Ok(Some(ParseItem::new(ParseElement::Reference(t, Some(params)), pos)))
+            return Ok(Some(ParseItem::new(ParseElement::Reference(refr, Some(params)), pos)))
         }
 
         if !self.expect(TokenKind::Colon) {
-            let refr = ParseItem::new(ParseElement::Reference(t, None), pos);
+            let refr = ParseItem::new(ParseElement::Reference(refr, None), pos);
             return Ok(Some(refr))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -786,7 +795,7 @@ impl Parser {
         let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`").clone();
         pos.end = params.position.end;
 
-        Ok(Some(ParseItem::new(ParseElement::Reference(t, Some(matrix)), pos)))    
+        Ok(Some(ParseItem::new(ParseElement::Reference(refr, Some(matrix)), pos)))    
     }
 
     fn get_opt(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
