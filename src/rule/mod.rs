@@ -84,15 +84,15 @@ impl Alpha {
 pub struct Rule {
     pub(crate) input:   Vec<Vec<ParseItem>>, // to support multirules
     pub(crate) output:  Vec<Vec<ParseItem>>, // these need to be Vec<Vec<Item>>
-    pub(crate) context: Vec<ParseItem>,
-    pub(crate) except:  Vec<ParseItem>,
+    pub(crate) context: Vec<EnvItem>,
+    pub(crate) except:  Vec<EnvItem>,
     pub(crate) prop_rev: bool,
     pub(crate) cross_bound_inp: bool,
     pub(crate) cross_bound_env: bool,
 }
 
 impl Rule {
-    pub(crate) fn new(i: Vec<Vec<ParseItem>>, o: Vec<Vec<ParseItem>>, context: Vec<ParseItem>, except: Vec<ParseItem>, prop_rev: bool, cross_bound_inp: bool, cross_bound_env: bool) -> Self {
+    pub(crate) fn new(i: Vec<Vec<ParseItem>>, o: Vec<Vec<ParseItem>>, context: Vec<EnvItem>, except: Vec<EnvItem>, prop_rev: bool, cross_bound_inp: bool, cross_bound_env: bool) -> Self {
         Self { input: i, output: o, context, except, prop_rev, cross_bound_inp, cross_bound_env }
     }
 
@@ -108,12 +108,12 @@ impl Rule {
         if self.except.len()  != max && self.except.len()  != 1 && !self.except.is_empty()  { return Err(RuleSyntaxError::UnbalancedRuleEnv(self.except.clone()))  }
 
         // populate subrules, if one's length == 1 then it's value is duplicated to rest of subrules
-        let mut sub_vec = Vec::new();
+        let mut sub_vec = Vec::with_capacity(max);
         for i in 0..max {
-            let mut input   = if  self.input.len() == 1 {  self.input[0].clone() } else {  self.input[i].clone() };
+            let mut input   = if self.input.len()  == 1 {  self.input[0].clone() } else {  self.input[i].clone() };
             let mut output  = if self.output.len() == 1 { self.output[0].clone() } else { self.output[i].clone() };
             let mut context = if self.context.is_empty() { None } else if self.context.len() == 1 { Some(self.context[0].clone()) } else { Some(self.context[i].clone()) };
-            let mut except  = if  self.except.is_empty() { None } else if  self.except.len() == 1 { Some( self.except[0].clone()) } else { Some( self.except[i].clone()) };
+            let mut except  = if self.except.is_empty()  { None } else if self.except.len()  == 1 { Some( self.except[0].clone()) } else { Some( self.except[i].clone()) };
             let rule_type = {
                 match (&input[0].kind, &output[0].kind) {
                     (ParseElement::EmptySet, ParseElement::EmptySet) => return Err(RuleSyntaxError::InsertDelete(input[0].position.group, input[0].position.line, input[0].position.start, output[0].position.start)),
@@ -173,20 +173,17 @@ impl Rule {
         Ok(sub_vec)
     }
 
-    fn sub_rule_envs_contain_extl_bound(&self, context: &Option<ParseItem>, exception: &Option<ParseItem>) -> bool {
-        if let Some(ParseItem { kind, position: _ }) = context {
-            let ParseElement::Environment(envs) = kind else { unreachable!() };
-            for env in envs {
+    fn sub_rule_envs_contain_extl_bound(&self, context: &Option<EnvItem>, exception: &Option<EnvItem>) -> bool {
+        if let Some(envs) = context {
+            for env in &envs.envs {
                 if env.contains_external() {
                     return true
                 }
             }
-
         }
 
-        if let Some(ParseItem { kind, position: _ }) = exception {
-            let ParseElement::Environment(envs) = kind else { unreachable!() };
-            for env in envs {
+        if let Some(envs) = exception {
+            for env in &envs.envs {
                 if env.contains_external() {
                     return true
                 }

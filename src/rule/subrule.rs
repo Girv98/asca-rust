@@ -10,7 +10,7 @@ use std ::{
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, RuleType, SupraSegs, Token }, 
+    rule   :: { Alpha, AlphaMod, BinMod, EnvItem, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, RuleType, SupraSegs, Token }, 
     word   :: { FeatKind, NodeKind, Phrase, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
@@ -82,8 +82,8 @@ pub(crate) enum RefKind {
 pub(crate) struct SubRule {
     pub(crate) input      : Vec<ParseItem>,
     pub(crate) output     : Vec<ParseItem>,
-    pub(crate) context    : Option<ParseItem>,
-    pub(crate) except     : Option<ParseItem>,
+    pub(crate) context    : Option<EnvItem>,
+    pub(crate) except     : Option<EnvItem>,
     pub(crate) rule_type  : RuleType,
     pub(crate) references : RefCell<HashMap<usize, RefKind>>,
     pub(crate) alphas     : RefCell<HashMap<char, Alpha>>,
@@ -95,20 +95,14 @@ pub(crate) struct SubRule {
 impl SubRule {
     fn get_contexts(&self) -> Vec<(&Vec<ParseItem>, &Vec<ParseItem>)> {
         match &self.context {
-            Some(x) => match &x.kind {
-                ParseElement::Environment(env) => env.iter().map(|e| (&e.before, &e.after)).collect(),
-                _ => unreachable!()
-            },
+            Some(item) => item.envs.iter().map(|e| (&e.before, &e.after)).collect(),
             None => vec![],
         }
     }
 
     fn get_exceptions(&self) -> Vec<(&Vec<ParseItem>, &Vec<ParseItem>)> {
         match &self.except {
-            Some(x) => match &x.kind {
-                ParseElement::Environment(env) => env.iter().map(|e| (&e.before, &e.after)).collect(),
-                _ => unreachable!()
-            },
+            Some(item) => item.envs.iter().map(|e| (&e.before, &e.after)).collect(),
             None => vec![],
         }
     }
@@ -1442,9 +1436,10 @@ impl SubRule { // Substitution
                     ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSyll(set_output[i].position)),
                     ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
 
-                    ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
-                    ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
-                    ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
+                    ParseElement::EmptySet | ParseElement::ExtlBound  | 
+                    ParseElement::Ellipsis | ParseElement::Metathesis | 
+                    ParseElement::Set(..)  | ParseElement::WEllipsis  | 
+                    ParseElement::Optional(..)  => unreachable!()
                 }
             },
             MatchElement::Segment(mut pos, set_index) => {
@@ -1538,9 +1533,10 @@ impl SubRule { // Substitution
                     ParseElement::Syllable(..) => Err(RuleRuntimeError::SubstitutionSyll(set_output[i].position)),
                     ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(set_output[i].position)),
                     
-                    ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
-                    ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
-                    ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
+                    ParseElement::EmptySet | ParseElement::ExtlBound  | 
+                    ParseElement::Ellipsis | ParseElement::Metathesis | 
+                    ParseElement::Set(..)  | ParseElement::WEllipsis  | 
+                    ParseElement::Optional(..) => unreachable!()
                 }
             },
             MatchElement::Syllable(wp, sp, set_index) => {
@@ -1601,9 +1597,11 @@ impl SubRule { // Substitution
                         }])
                     },
 
-                    ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
-                    ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
-                    ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
+                    ParseElement::EmptySet | ParseElement::ExtlBound  | 
+                    ParseElement::Ellipsis | ParseElement::Metathesis | 
+                    ParseElement::Set(..)  | ParseElement::WEllipsis  | 
+                    ParseElement::Optional(..) => unreachable!()
+
                 }
             },
             MatchElement::SyllBound(wp, sp, set_index) => {
@@ -1676,9 +1674,10 @@ impl SubRule { // Substitution
                         }
                     }
 
-                    ParseElement::EmptySet | ParseElement::ExtlBound  | ParseElement::WEllipsis | 
-                    ParseElement::Ellipsis | ParseElement::Metathesis | ParseElement::Set(..)   | 
-                    ParseElement::Optional(..) | ParseElement::Environment(..) => unreachable!()
+                    ParseElement::EmptySet | ParseElement::ExtlBound  | 
+                    ParseElement::Ellipsis | ParseElement::Metathesis | 
+                    ParseElement::Set(..)  | ParseElement::WEllipsis  | 
+                    ParseElement::Optional(..) => unreachable!()
                 }
             },
         }
@@ -1788,8 +1787,9 @@ impl SubRule { // Substitution
                     self.sub_set_insertion_position(&mut insert_pos, &actions);
                 
                     match &out_item.kind {
-                        ParseElement::Ellipsis  | ParseElement::WEllipsis  | ParseElement::Environment(..) | ParseElement::Metathesis |
-                        ParseElement::ExtlBound | ParseElement::WordBound  | ParseElement::Optional(..)    | ParseElement::EmptySet   => unreachable!(),
+                        ParseElement::Ellipsis  | ParseElement::WEllipsis  | ParseElement::Metathesis |
+                        ParseElement::ExtlBound | ParseElement::WordBound  | ParseElement::Optional(..) | 
+                        ParseElement::EmptySet  => unreachable!(),
 
                         ParseElement::Syllable(..) => return Err(RuleRuntimeError::SubstitutionSyll(out_item.position)),
                         ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(out_item.position)),
@@ -1875,8 +1875,8 @@ impl SubRule { // Substitution
                     let in_item = &input_filt[in_index];
                     let match_el = input[in_index];
                     match (match_el, &out_item.kind) {
-                        (_, ParseElement::Ellipsis ) | (_, ParseElement::WEllipsis)  | (_, ParseElement::Environment(..)) | (_, ParseElement::Metathesis) |
-                        (_, ParseElement::ExtlBound) | (_, ParseElement::WordBound)  | (_, ParseElement::Optional(..))    | (_, ParseElement::EmptySet  ) => unreachable!(),
+                        (_, ParseElement::Ellipsis ) | (_, ParseElement::WEllipsis)    | (_, ParseElement::Metathesis) | (_, ParseElement::ExtlBound) | 
+                        (_, ParseElement::WordBound) | (_, ParseElement::Optional(..)) | (_, ParseElement::EmptySet  ) => unreachable!(),
 
                         (_, ParseElement::Syllable(..)) => return Err(RuleRuntimeError::SubstitutionSyll(out_item.position)),
                         (MatchElement::WordBound(..), _) => return Err(RuleRuntimeError::SubstitutionWordBound(in_item.position, out_item.position)),
@@ -2315,8 +2315,7 @@ impl SubRule { // Context Matching
                 Ok(true)
             } else { Ok(false) },
 
-            ParseElement::EmptySet | ParseElement::Metathesis |
-            ParseElement::Environment(_) => unreachable!(),
+            ParseElement::EmptySet | ParseElement::Metathesis => unreachable!(),
         }
     }
 
@@ -2993,8 +2992,8 @@ impl SubRule { // Input Matching
             ParseElement::Ellipsis  => self.input_match_ellipsis(captures, phrase, seg_pos, states, state_index, true),
             ParseElement::WEllipsis => self.input_match_ellipsis(captures, phrase, seg_pos, states, state_index, false),
 
-            ParseElement::Optional(..) | ParseElement::Environment(_) |
-            ParseElement::EmptySet | ParseElement::WordBound | ParseElement::Metathesis  => unreachable!(),
+            ParseElement::Optional  (..) | ParseElement::EmptySet | ParseElement::Metathesis | 
+            ParseElement::WordBound => unreachable!(),
         }
     }
 
@@ -3063,7 +3062,7 @@ impl SubRule { // Input Matching
                     return Ok(false) 
                 },
                 ParseElement::EmptySet | ParseElement::WordBound | ParseElement::SyllBound | ParseElement::Metathesis | ParseElement::ExtlBound | 
-                ParseElement::Syllable(..) | ParseElement::Structure(..) | ParseElement::Environment(..) => unreachable!(),
+                ParseElement::Syllable(..) | ParseElement::Structure(..) => unreachable!(),
             }
         }
         if pos.seg_index != 0 { return Ok(false) }
@@ -3464,8 +3463,8 @@ impl SubRule { // Insertion
                 ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(state.position)),
                 ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(state.position)),
 
-                ParseElement::EmptySet  | ParseElement::Metathesis   | ParseElement::ExtlBound | 
-                ParseElement::Optional(..) | ParseElement::WordBound | ParseElement::Environment(..) => unreachable!(),
+                ParseElement::Optional  (..) | ParseElement::ExtlBound | ParseElement::EmptySet | 
+                ParseElement::WordBound | ParseElement::Metathesis => unreachable!(),
             }
         }
 

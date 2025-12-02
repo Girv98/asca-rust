@@ -2,8 +2,8 @@ use std::fmt;
 use colored::Colorize;
 
 use crate :: {
-    alias :: { parser::AliasItem, AliasKind, AliasPosition, AliasToken, AliasTokenKind }, 
-    rule  :: { ParseItem, Position, Token, TokenKind }
+    alias :: { AliasKind, AliasPosition, AliasToken, AliasTokenKind, parser::AliasItem }, 
+    rule  :: { EnvItem, ParseItem, Position, Token, TokenKind }
 };
 use super::{get_feat_closest, ASCAError, RuleGroup};
 
@@ -139,7 +139,7 @@ pub enum RuleSyntaxError {
     DiacriticDoesNotMeetPreReqsFeat(Position, Position, FeatString, IsPlus),
     DiacriticDoesNotMeetPreReqsNode(Position, Position, NodeString, IsPlus),
     UnexpectedDiacritic(Position, Position),
-    UnbalancedRuleEnv(Vec<ParseItem>),
+    UnbalancedRuleEnv(Vec<EnvItem>),
     UnbalancedRuleIO (Vec<Vec<ParseItem>>),
     UnexpectedEol(Token, char),
     OptMathError (Token, usize, usize),
