@@ -5,7 +5,7 @@ use crate  :: {
     error  :: RuleRuntimeError, 
     rule   :: { Alpha, AlphaMod, BinMod, ModKind, Modifiers, PlaceMod, Position, SupraSegs }, 
     word   :: { Diacritic, Place }, 
-    CARDINALS_MAP, CARDINALS_VEC, DIACRITS 
+    CARDINALS_MAP, DIACRITS 
 };
 use super  :: { DiaMods, FeatKind, NodeKind };
 
@@ -72,12 +72,11 @@ impl Segment {
     }
 
     fn create_candidates(&self) -> Vec<(Segment, &String, usize)> {
-        let mut candidates = Vec::with_capacity(256);
-        for c_grapheme in CARDINALS_VEC.iter() {
-            let seg: Segment = *CARDINALS_MAP.get(c_grapheme).unwrap();
+        let mut candidates = Vec::with_capacity(64);
+        for (c_grapheme, seg) in CARDINALS_MAP.iter() {
             let diff_count = self.diff_count(&seg);
             if diff_count < 8 {
-                candidates.push((seg, c_grapheme, diff_count))
+                candidates.push((*seg, c_grapheme, diff_count))
             }
         }
         candidates
@@ -85,9 +84,8 @@ impl Segment {
 
     pub(crate) fn get_nearest_grapheme(&self) -> String {
         // test against all cardinal values for a match
-        for c_grapheme in CARDINALS_VEC.iter() {
-            let x = CARDINALS_MAP.get(c_grapheme).unwrap();
-            if *x == *self { return c_grapheme.to_string() }
+        for (c_grapheme, seg) in CARDINALS_MAP.iter() {
+            if *seg == *self { return c_grapheme.to_string() }
         }
 
         let candidates = self.create_candidates();
@@ -110,29 +108,6 @@ impl Segment {
         }
     }
 
-    // #[allow(clippy::unusual_byte_groupings)]
-    // fn try_edge_cases(&self) -> Option<String> {
-    //     match *self {
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101010_00)) } => Some("i̯".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_101010_00)) } => Some("y̯".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_101011_00)) } => Some("i̯ᵊ".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_101011_00)) } => Some("y̯ᵊ".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_011010_00)) } => Some("ɯ̯".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011010_00)) } => Some("u̯".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_00_00_011011_00)) } => Some("ɯ̯ᵊ".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_011011_00)) } => Some("u̯ᵊ".to_string()),
-    //         æʷ̯ > æ̯ʷ, æʷ̯ᵊ > æ̯ʷᵊ
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_100110_00)) } => Some("æ̯ʷ".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_100111_00)) } => Some("æ̯ʷᵊ".to_string()),
-    //         ɐʷ̯ > ɐ̯ʷ, ɐʷ̯ᵊ > ɐ̯ʷᵊ
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_000110_00)) } => Some("ɐ̯ʷ".to_string()),
-    //         Segment { root: 0b010, manner: 0b11000000, laryngeal: 0b100, place: Place(Some(0b1010_01_00_000111_00)) } => Some("ɐ̯ʷᵊ".to_string()),
-    //         ɺ̃ > nˡ
-    //         Segment { root: 0b110, manner: 0b00110000, laryngeal: 0b100, place: Place(Some(0b0100_00_10_000000_00)) } => Some("nˡ".to_string()),
-    //         _ => None
-    //     }
-    // }
-
     /// Returns the segment as a string in IPA form
     /// 
     /// Returns `None`, if the segment value cannot be converted
@@ -140,9 +115,8 @@ impl Segment {
         // TODO(girv): This wouldn't get me any leetcode cred
 
         // test against all cardinal values for a match
-        for c_grapheme in CARDINALS_VEC.iter() {
-            let x = CARDINALS_MAP.get(c_grapheme).unwrap();
-            if *x == *self { return Some(c_grapheme.to_string()) }
+        for (c_grapheme, seg) in CARDINALS_MAP.iter() {
+            if *seg == *self { return Some(c_grapheme.to_string()) }
         }
 
         // if no match is found, 
@@ -241,12 +215,11 @@ impl Segment {
         ];
 
         let mut feats = [();FeatKind::count()].map(|_| None);     
-        #[allow(clippy::needless_range_loop)] 
-        for i in 0..FeatKind::count() {
-            let (n, f) = FeatKind::from_usize(i).as_node_mask();   
-            let Some(x) = self.get_feat(n, f) else { continue };
+        for (i, feat) in feats.iter_mut().enumerate() {
+            let (nk, f) = FeatKind::from_usize(i).as_node_mask();   
+            let Some(x) = self.get_feat(nk, f) else { continue };
             
-            feats[i] = Some(ModKind::Binary(as_bin_mod(x != 0)))
+            *feat = Some(ModKind::Binary(as_bin_mod(x != 0)))
         }
         
         Modifiers { nodes, feats, suprs: SupraSegs::new() }
