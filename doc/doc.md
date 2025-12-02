@@ -874,9 +874,9 @@ For example, `(C,5)_` is equivalent to `(C, 0:5)` or `(C, :5)` and matches up to
 
 `(C,3:5)_` matches `CCC_`, `CCCC_`, and `CCCCC_`.
 
-`(C, 3:)` matches 3 or more consonants preceding the target.
+`(C, 3:)_` matches 3 or more consonants preceding the target.
 
-`(C, 3:3)` matches exactly `CCC_`
+`(C, 3:3)_` matches exactly `CCC_`
 
 `(C,0)_` or `(C,:)` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
 
