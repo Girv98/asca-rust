@@ -1,30 +1,30 @@
-```
-conf = spacing seq+ eof
-seq = ident rules
+```peg
+Conf ← Spacing Seq+ Eof
+Seq  ← Ident Rules
 
-ident = pipe? tag COLON
-pipe = inputlist ARROW
-inputlist =  literal (" " literal)*
-tag = literal
+Ident       ← Pipe? Tag Colon
+Pipe        ← InputList Arrow
+InputList   ← Literal (" " Literal)*
+Tag         ← Literal
 
-rules = entry+
-entry = literal filter? SEMIC
+Rules ← Entry+
+Entry ← Literal Filter? SemiColon
 
-filter = filtertype filterlist
-filtertype = "!" | "~"
-filterlist = string (COMMA string)* COMMA?
+Filter      ← FilterType FilterList
+FilterType  ← "!" / "~"
+FilterList  ← String (Comma String)* Comma?
 
-string = "\"" !((eol | eof) .)+ "\"" spacing
-literal = (!(reserved | <whitespace> | eol | eof) .)+ spacing
+String  ← "\"" !((Eol / Eof) .)+ "\"" Spacing
+Literal ← (!(Reserved / <whitespace> / Eol / Eof) .)+ Spacing
 
-COLON = ":" spacing
-SEMIC = ";" spacing
-ARROW = ">" spacing
-COMMA = "," spacing
+Colon       ← ":" Spacing
+SemiColon   ← ";" Spacing
+Arrow       ← ">" Spacing
+Comma       ← "," Spacing
 
-reserved = ">" | "!" | "~" | "," | "#" | ":" | ";" | "\""
-spacing = (<whitespace> | comment | eol)*
-comment = '#' (! ( eol | eof) .)* eol
-eol = "\u{000A}" | "\u{2028}" | "\u{2029}"
-eof = !.
+Reserved    ← ">" / "!" / "~" / "," / "#" / ":" / ";" / "\""
+Spacing     ← (<whitespace> / Comment / Eol)*
+Comment     ← '#' (! ( Eol / Eof) .)* Eol
+Eol         ← "\u{000A}" / "\u{2028}" / "\u{2029}"
+Eof         ← !.
 ```

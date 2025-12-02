@@ -1,46 +1,44 @@
 ```peg
+Alias   ← Into / From
 
-ALIAS   ←   INTO / FROM
+Into    ← Replacement Arrow Output Eol
+From    ← Input Arrow Replacement Eol
 
-INTO    ←   REPLACE ARR OUTPUT EOL
-FROM    ←   INPUT ARR REPLACE EOL
+Replacement ← ReplaceTerm ( ',' ReplaceTerm )* ','?
+ReplaceTerm ← Empty / Plus? ReplaceElem+
+ReplaceElem ← Escape / ValidChar
 
-REPLACE ←   RPL_TRM ( ',' RPL_TRM )* ','?
-RPL_TRM ←   EMP / PLUS? RPL_ELS+
-RPL_ELS ←   ESCAPE / VAL_CHR
+Escape          ← NamedEscape / UnicodeEscape / LiteralEscape
+NamedEscape     ← '@' '{' [A-Za-z]+ '}'
+UnicodeEscape   ← '\' 'u' '{' [0-9A-F]+ '}'
+LiteralEscape   ← '\' SpecChar
 
-ESCAPE  ←   ESC_NME / ESC_UNI / ESC_LIT
-ESC_NME ←   '@' '{' [A-Za-z]+ '}'
-ESC_UNI ←   '\' 'u' '{' [0-9A-F]+ '}'
-ESC_LIT ←   '\' SPC_CHR
+Output  ← OutTerm ( ',' OutTerm )* ','?
+OutTerm ← Empty / SyllBound / Segment+
 
-OUTPUT  ←   OUT_TRM ( ',' OUT_TRM )* ','?
-OUT_TRM ←   EMP / SBOUND / SEG+
+Input   ← InpTerm ( ',' InpTerm )* ','?
+InpTerm ← SyllBound / Segment+
 
-INPUT   ←   INP_TRM ( ',' INP_TRM )* ','?
-INP_TRM ←   SBOUND / SEG+
+Segment     ← IPA (':' Params)? / Group (':' Params)? / Params
+Group       ← [A-Z]
+Params      ← '[' (Argument (',' Argument)*)? ']' 
+Argument    ← ArgModifier [a-zA-Z]+ / Tone
+ArgModifier ← '+' / '-'
+Tone        ← [a-zA-Z]+ ':' [0-9]+ 
 
-SEG     ←   IPA (':' PARAMS)? / GROUP (':' PARAMS)? / PARAMS
+ValidChar   ← !SpecChar !Whitespace .
+SpecChar    ← '\' / '@' / '$' / '∅' / '*' / '>' / '=' / '+' / '-' / ','
+Plus        ← '+'
+Empty       ← '*' / '∅'   
+SyllBound   ← '$'
+Arrow       ← ('='/'-')? '>'  
 
-GROUP   ←   [A-Z]
-PARAMS  ←   '[' (ARG (',' ARG)*)? ']' 
-ARG     ←   ARG_MOD [a-zA-Z]+ / TONE
-ARG_MOD ←   '+' / '-'
-TONE    ←   [a-zA-Z]+ ':' [0-9]+ 
+IPA         ← PreNasal? IpaChar (Tie IpaChar)? IpaDiacrit*
+PreNasal    ← 'ᵐ' / 'ⁿ' / 'ᶯ' / 'ᶮ' / 'ᵑ' / 'ᶰ'
+IpaChar     ← [<Unicode IPA Character>]
+Tie         ← '^' / [U+0361] / [U+035C]
+IpaDiacrit  ← !PreNasal [<Unicode Diacritic Character>]
 
-VAL_CHR ←   !SPC_CHR !WSPACE .
-SPC_CHR ←   ( '\' / '@' / '$' / '∅' / '*' / '>' / '=' / '+' / '-' / ',' )
-PLUS    ←   '+'
-EMP     ←   '*' / '∅'   
-SBOUND  ←   '$'
-ARR     ←   ('='/'-')? '>'  
-
-IPA     ←   PRE_NAS? IPA_CHR (TIE IPA_CHR)? IPA_DIA*
-PRE_NAS ←   'ᵐ' / 'ⁿ' / 'ᶯ' / 'ᶮ' / 'ᵑ' / 'ᶰ'
-IPA_CHR ←   [<Unicode IPA Character>]
-TIE     ←   '^' / [U+0361] / [U+035C]
-IPA_DIA ←   !PRE_NAS [<Unicode Diacritic character>]
-
-WSPACE  ←   [<Whitespace>]
-EOL     ←   [<End of Line>]
+Whitespace  ← [<Whitespace>]
+Eol         ← [<End of Line>]
 ```
