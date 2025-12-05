@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap};
 use crate::{error::RuleRuntimeError, word::{FeatKind, NodeKind, Tone}};
 use super::{Alpha, Position};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Modifiers {
     pub(crate) nodes: [Option<ModKind>; NodeKind::count()],
     pub(crate) feats: [Option<ModKind>; FeatKind::count()],
@@ -43,7 +43,7 @@ pub(crate) enum AlphaMod {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ModKind{
+pub(crate) enum ModKind {
     Binary(BinMod),
     Alpha(AlphaMod),
 }
