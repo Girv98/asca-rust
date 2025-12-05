@@ -74,7 +74,7 @@ impl Segment {
     fn create_candidates(&self) -> Vec<(Segment, &String, usize)> {
         let mut candidates = Vec::with_capacity(64);
         for (c_grapheme, seg) in CARDINALS_MAP.iter() {
-            let diff_count = self.diff_count(&seg);
+            let diff_count = self.diff_count(seg);
             if diff_count < 8 {
                 candidates.push((*seg, c_grapheme, diff_count))
             }

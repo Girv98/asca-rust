@@ -206,7 +206,7 @@ impl<'a> Parser<'a> {
         let rule_file = rule.value.trim();
         file_path.set_file_name(rule_file);
 
-        if file_path.is_file(){
+        if file_path.is_file() {
             let entry_rules = parse_rsca(&file_path)?;
             match filter {
                 Some(rf) => Ok(Some(self.parse_entry(entry_rules, rf, file_path, PathBuf::from(rule_file))?)),
