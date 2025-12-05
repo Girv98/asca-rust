@@ -5,8 +5,8 @@ Into    ← Replacement Arrow Output Eol
 From    ← Input Arrow Replacement Eol
 
 Replacement ← ReplaceTerm ( ',' ReplaceTerm )* ','?
-ReplaceTerm ← Empty / Plus? ReplaceElem+
-ReplaceElem ← Escape / ValidChar
+ReplaceTerm ← Empty / Plus? ReplaceChar+
+ReplaceChar ← Escape / ValidChar
 
 Escape          ← NamedEscape / UnicodeEscape / LiteralEscape
 NamedEscape     ← '@' '{' [A-Za-z]+ '}'
@@ -26,7 +26,7 @@ Argument    ← ArgModifier [a-zA-Z]+ / Tone
 ArgModifier ← '+' / '-'
 Tone        ← [a-zA-Z]+ ':' [0-9]+ 
 
-ValidChar   ← !SpecChar !Whitespace .
+ValidChar   ← !(SpecChar / Whitespace) .
 SpecChar    ← '\' / '@' / '$' / '∅' / '*' / '>' / '=' / '+' / '-' / ','
 Plus        ← '+'
 Empty       ← '*' / '∅'   
@@ -40,5 +40,6 @@ Tie         ← '^' / [U+0361] / [U+035C]
 IpaDiacrit  ← !PreNasal [<Unicode Diacritic Character>]
 
 Whitespace  ← [<Whitespace>]
-Eol         ← [<End of Line>]
+Eol         ← [U+000A] / Eof
+Eof         ← !.
 ```

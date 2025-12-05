@@ -25,6 +25,6 @@ Comma       ← "," Spacing
 Reserved    ← ">" / "!" / "~" / "," / "#" / ":" / ";" / "\""
 Spacing     ← (<whitespace> / Comment / Eol)*
 Comment     ← '#' (! ( Eol / Eof) .)* Eol
-Eol         ← "\u{000A}" / "\u{2028}" / "\u{2029}"
+Eol         ← [U+000A] / [U+2028] / [U+2029]
 Eof         ← !.
 ```
