@@ -216,14 +216,14 @@ impl SubRule {
             match (input[z], input[input.len()-1-z]) {
                 (MatchElement::Segment(li, _), MatchElement::Segment(ri, _)) => {
                     // FIXME: If we swap syllables or boundaries then do this, these SegPos may not be correct
-                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
-                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sl = res_phrase.get_seg_at(li).unwrap();
+                    let sr = res_phrase.get_seg_at(ri).unwrap();
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
                     res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
                 },
                 (MatchElement::Segment(li, _), MatchElement::LongSegment(ri, _)) => {
-                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
-                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sl = res_phrase.get_seg_at(li).unwrap();
+                    let sr = res_phrase.get_seg_at(ri).unwrap();
                     let sr_length = res_phrase.seg_length_at(ri);
 
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
@@ -232,8 +232,8 @@ impl SubRule {
                     for _ in 0..sr_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index + 1); }
                 },
                 (MatchElement::LongSegment(li, _), MatchElement::Segment(ri, _)) => {
-                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
-                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sl = res_phrase.get_seg_at(li).unwrap();
+                    let sr = res_phrase.get_seg_at(ri).unwrap();
                     let sl_length = res_phrase.seg_length_at(li);
 
                     res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
@@ -242,8 +242,8 @@ impl SubRule {
                     for _ in 0..sl_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl); }
                 },
                 (MatchElement::LongSegment(li, _), MatchElement::LongSegment(ri, _)) => {
-                    let sl = res_phrase[li.word_index].get_seg_at(li).unwrap();
-                    let sr = res_phrase[ri.word_index].get_seg_at(ri).unwrap();
+                    let sl = res_phrase.get_seg_at(li).unwrap();
+                    let sr = res_phrase.get_seg_at(ri).unwrap();
                     let sl_length = res_phrase.seg_length_at(li);
                     let sr_length = res_phrase.seg_length_at(ri);
 
@@ -837,7 +837,7 @@ impl SubRule {
     }
 
     fn match_modifiers(&self, mods: &Modifiers, phrase: &Phrase, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        let seg = phrase[pos.word_index].get_seg_at(*pos).expect("Segment Position should be within bounds");
+        let seg = phrase.get_seg_at(*pos).expect("Segment Position should be within bounds");
         
         for (i, m) in mods.feats.iter().enumerate() {
             if !self.match_feat_mod(m, i, seg)? {
@@ -1180,13 +1180,15 @@ impl SubRule { // Substitution
     }
 
     fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, refr: &Option<usize>, state: MatchElement, in_pos: Position, out_pos: Position) -> Result<SubAction, RuleRuntimeError> {
+        // SAFETY: pos points to a valid index
         match state {
             MatchElement::LongSegment(pos, _) => {
                 let old_len = phrase.seg_length_at(pos) as u8;
-                let (seg, new_len) = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), old_len,Some(mods), refr, out_pos)?;
+                let (seg, new_len) = self.gen_seg(unsafe { phrase.get_seg_at(pos).unwrap_unchecked() }, old_len,Some(mods), refr, out_pos)?;
                 Ok(SubAction {
+                    // SAFETY: old_len > 0
                     kind: ActionKind::ReplaceSegment(
-                        (NonZeroU8::new(old_len).unwrap(), Self::non_zero_len(new_len)),
+                        (Self::non_zero_len(old_len), Self::non_zero_len(new_len)),
                         Payload::Segment(seg, Some(mods.suprs)),
                         out_pos,
                     ),
@@ -1194,7 +1196,7 @@ impl SubRule { // Substitution
                 })
             },
             MatchElement::Segment(pos, _) => {
-                let (seg, new_len) = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), 1,Some(mods), refr, out_pos)?;
+                let (seg, new_len) = self.gen_seg(unsafe { phrase.get_seg_at(pos).unwrap_unchecked() }, 1,Some(mods), refr, out_pos)?;
                 Ok(SubAction {
                     kind: ActionKind::ReplaceSegment(
                         (Self::ONE, Self::non_zero_len(new_len)), 
@@ -1358,8 +1360,9 @@ impl SubRule { // Substitution
                         }])
                     },
                     ParseElement::Matrix(mods, refr) => {
-                        let old_len = phrase.seg_length_at(pos) as u8; 
-                        let (seg, new_len)  = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), old_len,Some(mods), refr, set_output[i].position)?;
+                        let old_len = phrase.seg_length_at(pos) as u8;
+                        // SAFETY: pos points to a valid index
+                        let (seg, new_len)  = self.gen_seg(unsafe { phrase.get_seg_at(pos).unwrap_unchecked() }, old_len,Some(mods), refr, set_output[i].position)?;
                         Ok(vec![SubAction {
                             kind: ActionKind::ReplaceSegment(
                                 (Self::non_zero_len(old_len), Self::non_zero_len(new_len)),
@@ -1459,7 +1462,8 @@ impl SubRule { // Substitution
                         }])
                     }
                     ParseElement::Matrix(mods, refr) => {
-                        let (seg, new_len)  = self.gen_seg(phrase[pos.word_index].get_seg_at(pos).unwrap(), 1, Some(mods), refr, set_output[i].position)?;
+                        // SAFETY: pos points to a valid index
+                        let (seg, new_len)  = self.gen_seg(unsafe { phrase.get_seg_at(pos).unwrap_unchecked() }, 1, Some(mods), refr, set_output[i].position)?;
                         Ok(vec![SubAction {
                             kind: ActionKind::ReplaceSegment(
                                 (Self::ONE, Self::non_zero_len(new_len)), 
@@ -2829,7 +2833,8 @@ impl SubRule { // Context Matching
         if phrase[pos.word_index].out_of_bounds(pos) {
             return Ok(false)
         }
-        let seg = phrase[pos.word_index].get_seg_at(pos).unwrap();
+        // SAFETY: pos is in bounds and phrase is not empty
+        let seg = unsafe { phrase.get_seg_at(pos).unwrap_unchecked() };
         if let Some(m) = mods {
             Ok(self.match_ipa_with_modifiers(s, m, phrase, &pos, err_pos)?)
         } else {
@@ -2841,7 +2846,8 @@ impl SubRule { // Context Matching
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, phrase, pos, err_pos)? {
             if let Some(r) = refr {
-                self.references.borrow_mut().insert(*r, RefKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
+                // SAFETY: pos is in bounds and phrase is not empty
+                self.references.borrow_mut().insert(*r, RefKind::Segment(unsafe { phrase.get_seg_at(*pos).unwrap_unchecked() }));
             }
             self.matrix_increment(phrase, pos);
             pos.increment(phrase);
@@ -3195,7 +3201,7 @@ impl SubRule { // Input Matching
     }
 
     fn input_match_ipa(&self, captures: &mut Vec<MatchElement>, s: &Segment, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
-        let seg = phrase[pos.word_index].get_seg_at(*pos).unwrap();
+        let Some(seg) = phrase.get_seg_at(*pos) else { return Ok(false) };
 
         if let Some(m) = mods {
             if self.match_ipa_with_modifiers(s, m, phrase, pos, err_pos)? {
@@ -3272,13 +3278,13 @@ impl SubRule { // Input Matching
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         if self.match_modifiers(mods, phrase, pos, err_pos)? {
             if let Some(r) = refr {
-                self.references.borrow_mut().insert(*r, RefKind::Segment(phrase[pos.word_index].get_seg_at(*pos).unwrap()));
+                let Some(seg) = phrase.get_seg_at(*pos) else { return Ok(false) };
+                self.references.borrow_mut().insert(*r, RefKind::Segment(seg));
             }
             match mods.suprs.length {
                 [None, None] => captures.push(MatchElement::Segment(*pos, None)),
                 _            => captures.push(MatchElement::LongSegment(*pos, None))
             }
-            // captures.push(MatchElement::LongSegment(*pos, None));
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {

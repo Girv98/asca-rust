@@ -106,6 +106,10 @@ impl Phrase {
         new
     }
 
+    pub(crate) fn get_seg_at(&self, sp: SegPos) -> Option<Segment> {
+        self[sp.word_index].get_seg_at(sp)
+    }
+
     pub(crate) fn seg_length_at(&self, sp: SegPos) -> usize {
         self[sp.word_index].syllables[sp.syll_index].get_seg_length_at(sp.seg_index)
     }
