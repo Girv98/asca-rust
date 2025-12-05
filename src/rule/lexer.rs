@@ -1044,6 +1044,30 @@ mod lexer_tests {
     }
 
     #[test]
+    fn test_underline_in_structs() {
+        let test_input= String::from("<a_e>");
+
+        let expected_result = vec![
+            Token::new(TokenKind::LeftAngle,  "<", 0, 0,  0,  1),
+            
+            Token::new(TokenKind::Cardinal,   "a", 0, 0,  1,  2),
+            Token::new(TokenKind::Underline,  "_", 0, 0,  2,  3),
+            Token::new(TokenKind::Cardinal,   "e", 0, 0,  3,  4),
+            
+            Token::new(TokenKind::RightAngle, ">", 0, 0,  4,  5),
+            Token::new(TokenKind::Eol,         "", 0, 0,  5,  6),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
     fn test_sets_in_structs() {
 
         let test_input= String::from("<{a, e}>");

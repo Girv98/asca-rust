@@ -163,7 +163,7 @@ impl Rule {
                     rule_type, 
                     references: RefCell::new(HashMap::new()), 
                     alphas: RefCell::new(HashMap::new()), 
-                    is_rev: self.prop_rev,
+                    is_reversed: self.prop_rev,
                     inp_x_bound,
                     env_x_bound,
                 }
@@ -1973,7 +1973,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_substitution_segment(){
+    fn test_structure_substitution_segment() {
         // Segment Replacements
         let test_rule = setup_rule("a > <hen>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.a.te")).unwrap().render(&[]), "sleft.hen51.te");
@@ -2167,7 +2167,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_input_sets(){
+    fn test_structure_input_sets() {
         let test_rule = setup_rule("<sl{e,o}ft> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "han51.te");
 
@@ -2179,7 +2179,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_context_sets(){
+    fn test_structure_context_sets() {
         let test_rule = setup_rule("% > <han>:[tone:51] / <..{t, s}> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
 
@@ -2188,7 +2188,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_references(){
+    fn test_structure_references() {
         let test_rule = setup_rule("% > <h1n>:[tone:51] / <slV=1ft> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.hen51");
 
@@ -2197,7 +2197,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_input_options(){
+    fn test_structure_input_options() {
         let test_rule = setup_rule("<sle(f)t> > <han>:[tone:51]");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "han51.te");
 
@@ -2232,7 +2232,7 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_context_options(){
+    fn test_structure_context_options() {
         let test_rule = setup_rule("% > <han>:[tone:51] / <sle(f)t> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
 
@@ -2258,6 +2258,46 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
     }
  
+    #[test]
+    fn test_structure_underline_matrix() {
+        let test_rule = setup_rule("a > e / <C_C>");
+        assert_eq!(test_rule.apply_word(setup_word("san.ta" )).unwrap().render(&[]), "sen.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sa.tan" )).unwrap().render(&[]), "sa.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.tan")).unwrap().render(&[]), "sen.ten");
+        assert_eq!(test_rule.apply_word(setup_word("an.tan" )).unwrap().render(&[]), "an.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.an" )).unwrap().render(&[]), "sen.an");
+        assert_eq!(test_rule.apply_word(setup_word("an.an"  )).unwrap().render(&[]), "an.an");
+        assert_eq!(test_rule.apply_word(setup_word("a.a"    )).unwrap().render(&[]), "a.a");
+        
+        let test_rule = setup_rule("a > e / <C_(C)>");
+        assert_eq!(test_rule.apply_word(setup_word("san.ta" )).unwrap().render(&[]), "sen.te");
+        assert_eq!(test_rule.apply_word(setup_word("san.ta" )).unwrap().render(&[]), "sen.te");
+        assert_eq!(test_rule.apply_word(setup_word("sa.tan" )).unwrap().render(&[]), "se.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.tan")).unwrap().render(&[]), "sen.ten");
+        assert_eq!(test_rule.apply_word(setup_word("an.tan" )).unwrap().render(&[]), "an.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.an" )).unwrap().render(&[]), "sen.an");
+        assert_eq!(test_rule.apply_word(setup_word("an.an"  )).unwrap().render(&[]), "an.an");
+        assert_eq!(test_rule.apply_word(setup_word("a.a"    )).unwrap().render(&[]), "a.a");
+
+        let test_rule = setup_rule("a > e / <(C)_C>");
+        assert_eq!(test_rule.apply_word(setup_word("san.ta" )).unwrap().render(&[]), "sen.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sa.tan" )).unwrap().render(&[]), "sa.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.tan")).unwrap().render(&[]), "sen.ten");
+        assert_eq!(test_rule.apply_word(setup_word("an.tan" )).unwrap().render(&[]), "en.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.an" )).unwrap().render(&[]), "sen.en");
+        assert_eq!(test_rule.apply_word(setup_word("an.an"  )).unwrap().render(&[]), "en.en");
+        assert_eq!(test_rule.apply_word(setup_word("a.a"    )).unwrap().render(&[]), "a.a");
+
+        let test_rule = setup_rule("a > e / <(C)_(C)>");
+        assert_eq!(test_rule.apply_word(setup_word("san.ta" )).unwrap().render(&[]), "sen.te");
+        assert_eq!(test_rule.apply_word(setup_word("sa.tan" )).unwrap().render(&[]), "se.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.tan")).unwrap().render(&[]), "sen.ten");
+        assert_eq!(test_rule.apply_word(setup_word("an.tan" )).unwrap().render(&[]), "en.ten");
+        assert_eq!(test_rule.apply_word(setup_word("san.an" )).unwrap().render(&[]), "sen.en");
+        assert_eq!(test_rule.apply_word(setup_word("an.an"  )).unwrap().render(&[]), "en.en");
+        assert_eq!(test_rule.apply_word(setup_word("a.a"    )).unwrap().render(&[]), "e.e");
+
+    }
  
     #[test]
     fn test_tmesis() {
