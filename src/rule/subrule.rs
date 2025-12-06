@@ -548,78 +548,170 @@ impl SubRule {
         Ok(res_phrase)
     }
 
-    fn transform(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
-        let word_pos = if let Some(np) = next_pos { np.word_index } else { 0 };
-        match self.rule_type {
-            RuleType::Substitution => self.substitution(phrase, input, next_pos),
-            RuleType::Metathesis   => self.metathesis(phrase, input, next_pos),
-            RuleType::Deletion     => self.deletion(phrase, input, next_pos),
-            RuleType::Insertion    => {
-                // find insertion position using context
-                // "Parse" and insert output
-                let empty = Vec::new();
-                let context = self.get_contexts();
-                let exceptions = self.get_exceptions();
+    fn syll_inc(phrase: &Phrase, pos: &mut SegPos) {
+        pos.syll_index += 1; pos.seg_index = 0;
+        if !phrase.in_bounds(*pos) {
+            pos.word_increment(phrase);
+        }
+    }
 
-                let ((before_cont, center_cont, after_cont), (before_expt, center_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
-                    (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &None, &empty)),
-                    (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
-                    (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &None, &empty), exceptions[0]),
-                    (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
-                    (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
-                    (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
-                };
+    fn insertion_by_syllable(&self, 
+        phrase: &Phrase, center_cont: &UnderlineStruct, before_cont: &[ParseItem], after_cont: &[ParseItem],
+        before_expt: &[ParseItem], center_expt: &Option<UnderlineStruct>, after_expt: &[ParseItem]
+    ) -> Result<Phrase, RuleRuntimeError> {
 
-                if before_cont.is_empty() && after_cont.is_empty() && before_expt.is_empty() && after_expt.is_empty() {
-                    return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
+        let mut phrase = phrase.clone();
+        let mut pos = SegPos::new(0, 0, 0);
+
+        let mut items: Vec<_> = center_cont.before.iter().rev().cloned().collect();
+        items.extend_from_slice(&center_cont.after);
+
+        let mut before_cont = before_cont.to_vec();
+        before_cont.reverse();
+
+        let mut before_expt = before_expt.to_vec();
+        before_expt.reverse();
+
+        while phrase.in_bounds(pos) {
+            self.alphas.borrow_mut().clear();
+            self.references.borrow_mut().clear();
+            let syll = &phrase[pos.word_index].syllables[pos.syll_index];
+
+            if items.is_empty() && !syll.segments.is_empty() {
+                Self::syll_inc(&phrase, &mut pos); continue;
+            }
+            if !self.match_stress(&center_cont.stress, syll)? {
+                Self::syll_inc(&phrase, &mut pos); continue;
+            }
+            eprintln!("Passes Stress");
+            if let Some(tone) = center_cont.tone && !self.match_tone(&tone, syll) {
+                Self::syll_inc(&phrase, &mut pos); continue;
+            }
+            eprintln!("Passes Tone");
+            if !self.match_underline_struct_items(&phrase, &items, pos, true)? {
+                Self::syll_inc(&phrase, &mut pos); continue;
+            }
+            eprintln!("Passes match center");
+
+            let mut end_pos = pos; end_pos.syll_index += 1; end_pos.decrement(&phrase);
+            let phrase_rev = phrase.reversed();
+
+            // Check before and after contexts
+            if !(before_cont.is_empty() || self.match_before_env(&before_cont, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
+            || !(after_cont.is_empty() || self.match_after_env(after_cont, &phrase, &end_pos, false, true, true)?) {
+                Self::syll_inc(&phrase, &mut pos); continue;
+            }
+            eprintln!("Passes match cont");
+
+            // TODO: Find actual insert point
+            let insert_pos = pos;
+
+
+            // TODO: Check center_expt, also we may as well allow | :{___}: if we are doing this
+            if !self.get_exceptions().is_empty() {
+                // Check before and after exceptions
+                if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
+                && (after_expt.is_empty() || self.match_after_env(after_expt, &phrase, &end_pos, false, true, true)?) {
+                    Self::syll_inc(&phrase, &mut pos); continue;
                 }
+            }
 
-                let mut res_phrase = phrase.clone();
+            eprintln!("Passes match expt");
+            
+            // TODO: Sanity check output? Or allow syllables to be inserted?
+            let (res, _) = self.insert(&phrase, insert_pos, false)?;
+            phrase = res;
 
-                let is_context_after = before_cont.is_empty() && !after_cont.is_empty();
+            Self::syll_inc(&phrase, &mut pos);
+        }
 
-                let mut pos = SegPos::new(word_pos, 0, 0);
-                while res_phrase.in_bounds(pos) {
-                    self.alphas.borrow_mut().clear();
-                    self.references.borrow_mut().clear();
-                    match self.insertion_match(&res_phrase, pos)? {
-                        Some(ins) => {                                    
-                            if self.insertion_match_exceptions(&res_phrase, ins)? {
-                                if pos.word_index < res_phrase.len() - 1 {
-                                    pos.word_increment(&res_phrase);
-                                } else {
-                                    pos.increment(&res_phrase);
-                                }
-                                continue
-                            }
-                            let (res, next_pos) = self.insert(&res_phrase, ins, is_context_after)?;
-                            res_phrase = res;
-                
-                            if let Some(np) = next_pos {
-                                pos = np;
-                                if !is_context_after && pos.at_syll_end(&res_phrase) {
-                                    pos.increment(&res_phrase);
-                                }
-                            } else {
-                                // End of Word
-                                if pos.word_index < res_phrase.len() - 1 {
-                                    pos.word_increment(&res_phrase);
-                                    continue
-                                } else {
-                                    break
-                                }
-                            }
-                        },
-                        None => if pos.word_index < res_phrase.len() - 1 {
+        Ok(phrase)
+    }
+
+    fn insertion_by_segment(&self, 
+        phrase: &Phrase, before_cont: &[ParseItem], after_cont: &[ParseItem],
+        before_expt: &[ParseItem], center_expt: &Option<UnderlineStruct>, after_expt: &[ParseItem]
+    ) -> Result<Phrase, RuleRuntimeError> {
+        // find insertion position using context
+        // "Parse" and insert output
+        if before_cont.is_empty() && after_cont.is_empty() && before_expt.is_empty() && after_expt.is_empty() && center_expt.is_none() {
+            return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
+        }
+        
+        let mut res_phrase = phrase.clone();
+        let mut pos = SegPos::new(0, 0, 0);
+        
+        let is_context_after = before_cont.is_empty() && !after_cont.is_empty();
+
+        while res_phrase.in_bounds(pos) {
+            self.alphas.borrow_mut().clear();
+            self.references.borrow_mut().clear();
+            match self.insertion_match(&res_phrase, pos)? {
+                Some(ins) => {                                    
+                    if self.insertion_match_exceptions(&res_phrase, ins)? {
+                        if pos.word_index < res_phrase.len() - 1 {
+                            pos.word_increment(&res_phrase);
+                        } else {
+                            pos.increment(&res_phrase);
+                        }
+                        continue
+                    }
+                    let (res, next_pos) = self.insert(&res_phrase, ins, is_context_after)?;
+                    res_phrase = res;
+        
+                    if let Some(np) = next_pos {
+                        pos = np;
+                        if !is_context_after && pos.at_syll_end(&res_phrase) {
+                            pos.increment(&res_phrase);
+                        }
+                    } else {
+                        // End of Word
+                        if pos.word_index < res_phrase.len() - 1 {
                             pos.word_increment(&res_phrase);
                             continue
                         } else {
                             break
                         }
                     }
+                },
+                None => if pos.word_index < res_phrase.len() - 1 {
+                    pos.word_increment(&res_phrase);
+                    continue
+                } else {
+                    break
                 }
-                Ok(res_phrase)
-            },
+            }
+        }
+        Ok(res_phrase)
+    }
+
+    fn insertion(&self, phrase: &Phrase) -> Result<Phrase, RuleRuntimeError> {
+        let empty = Vec::new();
+        let context = self.get_contexts();
+        let exceptions = self.get_exceptions();
+
+        let ((before_cont, center_cont, after_cont), (before_expt, center_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
+            (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &None, &empty)),
+            (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
+            (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &None, &empty), exceptions[0]),
+            (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
+            (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
+            (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
+        };
+
+        if let Some(center) = center_cont {
+            self.insertion_by_syllable(phrase, center, before_cont, after_cont, before_expt, center_expt, after_expt)
+        } else {
+            self.insertion_by_segment(phrase, before_cont, after_cont, before_expt, center_expt, after_expt)
+        }
+    }
+
+    fn transform(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+        match self.rule_type {
+            RuleType::Substitution => self.substitution(phrase, input, next_pos),
+            RuleType::Metathesis   => self.metathesis(phrase, input, next_pos),
+            RuleType::Deletion     => self.deletion(phrase, input, next_pos),
+            RuleType::Insertion    => self.insertion(phrase),
         }
     }
 
@@ -2367,7 +2459,7 @@ impl SubRule { // Context Matching
         Ok(is_match)
     }
 
-    fn match_underline_struct_item(&self, phrase: &Phrase, items: &[ParseItem], pos: SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn match_underline_struct_items(&self, phrase: &Phrase, items: &[ParseItem], pos: SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         let cur_syll_index = pos.syll_index;
 
         let mut pos = pos;
@@ -2432,11 +2524,7 @@ impl SubRule { // Context Matching
         let mut end_pos = end_pos;
         start_pos.decrement(phrase);
         end_pos.increment(phrase);
-
-        println!("{start_pos:?}");
-        println!("{end_pos:?}");
-        
-        
+                
         // Check we are not outside syllable
         if start_pos.syll_index != cur_syll_index {
             match center.before.first().unwrap().kind {
@@ -2452,8 +2540,8 @@ impl SubRule { // Context Matching
         }
         
         Ok(
-            self.match_underline_struct_item(phrase_rev, &center.before, start_pos.reversed(phrase), false)? 
-         && self.match_underline_struct_item(phrase, &center.after, end_pos, true)?
+            self.match_underline_struct_items(phrase_rev, &center.before, start_pos.reversed(phrase), false)? 
+         && self.match_underline_struct_items(phrase, &center.after, end_pos, true)?
         )
     }
 

@@ -2296,6 +2296,34 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("san.an" )).unwrap().render(&[]), "sen.en");
         assert_eq!(test_rule.apply_word(setup_word("an.an"  )).unwrap().render(&[]), "en.en");
         assert_eq!(test_rule.apply_word(setup_word("a.a"    )).unwrap().render(&[]), "e.e");
+    }
+
+    #[test]
+    fn test_structure_underline_insertion() {
+        let test_rule = setup_rule("* > e / <C_C>");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "esn.ta"); // TODO: sen.ta
+        assert_eq!(test_rule.apply_word(setup_word("sa.tn" )).unwrap().render(&[]), "sa.etn"); // TODO: sa.ten
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "esn.etn"); // TODO: sen.ten
+        assert_eq!(test_rule.apply_word(setup_word("sa.ta")).unwrap().render(&[]), "sa.ta");
+
+        let test_rule = setup_rule("* > e / <C_C>t");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "esn.ta"); // TODO: sen.ta
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "esn.tn"); // TODO: sen.tn
+
+        let test_rule = setup_rule("* > e / <C_C>tn");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "sn.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "esn.tn"); // TODO: sen.tn
+
+
+        let test_rule = setup_rule("* > e / <C_C> | _t");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "sn.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.etn"); // TODO: sn.ten
+
+
+        let test_rule = setup_rule("* > e / <C_C> | _");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "sn.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.tn");
+
 
     }
  
