@@ -2046,6 +2046,12 @@ mod rule_tests {
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <..VCC> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <..CC> _");
+        assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <CCV..> _");
+        assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
+        let test_rule = setup_rule("% > <han>:[tone:51] / <CC..> _");
+        assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <CC..CC> _");
         assert_eq!(test_rule.apply_word(setup_word("sleft.te")).unwrap().render(&[]), "sleft.han51");
         let test_rule = setup_rule("% > <han>:[tone:51] / <CCVCC> _");
@@ -2259,7 +2265,7 @@ mod rule_tests {
     }
  
     #[test]
-    fn test_structure_underline_matrix() {
+    fn test_structure_underline_sub_matrix() {
         let test_rule = setup_rule("a > e / <C_C>");
         assert_eq!(test_rule.apply_word(setup_word("san.ta" )).unwrap().render(&[]), "sen.ta");
         assert_eq!(test_rule.apply_word(setup_word("sa.tan" )).unwrap().render(&[]), "sa.ten");
@@ -2299,32 +2305,101 @@ mod rule_tests {
     }
 
     #[test]
-    fn test_structure_underline_insertion() {
+    fn test_structure_underline_insertion_matrix_flanked() {
         let test_rule = setup_rule("* > e / <C_C>");
-        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "esn.ta"); // TODO: sen.ta
-        assert_eq!(test_rule.apply_word(setup_word("sa.tn" )).unwrap().render(&[]), "sa.etn"); // TODO: sa.ten
-        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "esn.etn"); // TODO: sen.ten
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sen.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sa.tn")).unwrap().render(&[]), "sa.ten");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sen.ten");
         assert_eq!(test_rule.apply_word(setup_word("sa.ta")).unwrap().render(&[]), "sa.ta");
 
         let test_rule = setup_rule("* > e / <C_C>t");
-        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "esn.ta"); // TODO: sen.ta
-        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "esn.tn"); // TODO: sen.tn
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sen.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sen.tn");
 
         let test_rule = setup_rule("* > e / <C_C>tn");
-        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "sn.ta");
-        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "esn.tn"); // TODO: sen.tn
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sn.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sen.tn");
 
 
         let test_rule = setup_rule("* > e / <C_C> | _t");
-        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "sn.ta");
-        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.etn"); // TODO: sn.ten
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sn.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.ten");
 
 
         let test_rule = setup_rule("* > e / <C_C> | _");
-        assert_eq!(test_rule.apply_word(setup_word("sn.ta" )).unwrap().render(&[]), "sn.ta");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sn.ta");
         assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.tn");
 
+        let test_rule = setup_rule("* > e / <C_C> | <s_..>");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.ten");
+        let test_rule = setup_rule("* > e / <C_C> | ..<s_..>..");
+        assert_eq!(test_rule.apply_word(setup_word("sn.tn")).unwrap().render(&[]), "sn.ten");
+    }
 
+    #[test]
+    fn test_structure_underline_insertion_matrix_ellipsis() {
+        let test_rule = setup_rule("* > e / <C_..>");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sen.tea");
+        let test_rule = setup_rule("* > e / <.._C>");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sen.ta");
+        let test_rule = setup_rule("* > e / <.._CC>");
+        assert_eq!(test_rule.apply_word(setup_word("snt.ta")).unwrap().render(&[]), "sent.ta");
+        let test_rule = setup_rule("* > e / <.._C>");
+        assert_eq!(test_rule.apply_word(setup_word("stn.ta")).unwrap().render(&[]), "sten.ta");
+        let test_rule = setup_rule("* > e / <.._CC>");
+        assert_eq!(test_rule.apply_word(setup_word("stn.ta")).unwrap().render(&[]), "setn.ta");
+
+        let test_rule = setup_rule("* > e / <.._C>");
+        assert_eq!(test_rule.apply_word(setup_word("strn.ta")).unwrap().render(&[]), "stren.ta");
+
+        let test_rule = setup_rule("* > e / <.._CC>");
+        assert_eq!(test_rule.apply_word(setup_word("strn.ta")).unwrap().render(&[]), "stern.ta");
+
+        let test_rule = setup_rule("* > e / <.._C:[+long]>");
+        assert_eq!(test_rule.apply_word(setup_word("strn:.ta")).unwrap().render(&[]), "strenː.ta");
+        assert_eq!(test_rule.apply_word(setup_word("strn:.tnː")).unwrap().render(&[]), "strenː.tenː");
+        assert_eq!(test_rule.apply_word(setup_word("stn:.ta")).unwrap().render(&[]), "stenː.ta");
+        assert_eq!(test_rule.apply_word(setup_word("stn:t.ta")).unwrap().render(&[]), "stnːt.ta");
+        
+        let test_rule = setup_rule("* > e / <.._C:[+long]C>");
+        assert_eq!(test_rule.apply_word(setup_word("stn:t.ta")).unwrap().render(&[]), "stenːt.ta");
+    }
+
+    #[test]
+    fn test_structure_underline_insertion_matrix_opt_ellipsis() {
+        let test_rule = setup_rule("* > e / <C_(..)>");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sen.tea");
+        let test_rule = setup_rule("* > e / <(..)_C>");
+        assert_eq!(test_rule.apply_word(setup_word("sn.ta")).unwrap().render(&[]), "sen.ta");
+        let test_rule = setup_rule("* > e / <(..)_CC>");
+        assert_eq!(test_rule.apply_word(setup_word("snt.ta")).unwrap().render(&[]), "sent.ta");
+        assert_eq!(test_rule.apply_word(setup_word("snt.tn")).unwrap().render(&[]), "sent.etn");
+        let test_rule = setup_rule("* > e / <(..)_C>");
+        assert_eq!(test_rule.apply_word(setup_word("stn.ta")).unwrap().render(&[]), "sten.ta");
+        assert_eq!(test_rule.apply_word(setup_word("stn.tn")).unwrap().render(&[]), "sten.ten");
+        let test_rule = setup_rule("* > e / <(..)_CC>");
+        assert_eq!(test_rule.apply_word(setup_word("stn.ta")).unwrap().render(&[]), "setn.ta");
+
+        let test_rule = setup_rule("* > e / <(..)_C>");
+        assert_eq!(test_rule.apply_word(setup_word("strn.ta")).unwrap().render(&[]), "stren.ta");
+
+        let test_rule = setup_rule("* > e / <C(..)_C>");
+        assert_eq!(test_rule.apply_word(setup_word("strn.ta")).unwrap().render(&[]), "stren.ta");
+
+        let test_rule = setup_rule("* > e / <C_(..)C>");
+        assert_eq!(test_rule.apply_word(setup_word("strn.ta")).unwrap().render(&[]), "setrn.ta");
+
+        let test_rule = setup_rule("* > e / <(..)_C:[+long]>");
+        assert_eq!(test_rule.apply_word(setup_word("strn:.ta")).unwrap().render(&[]), "strenː.ta");
+        assert_eq!(test_rule.apply_word(setup_word("strn:.tnː")).unwrap().render(&[]), "strenː.tenː");
+        assert_eq!(test_rule.apply_word(setup_word("stn:.ta")).unwrap().render(&[]), "stenː.ta");
+        assert_eq!(test_rule.apply_word(setup_word("stn:t.ta")).unwrap().render(&[]), "stnːt.ta");
+
+        let test_rule = setup_rule("* > e / <(..)_C:[+long]C>");
+        assert_eq!(test_rule.apply_word(setup_word("stn:t.ta")).unwrap().render(&[]), "stenːt.ta");
+
+        let test_rule = setup_rule("* > e / <C(..)_C:[+long]C>");
+        assert_eq!(test_rule.apply_word(setup_word("stn:t.ta")).unwrap().render(&[]), "stenːt.ta");
     }
  
     #[test]
