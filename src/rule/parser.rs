@@ -968,14 +968,15 @@ impl Parser {
 
         if !self.expect(TokenKind::Syllable) { return Ok(None) }
         if !self.expect(TokenKind::Colon) {
-            let end_pos = self.curr_tkn.position.start - 1;
             if self.expect(TokenKind::Equals) {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
+                let end_pos = self.token_list[self.pos-1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
+            let end_pos = self.token_list[self.pos-1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -1052,7 +1053,6 @@ impl Parser {
         }
 
         if !self.expect(TokenKind::Colon) {
-            let end_pos = self.curr_tkn.position.start - 1;
             if self.expect(TokenKind::Equals) {
                 // TODO: it could be ok to reference this,
                 // e.g. "<C_C>=1 1" if input is "V" would become "<C_C><CVC>"
@@ -1063,8 +1063,10 @@ impl Parser {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
+                let end_pos = self.token_list[self.pos-1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
+            let end_pos = self.token_list[self.pos-1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -1109,14 +1111,15 @@ impl Parser {
         }
 
         if !self.expect(TokenKind::Colon) {
-            let end_pos = self.curr_tkn.position.start - 1;
             if self.expect(TokenKind::Equals) {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = number.value.parse::<usize>().unwrap();
+                let end_pos = self.token_list[self.pos-1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
+            let end_pos = self.token_list[self.pos-1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -1559,7 +1562,7 @@ mod parser_tests {
         eprintln!("{:?}", maybe_result);
         let result = maybe_result.unwrap().unwrap();
 
-        let x = crate::word::Word::new("sin", &[]).unwrap();
+        let x = crate::word::Word::new("sin").unwrap();
 
         let exp_struct = UnderlineStruct { 
             before: vec![
@@ -1573,7 +1576,7 @@ mod parser_tests {
                 ], 
             stress: [None,None], 
             tone: None, 
-            position: Position::new(0, 0, 8, 15)
+            position: Position::new(0, 0, 8, 16)
         };
 
 
