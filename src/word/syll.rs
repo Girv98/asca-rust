@@ -141,51 +141,35 @@ impl Syllable {
 
     /// NOTE: Will panic if old_len is greater than i8::MAX 
     pub(crate) fn calc_new_length(alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
-        let mut seg_len = old_len;
         let mut len_change: i8 = 0;
 
         if let Some(len_mods) = mods.length {
             match len_mods {
                 SpecMod::Second(v) => if v.as_bool(alphas, err_pos)? {
-                    while seg_len < 3 {
-                        seg_len +=1;
-                        len_change +=1;
+                    if old_len < 3 {
+                        len_change = 3 - old_len as i8; 
                     }
-                } else {
-                    while seg_len > 2 {
-                        seg_len -=1;
-                        len_change -=1;
-                    }
+                } else if old_len > 2 {
+                    len_change = 2 - old_len as i8; 
                 },
                 SpecMod::First(long) => if long.as_bool(alphas, err_pos)? {
-                    while seg_len < 2 {
-                        seg_len += 1;
-                        len_change +=1;
+                    if old_len < 2 {
+                        len_change = 1 // Seg_len is > 0
                     }
-                } else {
-                    while seg_len > 1 {
-                        seg_len -= 1;
-                        len_change -=1;
-                    }
+                } else if old_len > 1 {
+                    len_change = 1 - old_len as i8;
                 },
                 SpecMod::Both(long, vlong) => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
-                    (true, true) => while seg_len < 3 {
-                        seg_len +=1;
-                        len_change +=1;
+                    (true, true) => if old_len < 3 {
+                        len_change = 3 - old_len as i8; 
                     },
-                    (true, false) => {
-                        while seg_len > 2 {
-                            seg_len -=1;
-                            len_change -=1;
-                        }
-                        while seg_len < 2 {
-                            seg_len += 1;
-                            len_change +=1;
-                        }
+                    (true, false) => if old_len > 2 {
+                        len_change = 2 - old_len as i8; 
+                    } else if old_len < 2 {
+                        len_change = 1;
                     },
-                    (false, false) => while seg_len > 1 {
-                        seg_len -= 1;
-                        len_change -=1;
+                    (false, false) => if old_len > 1 {
+                        len_change = 1 - old_len as i8;
                     },
                     (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
                 },
