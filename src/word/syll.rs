@@ -1,7 +1,7 @@
 use std     :: { cell::RefCell, collections::{ HashMap, VecDeque }, fmt };
 use crate   :: {
     error   :: RuleRuntimeError, 
-    rule    :: { Alpha, Modifiers, Position, SupraSegs }, 
+    rule    :: { Alpha, SpecMod, Modifiers, Position, SupraSegs }, 
     word    :: Segment,  
 };
 
@@ -139,56 +139,58 @@ impl Syllable {
         self.apply_supras(alphas, &mods.suprs, start_pos, err_pos)
     }
 
-    // NOTE: Will panic if old_len is greater than i8::MAX 
+    /// NOTE: Will panic if old_len is greater than i8::MAX 
     pub(crate) fn calc_new_length(alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
         let mut seg_len = old_len;
         let mut len_change: i8 = 0;
-        match mods.length {
-            // [long, Overlong]
-            [None, None] => {},
-            [None, Some(v)] => if v.as_bool(alphas, err_pos)? {
-                while seg_len < 3 {
-                    seg_len +=1;
-                    len_change +=1;
-                }
-            } else {
-                while seg_len > 2 {
-                    seg_len -=1;
-                    len_change -=1;
-                }
-            },
-            [Some(long), None] => if long.as_bool(alphas, err_pos)? {
-                while seg_len < 2 {
-                    seg_len += 1;
-                    len_change +=1;
-                }
-            } else {
-                while seg_len > 1 {
-                    seg_len -= 1;
-                    len_change -=1;
-                }
-            },
-            [Some(long), Some(vlong)] => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
-                (true, true) => while seg_len < 3 {
-                    seg_len +=1;
-                    len_change +=1;
-                },
-                (true, false) => {
+
+        if let Some(len_mods) = mods.length {
+            match len_mods {
+                SpecMod::Second(v) => if v.as_bool(alphas, err_pos)? {
+                    while seg_len < 3 {
+                        seg_len +=1;
+                        len_change +=1;
+                    }
+                } else {
                     while seg_len > 2 {
                         seg_len -=1;
                         len_change -=1;
                     }
+                },
+                SpecMod::First(long) => if long.as_bool(alphas, err_pos)? {
                     while seg_len < 2 {
                         seg_len += 1;
                         len_change +=1;
                     }
+                } else {
+                    while seg_len > 1 {
+                        seg_len -= 1;
+                        len_change -=1;
+                    }
                 },
-                (false, false) => while seg_len > 1 {
-                    seg_len -= 1;
-                    len_change -=1;
+                SpecMod::Both(long, vlong) => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
+                    (true, true) => while seg_len < 3 {
+                        seg_len +=1;
+                        len_change +=1;
+                    },
+                    (true, false) => {
+                        while seg_len > 2 {
+                            seg_len -=1;
+                            len_change -=1;
+                        }
+                        while seg_len < 2 {
+                            seg_len += 1;
+                            len_change +=1;
+                        }
+                    },
+                    (false, false) => while seg_len > 1 {
+                        seg_len -= 1;
+                        len_change -=1;
+                    },
+                    (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
                 },
-                (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
-            },
+                SpecMod::Joined(_) => todo!(),
+            }
         }
 
         debug_assert!(old_len.saturating_add_signed(len_change) > 0, "{old_len} < {len_change}");
@@ -201,60 +203,62 @@ impl Syllable {
         let seg = self.segments[pos];
         let mut seg_len = self.get_seg_length_at(pos);
         let mut len_change = 0;
-        match mods.length {
-            // [long, Overlong]
-            [None, None] => {},
-            [None, Some(v)] => if v.as_bool(alphas, err_pos)? {
-                while seg_len < 3 {
-                    self.segments.insert(pos, seg);
-                    seg_len +=1;
-                    len_change +=1;
-                }
-            } else {
-                while seg_len > 2 {
-                    self.segments.remove(pos);
-                    seg_len -=1;
-                    len_change -=1;
-                }
-            },
-            [Some(long), None] => if long.as_bool(alphas, err_pos)? {
-                while seg_len < 2 {
-                    self.segments.insert(pos, seg);
-                    seg_len += 1;
-                    len_change +=1;
-                }
-            } else {
-                while seg_len > 1 {
-                    self.segments.remove(pos);
-                    seg_len -= 1;
-                    len_change -=1;
-                }
-            },
-            [Some(long), Some(vlong)] => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
-                (true, true) => while seg_len < 3 {
-                    self.segments.insert(pos, seg);
-                    seg_len +=1;
-                    len_change +=1;
-                },
-                (true, false) => {
-                    while seg_len > 2 {
-                        self.segments.remove(pos);
-                        seg_len -=1;
-                        len_change -=1;
-                    }
+
+        if let Some(len_mod) = mods.length {
+            match len_mod {
+                SpecMod::First(long) => if long.as_bool(alphas, err_pos)? {
                     while seg_len < 2 {
                         self.segments.insert(pos, seg);
                         seg_len += 1;
                         len_change +=1;
                     }
+                } else {
+                    while seg_len > 1 {
+                        self.segments.remove(pos);
+                        seg_len -= 1;
+                        len_change -=1;
+                    }
                 },
-                (false, false) => while seg_len > 1 {
-                    self.segments.remove(pos);
-                    seg_len -= 1;
-                    len_change -=1;
+                SpecMod::Second(v) => if v.as_bool(alphas, err_pos)? {
+                    while seg_len < 3 {
+                        self.segments.insert(pos, seg);
+                        seg_len +=1;
+                        len_change +=1;
+                    }
+                } else {
+                    while seg_len > 2 {
+                        self.segments.remove(pos);
+                        seg_len -=1;
+                        len_change -=1;
+                    }
                 },
-                (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
-            },
+                SpecMod::Both(long, vlong) => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
+                    (true, true) => while seg_len < 3 {
+                        self.segments.insert(pos, seg);
+                        seg_len +=1;
+                        len_change +=1;
+                    },
+                    (true, false) => {
+                        while seg_len > 2 {
+                            self.segments.remove(pos);
+                            seg_len -=1;
+                            len_change -=1;
+                        }
+                        while seg_len < 2 {
+                            self.segments.insert(pos, seg);
+                            seg_len += 1;
+                            len_change +=1;
+                        }
+                    },
+                    (false, false) => while seg_len > 1 {
+                        self.segments.remove(pos);
+                        seg_len -= 1;
+                        len_change -=1;
+                    },
+                    (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
+                },
+                SpecMod::Joined(_) => todo!(),
+            }
         }
 
         self.apply_syll_mods(alphas, mods, err_pos)?;
@@ -263,25 +267,26 @@ impl Syllable {
     }
 
     pub(crate) fn apply_syll_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, err_pos: Position) -> Result<(), RuleRuntimeError> {
-        match mods.stress {
-            // [stress, secstress]
-            [None, None] => {},
-            [None, Some(sec)] => if sec.as_bool(alphas, err_pos)? {
-                self.stress = StressKind::Secondary;
-            } else if self.stress == StressKind::Secondary {
-                self.stress = StressKind::Unstressed;
-            },
-            [Some(prim), None] => if prim.as_bool(alphas, err_pos)? {
-                self.stress = StressKind::Primary;
-            } else {
-                self.stress = StressKind::Unstressed;
-            },
-            [Some(prim), Some(sec)] => match (prim.as_bool(alphas, err_pos)?, sec.as_bool(alphas, err_pos)?) {
-                (true, true) => self.stress = StressKind::Secondary,
-                (true, false) => self.stress = StressKind::Primary,
-                (false, false) => self.stress = StressKind::Unstressed,
-                (false, true) => return Err(RuleRuntimeError::SecStrPosStrNeg(err_pos)),
-            },
+        if let Some(str_mods) = mods.stress {
+            match str_mods {
+                SpecMod::First(prim) => if prim.as_bool(alphas, err_pos)? {
+                    self.stress = StressKind::Primary;
+                } else {
+                    self.stress = StressKind::Unstressed;
+                },
+                SpecMod::Second(sec) => if sec.as_bool(alphas, err_pos)? {
+                    self.stress = StressKind::Secondary;
+                } else if self.stress == StressKind::Secondary {
+                    self.stress = StressKind::Unstressed;
+                },
+                SpecMod::Both(prim, sec) => match (prim.as_bool(alphas, err_pos)?, sec.as_bool(alphas, err_pos)?) {
+                    (true, true) => self.stress = StressKind::Secondary,
+                    (true, false) => self.stress = StressKind::Primary,
+                    (false, false) => self.stress = StressKind::Unstressed,
+                    (false, true) => return Err(RuleRuntimeError::SecStrPosStrNeg(err_pos)),
+                },
+                SpecMod::Joined(_) => todo!(),
+            }
         }
 
         if let Some(t) = &mods.tone {

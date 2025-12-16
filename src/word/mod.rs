@@ -20,7 +20,7 @@ use std :: {
 
 use crate :: {
     error :: { ASCAError, AliasRuntimeError, RuleRuntimeError, WordSyntaxError }, 
-    rule  :: { Alpha, BinMod, ModKind, Modifiers, Position, SupraSegs }, 
+    rule  :: { Alpha, BinMod, SpecMod, ModKind, Modifiers, Position, SupraSegs }, 
     CARDINALS_MAP, CARDINALS_TRIE, DIACRITS
 };
 
@@ -352,23 +352,24 @@ impl Word {
     }
 
     fn alias_apply_length(&self, mods: &Modifiers, err_pos: AliasPosition) -> Result<Option<usize>, AliasRuntimeError> {
-        match mods.suprs.length {
-            [None, None] => Ok(None),
-            [None, Some(over)] => match over {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => Ok(Some(3)),
-                    BinMod::Negative => Ok(Some(1)),
-                },
-                ModKind::Alpha(_) => unreachable!(),
-            },
-            [Some(long), None] => match long {
+        let Some(len_mods) = mods.suprs.length else { return Ok(None) };
+
+        match len_mods {
+            SpecMod::First(long) => match long {
                 ModKind::Binary(bm) => match bm {
                     BinMod::Positive => Ok(Some(2)),
                     BinMod::Negative => Ok(Some(1)),
                 },
                 ModKind::Alpha(_) => unreachable!(),
             },
-            [Some(long), Some(over)] => match (long, over) {
+            SpecMod::Second(over) => match over {
+                ModKind::Binary(bm) => match bm {
+                    BinMod::Positive => Ok(Some(3)),
+                    BinMod::Negative => Ok(Some(1)),
+                },
+                ModKind::Alpha(_) => unreachable!(),
+            },
+            SpecMod::Both(long, over) => match (long, over) {
                 (ModKind::Binary(bl), ModKind::Binary(bo)) => match (bl, bo) {
                     (BinMod::Positive, BinMod::Positive) => Ok(Some(3)),
                     (BinMod::Positive, BinMod::Negative) => Ok(Some(2)),
@@ -377,28 +378,31 @@ impl Word {
                 },
                 _ => unreachable!()
             },
+            SpecMod::Joined(_) => todo!(),
         }
     }
 
     fn alias_apply_stress(&self, sy: &mut Syllable, mods: &Modifiers, err_pos: AliasPosition) -> Result<(), AliasRuntimeError> {
-        match mods.suprs.stress {
-            [None, None] => {},
-            [None, Some(sec)] => match sec.as_bin_mod().unwrap() {
+        let Some(str_mods) = mods.suprs.stress else { return Ok(()) };
+
+        match str_mods {
+            SpecMod::First(prim) => match prim.as_bin_mod().unwrap() {
+                BinMod::Positive => sy.stress = StressKind::Primary,
+                BinMod::Negative => sy.stress = StressKind::Unstressed,
+            },
+            SpecMod::Second(sec) => match sec.as_bin_mod().unwrap() {
                 BinMod::Positive => sy.stress = StressKind::Secondary,
                 BinMod::Negative => if sy.stress == StressKind::Secondary {
                     sy.stress = StressKind::Unstressed;
                 },
             },
-            [Some(prim), None] => match prim.as_bin_mod().unwrap() {
-                BinMod::Positive => sy.stress = StressKind::Primary,
-                BinMod::Negative => sy.stress = StressKind::Unstressed,
-            },
-            [Some(prim), Some(sec)] => match (prim.as_bin_mod().unwrap(), sec.as_bin_mod().unwrap()) {
+            SpecMod::Both(prim, sec) => match (prim.as_bin_mod().unwrap(), sec.as_bin_mod().unwrap()) {
                 (BinMod::Positive, BinMod::Positive) => sy.stress = StressKind::Secondary,
                 (BinMod::Positive, BinMod::Negative) => sy.stress = StressKind::Primary,
                 (BinMod::Negative, BinMod::Negative) => sy.stress = StressKind::Unstressed,
                 (BinMod::Negative, BinMod::Positive) => return Err(AliasRuntimeError::SecStrPosStrNeg(err_pos)),
             },
+            SpecMod::Joined(_) => todo!(),
         }
 
         Ok(())
@@ -478,7 +482,7 @@ impl Word {
                                         Err(AliasRuntimeError::IndefiniteFeatures(alias.output.position))?
                                     }
 
-                                    if mods.suprs.length.iter().any(|x| x.is_some()) {
+                                    if mods.suprs.length.is_some() {
                                         Err(AliasRuntimeError::LengthNoSegment(alias.output.position))?
                                     }
                                     
@@ -767,49 +771,85 @@ impl Word {
         true
     }
 
-    fn alias_match_stress(&self, stress: &[Option<ModKind>; 2], syll: &Syllable) -> bool {
-        if let Some(str) = stress[0] {
-            match str {
+    fn alias_match_stress(&self, stress: &Option<SpecMod>, syll: &Syllable) -> bool {
+        let Some(str_mod) = stress else { return true };
+
+        match str_mod {
+            SpecMod::First(prim) => match prim {
                 ModKind::Binary(bm) => match bm {
                     BinMod::Negative => if syll.stress != StressKind::Unstressed { return false },
                     BinMod::Positive => if syll.stress == StressKind::Unstressed { return false },
                 },
                 ModKind::Alpha(_) => unreachable!(),
-            }
-        }
-        if let Some(str) = stress[1] {
-            match str {
+            },
+            SpecMod::Second(sec) => match sec {
                 ModKind::Binary(bm) => match bm {
                     BinMod::Negative => if syll.stress == StressKind::Secondary { return false },
                     BinMod::Positive => if syll.stress != StressKind::Secondary { return false },
                 },
                 ModKind::Alpha(_) => unreachable!(),
-            }
+            },
+            SpecMod::Both(prim, sec) => {
+                match prim {
+                    ModKind::Binary(bm) => match bm {
+                        BinMod::Negative => if syll.stress != StressKind::Unstressed { return false },
+                        BinMod::Positive => if syll.stress == StressKind::Unstressed { return false },
+                    },
+                    ModKind::Alpha(_) => unreachable!(),
+                }
+                match sec {
+                    ModKind::Binary(bm) => match bm {
+                        BinMod::Negative => if syll.stress == StressKind::Secondary { return false },
+                        BinMod::Positive => if syll.stress != StressKind::Secondary { return false },
+                    },
+                    ModKind::Alpha(_) => unreachable!(),
+                }
+            },
+            SpecMod::Joined(_) => todo!(),
         }
+
         true
     }
 
-    fn alias_match_seg_length(&self, length: &[Option<ModKind>; 2], syll_index: usize, seg_index: usize) -> (bool, Option<usize>) {
+    fn alias_match_seg_length(&self, length: &Option<SpecMod>, syll_index: usize, seg_index: usize) -> (bool, Option<usize>) {
         let seg_length = self.seg_length_at(SegPos { word_index: 0, syll_index, seg_index });
         let mut matched_len = false;
-        if let Some(len) = length[0] {
+
+        if let Some(len_mods) = length {
             matched_len = true;
-            match len {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => if seg_length < 2 { return (false, None) },
-                    BinMod::Negative => if seg_length > 1 { return (false, None) },
+            match len_mods {
+                SpecMod::First(long) => match long {
+                    ModKind::Binary(bm) => match bm {
+                        BinMod::Positive => if seg_length < 2 { return (false, None) },
+                        BinMod::Negative => if seg_length > 1 { return (false, None) },
+                    },
+                    ModKind::Alpha(_) => unreachable!(),
                 },
-                ModKind::Alpha(_) => unreachable!(),
-            }
-        }
-        if let Some(len) = length[1] {
-            matched_len = true;
-            match len {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => if seg_length < 3 { return (false, None) },
-                    BinMod::Negative => if seg_length > 2 { return (false, None) },
+                SpecMod::Second(vlong) => match vlong {
+                    ModKind::Binary(bm) => match bm {
+                        BinMod::Positive => if seg_length < 3 { return (false, None) },
+                        BinMod::Negative => if seg_length > 2 { return (false, None) },
+                    },
+                    ModKind::Alpha(_) => unreachable!(),
                 },
-                ModKind::Alpha(_) => unreachable!(),
+                SpecMod::Both(long, vlong) => {
+                    match long {
+                        ModKind::Binary(bm) => match bm {
+                            BinMod::Positive => if seg_length < 2 { return (false, None) },
+                            BinMod::Negative => if seg_length > 1 { return (false, None) },
+                        },
+                        ModKind::Alpha(_) => unreachable!(),
+                    }
+                    match vlong {
+                        ModKind::Binary(bm) => match bm {
+                            BinMod::Positive => if seg_length < 3 { return (false, None) },
+                            BinMod::Negative => if seg_length > 2 { return (false, None) },
+                        },
+                        ModKind::Alpha(_) => unreachable!(),
+                    }
+                },
+                // TODO: If this is reachable, then the above unreachable() calls are not valid
+                SpecMod::Joined(_) => todo!("Error: Aliases cannot use [Alength]"),
             }
         }
 

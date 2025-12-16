@@ -1,6 +1,6 @@
 use crate  :: {
     error  :: AliasSyntaxError, 
-    rule   :: { BinMod, ModKind, Modifiers, Mods }, 
+    rule   :: { BinMod, SpecMod, ModKind, Modifiers, Mods }, 
     word   :: { FeatKind, NodeKind, Segment, SupraKind },
     CARDINALS_MAP, DIACRITS
 };
@@ -187,6 +187,9 @@ impl AliasParser {
     fn get_param_args(&mut self) -> Result<Modifiers, AliasSyntaxError> {
         // returns (ARG (',' ARG)*)? ']' 
         let mut args = Modifiers::new();
+        let mut length_mods: [Option<ModKind>; 2] = [None; 2];
+        let mut stress_mods: [Option<ModKind>; 2] = [None; 2];
+
         while self.has_more_tokens() {
             if self.expect(AliasTokenKind::RightSquare) {
                 break;
@@ -206,12 +209,14 @@ impl AliasParser {
                     FeatureCategory::Supr(t) => match mods {
                         Mods::Alpha(_)  => unreachable!(),
                         Mods::Number(n) => args.suprs.tone = Some(n),
-                        Mods::Binary(b) => match t {
-                            SupraKind::Long => args.suprs.length[0] = Some(ModKind::Binary(b)),
-                            SupraKind::Overlong => args.suprs.length[1] = Some(ModKind::Binary(b)),
-                            SupraKind::Stress => args.suprs.stress[0] = Some(ModKind::Binary(b)),
-                            SupraKind::SecStress => args.suprs.stress[1] = Some(ModKind::Binary(b)),
-                            SupraKind::Tone => unreachable!("Tone cannot be `+/-`"),
+                        Mods::Binary(b)  => match t {
+                            SupraKind::Long       => length_mods[0] = Some(ModKind::Binary(b)),
+                            SupraKind::Overlong   => length_mods[1] = Some(ModKind::Binary(b)),
+                            SupraKind::Stress     => stress_mods[0] = Some(ModKind::Binary(b)),
+                            SupraKind::SecStress  => stress_mods[1] = Some(ModKind::Binary(b)),
+                            SupraKind::LengthPair => todo!("Err: Cannot be binary"),
+                            SupraKind::StressPair => todo!("Err: Cannot be binary"),
+                            SupraKind::Tone => unreachable!("Tone cannot be `+/-` (enforced by lexer)"),
                         },
                     }
                 }
@@ -223,6 +228,21 @@ impl AliasParser {
             }
             return Err(AliasSyntaxError::ExpectedTokenFeature(self.curr_tkn.clone()))
         }
+
+        args.suprs.length = match length_mods {
+            [None, None] => None,
+            [Some(l), None] => Some(SpecMod::First(l)),
+            [None, Some(o)] => Some(SpecMod::Second(o)),
+            [Some(l), Some(o)] => Some(SpecMod::Both(l, o)),
+        };
+
+        args.suprs.stress = match stress_mods {
+            [None, None] => None,
+            [Some(p), None] => Some(SpecMod::First(p)),
+            [None, Some(s)] => Some(SpecMod::Second(s)),
+            [Some(p), Some(s)] => Some(SpecMod::Both(p, s)),
+        };
+
         Ok(args)
     }
 
@@ -335,11 +355,10 @@ impl AliasParser {
             }
             chr.feats[i] = *p
         }
-        chr.suprs.stress[0] = if params.suprs.stress[0].is_none() {chr.suprs.stress[0]} else {params.suprs.stress[0]};
-        chr.suprs.stress[1] = if params.suprs.stress[1].is_none() {chr.suprs.stress[1]} else {params.suprs.stress[1]};
-        chr.suprs.length[0] = if params.suprs.length[0].is_none() {chr.suprs.length[0]} else {params.suprs.length[0]};
-        chr.suprs.length[1] = if params.suprs.length[1].is_none() {chr.suprs.length[1]} else {params.suprs.length[1]};
-        chr.suprs.tone   = if params.suprs.tone.is_none()   {chr.suprs.tone}   else {params.suprs.tone};
+        
+        chr.suprs.stress = params.suprs.stress;
+        chr.suprs.length = params.suprs.length;
+        chr.suprs.tone = params.suprs.tone;
 
         (chr, AliasPosition::new(self.kind, self.line, c_pos.start, p_pos.end))
     }
@@ -584,7 +603,7 @@ mod parser_tests {
         assert_eq!(result.len(), 1);
 
         assert_eq!(result[0].input , AliasItem::new(AliasParseElement::Segments(vec![SegType::Ipa(CARDINALS_MAP.get("ʃ").unwrap().clone(), None)]), AliasPosition::new(AliasKind::Romaniser, 0, 0, 1)));
-        assert_eq!(result[0].output, AliasItem::new(AliasParseElement::Replacement("sh".to_string(), false),                       AliasPosition::new(AliasKind::Romaniser, 0, 4, 6)));
+        assert_eq!(result[0].output, AliasItem::new(AliasParseElement::Replacement("sh".to_string(), false), AliasPosition::new(AliasKind::Romaniser, 0, 4, 6)));
     }
 
     #[test]
@@ -596,10 +615,11 @@ mod parser_tests {
         assert_eq!(result.len(), 1);
 
         let mut x = Modifiers::new();
-        x.suprs = SupraSegs { stress: [Some(ModKind::Binary(BinMod::Positive)), None], length: [None, None], tone: None };
+        
+        x.suprs = SupraSegs { stress: Some(SpecMod::First(ModKind::Binary(BinMod::Positive))), length: None, tone: None };
 
         assert_eq!(result[0].input , AliasItem::new(AliasParseElement::Segments(vec![SegType::Ipa(CARDINALS_MAP.get("a").unwrap().clone(), Some(x))]), AliasPosition::new(AliasKind::Romaniser, 0,  0,  8)));
-        assert_eq!(result[0].output, AliasItem::new(AliasParseElement::Replacement("á".to_string(), false),                           AliasPosition::new(AliasKind::Romaniser, 0, 11, 12)));
+        assert_eq!(result[0].output, AliasItem::new(AliasParseElement::Replacement("á".to_string(), false), AliasPosition::new(AliasKind::Romaniser, 0, 11, 12)));
     }
 
     #[test]
@@ -611,10 +631,10 @@ mod parser_tests {
         assert_eq!(result.len(), 1);
 
         let mut x = Modifiers::new();
-        x.suprs = SupraSegs { stress: [Some(ModKind::Binary(BinMod::Positive)), None], length: [None, None], tone: None };
+        x.suprs = SupraSegs { stress: Some(SpecMod::First(ModKind::Binary(BinMod::Positive))), length: None, tone: None };
 
         assert_eq!(result[0].input , AliasItem::new(AliasParseElement::Segments(vec![SegType::Ipa(CARDINALS_MAP.get("a").unwrap().clone(), Some(x))]), AliasPosition::new(AliasKind::Romaniser, 0,  0,  8)));
-        assert_eq!(result[0].output, AliasItem::new(AliasParseElement::Replacement("a\u{0301}".to_string(), false),                   AliasPosition::new(AliasKind::Romaniser, 0, 11, 21)));
+        assert_eq!(result[0].output, AliasItem::new(AliasParseElement::Replacement("a\u{0301}".to_string(), false), AliasPosition::new(AliasKind::Romaniser, 0, 11, 21)));
     }
 
     #[test]

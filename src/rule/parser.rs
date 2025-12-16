@@ -2,7 +2,7 @@ use std::{ fmt, sync::Arc };
 
 use crate :: {
     error :: RuleSyntaxError, 
-    rule  :: { BinMod, ModKind, Rule }, 
+    rule  :: { BinMod, SpecMod, ModKind, Rule }, 
     word  :: { Diacritic, FeatKind, FeatureCategory, NodeKind, Segment, SupraKind, Tone }, 
     CARDINALS_MAP, DIACRITS
 };
@@ -117,7 +117,7 @@ impl UnderlineStruct {
 
 
 type RefAssign = Option<usize>;
-type StressMod = [Option<ModKind>; 2]; // [Primary, Secondary]
+type StressMod = Option<SpecMod>;
 type OptMin = usize;
 type OptMax = usize;
 
@@ -127,9 +127,9 @@ pub(crate) enum ParseElement {
     ExtlBound  , // ##
     WordBound  , // #
     SyllBound  , // $
-    OptEllipsis, // (..)
-    Ellipsis   , // ..
     Metathesis , // &
+    Ellipsis   , // ..
+    OptEllipsis, // (..)
     Set      (Vec<ParseItem>),
     Ipa      (Segment, Option<Modifiers>),
     Matrix   (Modifiers, RefAssign),
@@ -559,11 +559,10 @@ impl Parser {
             if f.is_none() { continue }
             chr.feats[i] = *f
         }
-        chr.suprs.stress[0] = if params.suprs.stress[0].is_none() {chr.suprs.stress[0]} else {params.suprs.stress[0]};
-        chr.suprs.stress[1] = if params.suprs.stress[1].is_none() {chr.suprs.stress[1]} else {params.suprs.stress[1]};
-        chr.suprs.length[0] = if params.suprs.length[0].is_none() {chr.suprs.length[0]} else {params.suprs.length[0]};
-        chr.suprs.length[1] = if params.suprs.length[1].is_none() {chr.suprs.length[1]} else {params.suprs.length[1]};
-        chr.suprs.tone = if params.suprs.tone.is_none() {chr.suprs.tone} else {params.suprs.tone};
+
+        chr.suprs.stress = params.suprs.stress;
+        chr.suprs.length = params.suprs.length;
+        chr.suprs.tone = params.suprs.tone;
 
         ParseItem::new(ParseElement::Matrix(chr, None), Position::new(self.group, self.line, character.position.start, parameters.position.end ))
     }
@@ -656,6 +655,9 @@ impl Parser {
     fn get_param_args(&mut self, is_syll: bool) -> Result<Modifiers, RuleSyntaxError> {
         // Params ← '[' (Argument (','? Argument)*)? ','? ']'
         let mut args = Modifiers::new();
+        let mut length_mods: [Option<ModKind>; 3] = [None; 3];
+        let mut stress_mods: [Option<ModKind>; 3] = [None; 3];
+
         while self.has_more_tokens() {
             if self.expect(TokenKind::RightSquare) {
                 break;
@@ -682,17 +684,21 @@ impl Parser {
                     FeatureCategory::Supr(t) => match mk {
                         Mods::Number(n) => args.suprs.tone = Some(n),
                         Mods::Alpha(a) => match t {
-                            SupraKind::Long => args.suprs.length[0] = Some( ModKind::Alpha(a)),
-                            SupraKind::Overlong => args.suprs.length[1] = Some(ModKind::Alpha(a)),
-                            SupraKind::Stress => args.suprs.stress[0] = Some(ModKind::Alpha(a)),
-                            SupraKind::SecStress => args.suprs.stress[1] = Some(ModKind::Alpha(a)),
+                            SupraKind::Long       => length_mods[0] = Some(ModKind::Alpha(a)),
+                            SupraKind::Overlong   => length_mods[1] = Some(ModKind::Alpha(a)),
+                            SupraKind::LengthPair => length_mods[2] = Some(ModKind::Alpha(a)),
+                            SupraKind::Stress     => stress_mods[0] = Some(ModKind::Alpha(a)),
+                            SupraKind::SecStress  => stress_mods[1] = Some(ModKind::Alpha(a)),
+                            SupraKind::StressPair => stress_mods[2] = Some(ModKind::Alpha(a)),
                             SupraKind::Tone => unreachable!("Tone cannot be `Alpha'd` (yet anyway)"),
                         },
                         Mods::Binary(b) => match t {
-                            SupraKind::Long => args.suprs.length[0] = Some(ModKind::Binary(b)),
-                            SupraKind::Overlong => args.suprs.length[1] = Some(ModKind::Binary(b)),
-                            SupraKind::Stress => args.suprs.stress[0] = Some(ModKind::Binary(b)),
-                            SupraKind::SecStress => args.suprs.stress[1] = Some(ModKind::Binary(b)),
+                            SupraKind::Long       => length_mods[0] = Some(ModKind::Binary(b)),
+                            SupraKind::Overlong   => length_mods[1] = Some(ModKind::Binary(b)),
+                            SupraKind::LengthPair => todo!("Error: Cannot be binary"),
+                            SupraKind::Stress     => stress_mods[0] = Some(ModKind::Binary(b)),
+                            SupraKind::SecStress  => stress_mods[1] = Some(ModKind::Binary(b)),
+                            SupraKind::StressPair => todo!("Error: Cannot be binary"),
                             SupraKind::Tone => unreachable!("Tone cannot be `+/-`"),
                         },
                     }
@@ -706,6 +712,27 @@ impl Parser {
             }
             return Err(RuleSyntaxError::ExpectedTokenFeature(self.curr_tkn.clone()))
         }
+
+        args.suprs.length =  match length_mods {
+            [.., Some(_), Some(_)] | [Some(_), .., Some(_)] => todo!("Error"),
+
+            [None, None, None]    => None,
+            [Some(l), None, None] => Some(SpecMod::First(l)),
+            [None, Some(o), None] => Some(SpecMod::Second(o)),
+            [None, None, Some(j)] => Some(SpecMod::Joined(j)),
+            [Some(l), Some(o), None] => Some(SpecMod::Both(l, o)),
+        };
+
+        args.suprs.stress =  match stress_mods {
+            [.., Some(_), Some(_)] | [Some(_), .., Some(_)] => todo!("Error"),
+            
+            [None, None, None]    => None,
+            [Some(l), None, None] => Some(SpecMod::First(l)),
+            [None, Some(o), None] => Some(SpecMod::Second(o)),
+            [None, None, Some(j)] => Some(SpecMod::Joined(j)),
+            [Some(l), Some(o), None] => Some(SpecMod::Both(l, o)),
+        };
+
         Ok(args)
     }
 
@@ -974,10 +1001,10 @@ impl Parser {
                 };
                 let num = number.value.parse::<usize>().unwrap();
                 let end_pos = self.token_list[self.pos-1].position.end;
-                return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+                return Ok(Some(ParseItem::new(ParseElement::Syllable(None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
             let end_pos = self.token_list[self.pos-1].position.end;
-            return Ok(Some(ParseItem::new(ParseElement::Syllable([None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Syllable(None, None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -1064,10 +1091,10 @@ impl Parser {
                 };
                 let num = number.value.parse::<usize>().unwrap();
                 let end_pos = self.token_list[self.pos-1].position.end;
-                return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+                return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
             let end_pos = self.token_list[self.pos-1].position.end;
-            return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -1117,10 +1144,10 @@ impl Parser {
                 };
                 let num = number.value.parse::<usize>().unwrap();
                 let end_pos = self.token_list[self.pos-1].position.end;
-                return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
+                return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
             let end_pos = self.token_list[self.pos-1].position.end;
-            return Ok(Some(ParseItem::new(ParseElement::Structure(terms, [None, None], None, None), Position::new(self.group, self.line, start_pos, end_pos))))
+            return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -1408,14 +1435,14 @@ mod parser_tests {
 
 
         let exp_input = vec![ 
-            ParseItem::new(ParseElement::Syllable([Some(ModKind::Binary(BinMod::Positive)), None], None, None), Position::new(0, 0, 0, 11)),
-            ParseItem::new(ParseElement::Syllable([None, None], None, None), Position::new(0, 0, 13, 14)),
+            ParseItem::new(ParseElement::Syllable(Some(SpecMod::First(ModKind::Binary(BinMod::Positive))), None, None), Position::new(0, 0, 0, 11)),
+            ParseItem::new(ParseElement::Syllable(None, None, None), Position::new(0, 0, 13, 14)),
         ];
 
         let mut x = Modifiers::new();
         let mut y = Modifiers::new();
-        x.suprs.stress = [Some(ModKind::Binary(BinMod::Negative)), None];
-        y.suprs.stress = [Some(ModKind::Binary(BinMod::Positive)), None];
+        x.suprs.stress = Some(SpecMod::First(ModKind::Binary(BinMod::Negative)));
+        y.suprs.stress = Some(SpecMod::First(ModKind::Binary(BinMod::Positive)));
         let exp_output = vec![
             ParseItem::new(ParseElement::Matrix(x, None), Position::new(0, 0, 17, 26)),
             ParseItem::new(ParseElement::Matrix(y, None), Position::new(0, 0, 28, 37)),
@@ -1494,7 +1521,7 @@ mod parser_tests {
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
-        let exp_input = ParseItem::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
+        let exp_input = ParseItem::new(ParseElement::Syllable(None, Some(123), None), Position::new(0, 0, 0, 13));
 
         let mut out = Modifiers::new();
 
@@ -1511,7 +1538,7 @@ mod parser_tests {
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
-        let exp_input = ParseItem::new(ParseElement::Syllable([None, None], Some(123), None), Position::new(0, 0, 0, 13));
+        let exp_input = ParseItem::new(ParseElement::Syllable(None, Some(123), None), Position::new(0, 0, 0, 13));
         
         let mut out: Modifiers = Modifiers::new();
         out.suprs.tone = Some(321);
@@ -1562,7 +1589,7 @@ mod parser_tests {
         eprintln!("{:?}", maybe_result);
         let result = maybe_result.unwrap().unwrap();
 
-        let x = crate::word::Word::new("sin").unwrap();
+        let x = crate::word::Word::new("sin", &[]).unwrap();
 
         let exp_struct = UnderlineStruct { 
             before: vec![
@@ -1574,7 +1601,7 @@ mod parser_tests {
                 ParseItem::new(ParseElement::Ipa(x.syllables[0].segments[2], None), Position::new(0, 0, 13, 14)),
                 ParseItem::new(ParseElement::Ipa(x.syllables[0].segments[0], None), Position::new(0, 0, 14, 15)),
                 ], 
-            stress: [None,None], 
+            stress: None, 
             tone: None, 
             position: Position::new(0, 0, 8, 16)
         };

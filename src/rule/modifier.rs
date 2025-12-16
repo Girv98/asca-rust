@@ -83,17 +83,31 @@ impl ModKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct SupraSegs {
-    pub(crate) stress: [Option<ModKind>; 2], // [Stress, SecStress]
-    pub(crate) length: [Option<ModKind>; 2], // [Long, Overlong]
+    pub(crate) stress: Option<SpecMod>,
+    pub(crate) length: Option<SpecMod>,
     pub(crate) tone: Option<Tone>,
+}
+
+/// For modifiers that have a primary and a secondary component;
+/// namely Stress `(Stress, SecStress)` and Length `(Long, Overlong)`.
+/// 
+/// This allows us to assign an Alpha to the entire modifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpecMod {
+    First(ModKind),
+    Second(ModKind),
+    Both(ModKind, ModKind), // (Primary Component, Secondary Component)
+    // Used for alpha'ing both simultaneously
+    // This could be just AlphaMod as it cannot be Binary
+    Joined(ModKind),
 }
 
 impl SupraSegs {
     pub(crate) fn new() -> Self {
-        Self { stress: [None, None], length: [None, None], tone: None }
+        Self { stress: None, length: None, tone: None }
     }
 
-    pub(crate) fn from(stress: [Option<ModKind>; 2], length: [Option<ModKind>; 2], tone: Option<Tone>) -> Self {
+    pub(crate) fn from(stress: Option<SpecMod>, length: Option<SpecMod>, tone: Option<Tone>) -> Self {
         Self { stress, length, tone }
     }
 }

@@ -10,7 +10,7 @@ use std ::{
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, EnvItem, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, Reference, RuleType, SupraSegs, UnderlineStruct }, 
+    rule   :: { Alpha, AlphaMod, BinMod, EnvItem, SpecMod, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, Reference, RuleType, SupraSegs, UnderlineStruct }, 
     word   :: { FeatKind, NodeKind, Phrase, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
@@ -740,9 +740,9 @@ impl SubRule {
         }
     }
 
-    fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
+    fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
         let mut syll = Syllable::new();
-        let mods = SupraSegs { stress: *stress, length: [None, None], tone: *tone };
+        let mods = SupraSegs { stress: *stress, length: None, tone: *tone };
 
         syll.apply_syll_mods(&self.alphas, &mods, err_pos)?;
 
@@ -757,15 +757,18 @@ impl SubRule {
                     if let Some(mods) = modifiers {
                         segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
                         len = match mods.suprs.length {
-                            [None, None] => 1,
-                            [None, Some(v)] => if v.as_bool(&self.alphas, item.position)? { 3 } else { 1 },
-                            [Some(l), None] => if l.as_bool(&self.alphas, item.position)? { 2 } else { 1 },
-                            [Some(l), Some(v)] => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
-                                (true, true)   => 3,
-                                (true, false)  => 2,
-                                (false, false) => 1,
-                                (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
-                            },
+                            Some(lm) => match lm {
+                                SpecMod::Second(v) => if v.as_bool(&self.alphas, item.position)? { 3 } else { 1 },
+                                SpecMod::First(l) => if l.as_bool(&self.alphas, item.position)? { 2 } else { 1 },
+                                SpecMod::Both(l, v) => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
+                                    (true, true)   => 3,
+                                    (true, false)  => 2,
+                                    (false, false) => 1,
+                                    (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
+                                },
+                                SpecMod::Joined(_j) => todo!(),
+                            }
+                            None => 1,
                         };
                         // TODO: Ignore syll suprs?
                     }
@@ -783,15 +786,18 @@ impl SubRule {
                                 if let Some(mods) = modifiers {
                                     segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
                                     len = match mods.suprs.length {
-                                        [None, None] => 1,
-                                        [None, Some(v)] => if v.as_bool(&self.alphas, item.position)? { 3 } else { 1 },
-                                        [Some(l), None] => if l.as_bool(&self.alphas, item.position)? { 2 } else { 1 },
-                                        [Some(l), Some(v)] => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
-                                            (true, true)   => 3,
-                                            (true, false)  => 2,
-                                            (false, false) => 1,
-                                            (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
-                                        },
+                                        Some(lm) => match lm {
+                                            SpecMod::Second(v) => if v.as_bool(&self.alphas, item.position)? { 3 } else { 1 },
+                                            SpecMod::First(l) => if l.as_bool(&self.alphas, item.position)? { 2 } else { 1 },
+                                            SpecMod::Both(l, v) => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
+                                                (true, true)   => 3,
+                                                (true, false)  => 2,
+                                                (false, false) => 1,
+                                                (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
+                                            },
+                                            SpecMod::Joined(_j) => todo!(),
+                                        }
+                                        None => 1,
                                     };
                                     // TODO: Ignore syll suprs?
                                 }
@@ -857,84 +863,93 @@ impl SubRule {
         nums.iter().fold(0, |acc, elem| acc * 10 + *elem as Tone)
     }
 
-    fn match_stress(&self, stress: &[Option<ModKind>; 2], syll: &Syllable) -> Result<bool, RuleRuntimeError> {
-        // ±stress (+ matches prim and sec, - matches unstressed)
-        if let Some(str) = stress[0] {
-            match str {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Negative => if syll.stress != StressKind::Unstressed { return Ok(false) },
-                    BinMod::Positive => if syll.stress == StressKind::Unstressed { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Primary |
-                                StressKind::Secondary  => if !pos { return Ok(false) },
-                                StressKind::Unstressed => if  pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress != StressKind::Unstressed;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
+    fn match_prim_stress(&self, syll: &Syllable, val: &ModKind) -> Result<bool, RuleRuntimeError> {
+        match val {
+            ModKind::Binary(bm) => match bm {
+                BinMod::Negative => if syll.stress != StressKind::Unstressed { return Ok(false) },
+                BinMod::Positive => if syll.stress == StressKind::Unstressed { return Ok(false) },
+            },
+            ModKind::Alpha(am) => match am {
+                AlphaMod::Alpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(&ch) {
+                        let pos = alph.as_binary();
+                        match syll.stress {
+                            StressKind::Primary |
+                            StressKind::Secondary  => if !pos { return Ok(false) },
+                            StressKind::Unstressed => if  pos { return Ok(false) },
                         }
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Primary |
-                                StressKind::Secondary  => if  pos { return Ok(false) },
-                                StressKind::Unstressed => if !pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress == StressKind::Unstressed;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
-                        }
-                        
-                    },
+                    } else {
+                        let stress = syll.stress != StressKind::Unstressed;
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(stress));
+                    }
                 },
-            }
-        }
-        // ±secstress (+ matches sec, - matches prim and unstressed)
-        if let Some(str) = stress[1] {
-            match str {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Negative => if syll.stress == StressKind::Secondary { return Ok(false) },
-                    BinMod::Positive => if syll.stress != StressKind::Secondary { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Secondary  => if !pos { return Ok(false) },
-                                StressKind::Primary |
-                                StressKind::Unstressed => if  pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress == StressKind::Secondary;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
+                AlphaMod::InvAlpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(&ch) {
+                        let pos = alph.as_binary();
+                        match syll.stress {
+                            StressKind::Primary |
+                            StressKind::Secondary  => if  pos { return Ok(false) },
+                            StressKind::Unstressed => if !pos { return Ok(false) },
                         }
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            let pos = alph.as_binary();
-                            match syll.stress {
-                                StressKind::Secondary  => if  pos { return Ok(false) },
-                                StressKind::Primary |
-                                StressKind::Unstressed => if !pos { return Ok(false) },
-                            }
-                        } else {
-                            let stress = syll.stress != StressKind::Secondary;
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(stress));
-                        }
-                    },
+                    } else {
+                        let stress = syll.stress == StressKind::Unstressed;
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(stress));
+                    }
                 },
-            }
+            },
         }
 
         Ok(true)
+    }
+
+    fn match_sec_stress(&self, syll: &Syllable, val: &ModKind) -> Result<bool, RuleRuntimeError> {
+        match val {
+            ModKind::Binary(bm) => match bm {
+                BinMod::Negative => if syll.stress == StressKind::Secondary { return Ok(false) },
+                BinMod::Positive => if syll.stress != StressKind::Secondary { return Ok(false) },
+            },
+            ModKind::Alpha(am) => match am {
+                AlphaMod::Alpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(&ch) {
+                        let pos = alph.as_binary();
+                        match syll.stress {
+                            StressKind::Secondary  => if !pos { return Ok(false) },
+                            StressKind::Primary |
+                            StressKind::Unstressed => if  pos { return Ok(false) },
+                        }
+                    } else {
+                        let stress = syll.stress == StressKind::Secondary;
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(stress));
+                    }
+                },
+                AlphaMod::InvAlpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(&ch) {
+                        let pos = alph.as_binary();
+                        match syll.stress {
+                            StressKind::Secondary  => if  pos { return Ok(false) },
+                            StressKind::Primary |
+                            StressKind::Unstressed => if !pos { return Ok(false) },
+                        }
+                    } else {
+                        let stress = syll.stress != StressKind::Secondary;
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(stress));
+                    }
+                },
+            },
+        }
+
+        Ok(true)
+    }
+
+    fn match_stress(&self, stress: &Option<SpecMod>, syll: &Syllable) -> Result<bool, RuleRuntimeError> {
+        let Some(str_mods) = stress else { return Ok(true) };
+
+        match str_mods {
+            SpecMod::First(val) => Ok(self.match_prim_stress(syll, val)?),
+            SpecMod::Second(val) => Ok(self.match_sec_stress(syll, val)?),
+            SpecMod::Both(prim, sec) => Ok(self.match_prim_stress(syll, prim)? && self.match_sec_stress(syll, sec)?),
+            SpecMod::Joined(_) => todo!(),
+        }
     }
 
     fn match_tone(&self, tone: &Tone, syll: &Syllable) -> bool { *tone == syll.tone }
@@ -983,72 +998,83 @@ impl SubRule {
         Ok(true)
     }
 
-    fn match_seg_length(&self, phrase: &Phrase, length: &[Option<ModKind>; 2], pos: &SegPos) -> Result<bool, RuleRuntimeError> {
+    fn match_long(&self, phrase: &Phrase, val: &ModKind, pos: &SegPos) -> Result<bool, RuleRuntimeError> {
         let seg_length = phrase.seg_length_at(*pos);
-        // +/- long
-        if let Some(len) = length[0] {
-            match len {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => if seg_length < 2 { return Ok(false) },
-                    BinMod::Negative => if seg_length > 1 { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match alph.as_binary() {
-                                true  => if seg_length < 2 { return Ok(false) },
-                                false => if seg_length > 1 { return Ok(false) },
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 1));
+        
+        match val {
+            ModKind::Binary(bm) => match bm {
+                BinMod::Positive => if seg_length < 2 { return Ok(false) },
+                BinMod::Negative => if seg_length > 1 { return Ok(false) },
+            },
+            ModKind::Alpha(am) => match am {
+                AlphaMod::Alpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(ch) {
+                        match alph.as_binary() {
+                            true  => if seg_length < 2 { return Ok(false) },
+                            false => if seg_length > 1 { return Ok(false) },
                         }
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match !alph.as_binary() {
-                                true  => if seg_length < 2 { return Ok(false) },
-                                false => if seg_length > 1 { return Ok(false) }
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 1));
-                        }
-                    },
+                    } else {
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(seg_length > 1));
+                    }
                 },
-            }
+                AlphaMod::InvAlpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(ch) {
+                        match !alph.as_binary() {
+                            true  => if seg_length < 2 { return Ok(false) },
+                            false => if seg_length > 1 { return Ok(false) }
+                        }
+                    } else {
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(seg_length <= 1));
+                    }
+                },
+            },
         }
-        // +/- overlong
-        if let Some(len) = length[1] {
-            match len {
-                ModKind::Binary(bm) => match bm {
-                    BinMod::Positive => if seg_length < 3 { return Ok(false) },
-                    BinMod::Negative => if seg_length > 2 { return Ok(false) },
-                },
-                ModKind::Alpha(am) => match am {
-                    AlphaMod::Alpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match alph.as_binary() {
-                                true  => if seg_length < 3 { return Ok(false) },
-                                false => if seg_length > 2 { return Ok(false) },
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length > 2));
-                        }
 
-                    },
-                    AlphaMod::InvAlpha(ch) => {
-                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                            match !alph.as_binary() {
-                                true  => if seg_length < 3 { return Ok(false) },
-                                false => if seg_length > 2 { return Ok(false) },
-                            }
-                        } else {
-                            self.alphas.borrow_mut().insert(ch, Alpha::Supra(seg_length <= 2));
+        Ok(true)
+    }
+
+    fn match_overlong(&self, phrase: &Phrase, val: &ModKind, pos: &SegPos) -> Result<bool, RuleRuntimeError> {
+        let seg_length = phrase.seg_length_at(*pos);
+        match val {
+            ModKind::Binary(bm) => match bm {
+                BinMod::Positive => if seg_length < 3 { return Ok(false) },
+                BinMod::Negative => if seg_length > 2 { return Ok(false) },
+            },
+            ModKind::Alpha(am) => match am {
+                AlphaMod::Alpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(ch) {
+                        match alph.as_binary() {
+                            true  => if seg_length < 3 { return Ok(false) },
+                            false => if seg_length > 2 { return Ok(false) },
                         }
-                    },
+                    } else {
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(seg_length > 2));
+                    }
                 },
-            }
+                AlphaMod::InvAlpha(ch) => {
+                    if let Some(alph) = self.alphas.borrow().get(ch) {
+                        match !alph.as_binary() {
+                            true  => if seg_length < 3 { return Ok(false) },
+                            false => if seg_length > 2 { return Ok(false) },
+                        }
+                    } else {
+                        self.alphas.borrow_mut().insert(*ch, Alpha::Supra(seg_length <= 2));
+                    }
+                },
+            },
         }
         Ok(true)
+    }
+
+    fn match_seg_length(&self, phrase: &Phrase, length: &Option<SpecMod>, pos: &SegPos) -> Result<bool, RuleRuntimeError> {
+        let Some(len_mods) = length else { return Ok(true) };
+
+        match len_mods {
+            SpecMod::First(val) => Ok(self.match_long(phrase, val, pos)?),
+            SpecMod::Second(val) => Ok(self.match_overlong(phrase, val, pos)?),
+            SpecMod::Both(lng, vlg) => Ok(self.match_long(phrase, lng, pos)? && self.match_overlong(phrase, vlg, pos)?),
+            SpecMod::Joined(_) => todo!(),
+        }
     }
 
     fn match_node_mod(&self, md:&Option<ModKind>, node_index: usize, seg: Segment, err_pos: Position) -> Result<bool, RuleRuntimeError> {
@@ -1261,7 +1287,7 @@ impl SubRule { // Substitution
         Ok(res_phrase)
     }
     
-    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, state: MatchElement, in_pos: Position, out_pos: Position) -> Result<SubAction, RuleRuntimeError> {
+    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, state: MatchElement, in_pos: Position, out_pos: Position) -> Result<SubAction, RuleRuntimeError> {
         if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_pos)) }
         match state {
             MatchElement::Syllable(wp, sp, _) => {
@@ -1679,7 +1705,7 @@ impl SubRule { // Substitution
                     }
                     ParseElement::Syllable(stress, tone, refr) => { 
                         let mut syll = phrase[wp].syllables[sp].clone();
-                        let sups = SupraSegs::from(*stress, [None, None], *tone);
+                        let sups = SupraSegs::from(*stress, None, *tone);
                         syll.apply_syll_mods(&self.alphas, &sups, set_output[i].position)?;
                         if let Some(r) = refr { self.references.borrow_mut().insert(*r, RefKind::Syllable(syll.clone())); }
                         // FIXME: This is wasteful as we are discarding the changed syllable to later apply the same changes
@@ -2524,7 +2550,7 @@ impl SubRule { // Context Matching
             }
         }
         Ok(true)
-    } 
+    }
 
     fn match_underline_struct(&self, phrase_rev: &Phrase, phrase: &Phrase, matches: &[MatchElement], start_pos: SegPos, end_pos: SegPos, center: &UnderlineStruct) -> Result<bool, RuleRuntimeError> {
         
@@ -2628,7 +2654,7 @@ impl SubRule { // Context Matching
         Ok(!is_expt_match && is_cont_match)
     }
 
-    fn context_match_structure(&self, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
+    fn context_match_structure(&self, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {
         if items.is_empty() {
             return self.context_match_syll(stress, tone, refr, phrase, pos, forwards)
         }
@@ -3046,7 +3072,7 @@ impl SubRule { // Context Matching
         Ok(true)
     }
 
-    fn context_match_syll(&self, stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {        
+    fn context_match_syll(&self, stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool) -> Result<bool, RuleRuntimeError> {        
         if !pos.at_syll_start() {
             return Ok(false)
         }
@@ -3252,7 +3278,7 @@ impl SubRule { // Input Matching
         }
     }
 
-    fn input_match_structure(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, items: &[ParseItem], stress: &[Option<ModKind>; 2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_structure(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         if items.is_empty() {
             return self.input_match_syll(captures, state_index, stress, tone, refr, phrase, pos)
         }
@@ -3374,7 +3400,7 @@ impl SubRule { // Input Matching
         Ok(false)
     }
 
-    fn input_match_syll(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, stress: &[Option<ModKind>;2], tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_syll(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
         // checks current segment is at start of syll
         // matches stress and tone
         // jumps to end of syllable if match
@@ -3534,8 +3560,8 @@ impl SubRule { // Input Matching
                 self.references.borrow_mut().insert(*r, RefKind::Segment(seg));
             }
             match mods.suprs.length {
-                [None, None] => captures.push(MatchElement::Segment(*pos, None)),
-                _            => captures.push(MatchElement::LongSegment(*pos, None))
+                None => captures.push(MatchElement::Segment(*pos, None)),
+                _    => captures.push(MatchElement::LongSegment(*pos, None))
             }
             self.matrix_increment(phrase, pos);
             Ok(true)
@@ -3599,7 +3625,7 @@ impl SubRule { // Insertion
                     if pos.at_syll_start() {
                         // apply mods to current syllable, possibly not a good idea
                         if let Some(syll) = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index) {
-                            syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
+                            syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: None, tone: *tone }, state.position)?;
                             if let Some(r) = refr {
                                 self.references.borrow_mut().insert(*r, RefKind::Syllable(res_phrase[pos.word_index].syllables[pos.syll_index].clone()));
                             }
@@ -3612,7 +3638,7 @@ impl SubRule { // Insertion
                     // split current syll into two at insert_pos
                     // Apply mods to second syll
                     let mut new_syll = Syllable::new();
-                    new_syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: [None, None], tone: *tone }, state.position)?;
+                    new_syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: None, tone: *tone }, state.position)?;
 
                     let syll = res_phrase[pos.word_index].syllables.get_mut(pos.syll_index).expect("pos should not be out of bounds");
 

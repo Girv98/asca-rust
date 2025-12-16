@@ -203,16 +203,20 @@ pub enum SupraKind {
     Stress,     // ±stress    (+ matches prim and sec, - matches unstressed)
     SecStress,  // ±secstress (+ matches sec, - matches prim and unstressed)
     Tone,       // Can only be used with : notation (e.g. Tone : 213 )
+    LengthPair, // Can only be used with alpha notation (e.g. Alength)
+    StressPair, // Can only be used with alpha notation (e.g. Astress)
 }
 
 impl fmt::Display for SupraKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SupraKind::Long            => write!(f, "long"),
-            SupraKind::Overlong        => write!(f, "overlng"),
-            SupraKind::Stress          => write!(f, "str"),
-            SupraKind::SecStress       => write!(f, "secstr"),
-            SupraKind::Tone            => write!(f, "tone"),
+            SupraKind::Long       => write!(f, "long"),
+            SupraKind::Overlong   => write!(f, "overlng"),
+            SupraKind::Stress     => write!(f, "str"),
+            SupraKind::SecStress  => write!(f, "secstr"),
+            SupraKind::Tone       => write!(f, "tone"),
+            SupraKind::LengthPair => write!(f, "lenpair"),
+            SupraKind::StressPair => write!(f, "strpair"),
         }
     }
 }
