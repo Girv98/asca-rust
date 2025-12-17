@@ -101,10 +101,7 @@ pub fn parse_alias(path: &Path) -> io::Result<(Vec<String>, Vec<String>)> {
 
 pub fn parse_wsca(path: &Path) -> io::Result<(Vec<String>, Vec<String>)> {
     Ok(util::file_read(path)?.lines().map(|line| {
-        let mut line_iter = line.trim().split('#');
-
-        let word = line_iter.next().unwrap().trim().to_owned();
-        let comment = line_iter.collect::<String>().trim().to_owned();
-        (word, comment)
+        let (word, comment) = line.split_once('#').unwrap_or((line, ""));
+        (word.trim().to_owned(), comment.trim().to_owned())
     }).collect::<(Vec<String>, Vec<String>)>())
 }
