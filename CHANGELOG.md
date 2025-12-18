@@ -1,3 +1,23 @@
+NEXT RELEASE
+==================
+[0.9.3...latest](https://github.com/Girv98/asca-rust/compare/0.9.3...master)
+
+Features:
+* Lib:
+    * Combined Alpha Suprasegmentals
+        * Allows for multi-dimensional suprasegmentals (i.e. stress and length) to be referenced with one alpha notation.
+        * `[A long, B overlong]` can be replaced with just `[A length]`
+        * `[A stress, B sec.stress]` can be replaced with just `[A anystress]`
+    * Allow for the underline to be placed within an environment structure.
+        * E.g. `VN > [+nas] / <.._>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable 
+
+
+Fixes:
+* Lib: corrected structure location error highlighting
+
+
+Perf: 30% average execution speed up of Proto-Germanic example config (~5ms -> ~3.5ms)
+
 0.9.3
 ==================
 [0.9.2...0.9.3](https://github.com/Girv98/asca-rust/compare/0.9.2...0.9.3)
