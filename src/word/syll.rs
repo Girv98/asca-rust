@@ -185,69 +185,23 @@ impl Syllable {
 
     pub(crate) fn apply_supras(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, pos: usize, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         let seg = self.segments[pos];
-        let mut seg_len = self.get_seg_length_at(pos);
-        let mut len_change = 0;
+        let cur_len = self.get_seg_length_at(pos) as u8;
 
-        if let Some(len_mod) = mods.length {
-            match len_mod {
-                SpecMod::First(long) => if long.as_bool(alphas, err_pos)? {
-                    while seg_len < 2 {
-                        self.segments.insert(pos, seg);
-                        seg_len += 1;
-                        len_change +=1;
-                    }
-                } else {
-                    while seg_len > 1 {
-                        self.segments.remove(pos);
-                        seg_len -= 1;
-                        len_change -=1;
-                    }
-                },
-                SpecMod::Second(v) => if v.as_bool(alphas, err_pos)? {
-                    while seg_len < 3 {
-                        self.segments.insert(pos, seg);
-                        seg_len +=1;
-                        len_change +=1;
-                    }
-                } else {
-                    while seg_len > 2 {
-                        self.segments.remove(pos);
-                        seg_len -=1;
-                        len_change -=1;
-                    }
-                },
-                SpecMod::Both(long, vlong) => match (long.as_bool(alphas, err_pos)?, vlong.as_bool(alphas, err_pos)?) {
-                    (true, true) => while seg_len < 3 {
-                        self.segments.insert(pos, seg);
-                        seg_len +=1;
-                        len_change +=1;
-                    },
-                    (true, false) => {
-                        while seg_len > 2 {
-                            self.segments.remove(pos);
-                            seg_len -=1;
-                            len_change -=1;
-                        }
-                        while seg_len < 2 {
-                            self.segments.insert(pos, seg);
-                            seg_len += 1;
-                            len_change +=1;
-                        }
-                    },
-                    (false, false) => while seg_len > 1 {
-                        self.segments.remove(pos);
-                        seg_len -= 1;
-                        len_change -=1;
-                    },
-                    (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
-                },
-                SpecMod::Joined(_) => todo!(),
+        let new_len = Self::calc_new_length(alphas, mods, cur_len, err_pos)?;
+
+        if new_len > cur_len {
+            for _ in 1..new_len {
+                self.segments.insert(pos, seg);
+            }
+        } else if new_len < cur_len {
+            for _ in 1..new_len {
+                self.segments.remove(pos);
             }
         }
 
         self.apply_syll_mods(alphas, mods, err_pos)?;
 
-        Ok(len_change)
+        Ok(new_len as i8 - cur_len as i8)
     }
 
     pub(crate) fn apply_syll_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, err_pos: Position) -> Result<(), RuleRuntimeError> {
