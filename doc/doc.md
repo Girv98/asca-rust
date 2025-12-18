@@ -1232,12 +1232,12 @@ Segment Features:
         * ATR: `advancedtongueroot` `a.t.r.` `a.t.r` `a.tr` `at.r` `atr`
         * RTR: `retractedtongueroot` `r.t.r.` `r.t.r` `r.tr` `rt.r` `rtr`
 
-
 Suprasegmental Features:
 * Long: `long` `lng`
 * Overlong: `overlong` `overlng` `ovrlng` `vlong` `vlng` `olong` `olng`
 * Stress: `stress` `strs` `str`
 * Secondary Stress: `secondarystress` `sec.stress` `secstress` `sec.str.` `sec.str` `secstr` `sec`
+* Tone: `tone` `ton` `tne` `tn`
 
 Grouped SupraSegmental Features:
 * Length: `length` `len`
