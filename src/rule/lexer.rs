@@ -650,15 +650,15 @@ impl<'a> Lexer<'a> {
             // Suprasegmental Features
             "long"     | "lng"                                    => Supr(Long),
             "overlong" | "overlng" | "ovrlng" | "vlong" | 
-            "olong" | "vlng" | "olng"                             => Supr(Overlong),
+            "olong"    | "vlng" | "olng"                          => Supr(Overlong),
             "stress"   | "strs" | "str"                           => Supr(Stress),
             "secondarystress"| "sec.stress" | "secstress" |
             "sec.str."       | "sec.str"    | "secstr"    | "sec" => Supr(SecStress),
             // Grouped Suprasegmental Features
-            "length" | "len" => Supr(LengthPair),
-            // TODO: "" => Supr(StressPair),
+            "length" | "len"                                      => Supr(LengthPair),
+            "anystress" | "anystr" | "stressany" | "strany"       => Supr(StressPair),
 
-            // Will error
+            // Parsing so we can error
             "tone" | "ton" | "tne" | "tn" => Supr(Tone),
             _ => return Err(RuleSyntaxError::UnknownFeature(buffer.to_string(), Position::new(self.group, self.line, start, end)))
         };
