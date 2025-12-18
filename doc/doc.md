@@ -1238,7 +1238,3 @@ Suprasegmental Features:
 * Stress: `stress` `strs` `str`
 * Secondary Stress: `secondarystress` `sec.stress` `secstress` `sec.str.` `sec.str` `secstr` `sec`
 * Tone: `tone` `ton` `tne` `tn`
-
-Grouped SupraSegmental Features:
-* Length: `length` `len`
-* Stress: TODO
