@@ -92,9 +92,10 @@ impl WordSyntaxError {
 
 #[derive(Debug, Clone)]
 pub enum RuleSyntaxError {
+    FeatCannotBeBinary(String, GroupIndex, LineIndex, PosIndex),
     ExpectedAlphabetic(char, GroupIndex, LineIndex, PosIndex),
-    ExpectedCharColon (char, GroupIndex, LineIndex, PosIndex),
     ExpectedCharArrow (char, GroupIndex, LineIndex, PosIndex),
+    ExpectedCharColon (char, GroupIndex, LineIndex, PosIndex),
     MalformedComment  (char, GroupIndex, LineIndex, PosIndex),
     UnknownCharacter  (char, GroupIndex, LineIndex, PosIndex),
     ExpectedCharDot   (char, GroupIndex, LineIndex, PosIndex),
@@ -141,6 +142,7 @@ pub enum RuleSyntaxError {
     DiacriticDoesNotMeetPreReqsFeat(Position, Position, FeatString, IsPlus),
     DiacriticDoesNotMeetPreReqsNode(Position, Position, NodeString, IsPlus),
     UnexpectedDiacritic(Position, Position),
+    SupraConflict      (Position, Position),
     UnbalancedRuleEnv(Vec<EnvItem>),
     UnbalancedRuleIO (Vec<Vec<ParseItem>>),
     UnexpectedEol(Token, char),
@@ -156,6 +158,7 @@ impl From<RuleSyntaxError> for ASCAError {
 impl fmt::Display for RuleSyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::FeatCannotBeBinary(feat, ..)  => write!(f, "Feature '{feat}' cannot have a binary value."),
             Self::ExpectedAlphabetic(c, g, l, pos) => write!(f, "Expected ASCII character, but received '{c}' at {g}:{l}:{pos}."),
             Self::ExpectedCharColon (c, g, l, pos) => write!(f, "Expected ':', but received '{c}' at {g}:{l}:{pos}"),
             Self::ExpectedCharArrow (c, g, l, pos) => write!(f, "Expected '->', but received -'{c}' at {g}:{l}:{pos}"),
@@ -194,8 +197,8 @@ impl fmt::Display for RuleSyntaxError {
             Self::InsertDelete (..) => write!(f, "A rule cannot be both an Insertion rule and a Deletion rule"),
             Self::TooManyUnderlinesStruct(_) => write!(f, "An underline already exists before this structure."),
             Self::TooManyWordBoundaries  (_) => write!(f, "Cannot have multiple word boundaries on each side of an environment"),
-            Self::StuffBeforeWordBound   (_) => write!(f, "Can't have segments before the beginning of a word"),
-            Self::StuffAfterWordBound    (_) => write!(f, "Can't have segments after the end of a word"),
+            Self::StuffBeforeWordBound   (_) => write!(f, "Cannot have segments before the beginning of a word"),
+            Self::StuffAfterWordBound    (_) => write!(f, "Cannot have segments after the end of a word"),
             Self::FloatingDiacritic      (_) => write!(f, "Floating diacritic. Diacritics can only be used to modify IPA Segments"),
             Self::WordBoundLoc           (_) => write!(f, "Wordboundaries are not allowed in the input or output"),
             Self::OptLocError            (_) => write!(f, "Options can only be used in Environments or Structures"),
@@ -207,6 +210,7 @@ impl fmt::Display for RuleSyntaxError {
                 write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be [{}{}]", if *pos { '+' } else { '-' },t) 
             },
             Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only be used to modify IPA Segments"),
+            Self::SupraConflict      (..) => write!(f, "Cannot use conflicting suprasegmental types in the same matrix"),
             Self::UnbalancedRuleEnv(_) => write!(f, "Environment has too few elements"),
             Self::UnbalancedRuleIO (_) => write!(f, "Input or Output has too few elements"),
             Self::UnexpectedEol(_, c) => write!(f, "Expected `{c}`, but received End of Line"),
@@ -249,11 +253,13 @@ impl RuleSyntaxError {
                 t.position.line
             ),
             Self::TooManyUnderlinesStruct(pos) |
-            Self::UnknownFeature(_, pos) | Self::UnknownEnbyFeature(_, pos) => (
+            Self::UnknownEnbyFeature  (_, pos) |
+            Self::UnknownFeature      (_, pos) => (
                 " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n", 
                 pos.group,
                 pos.line
             ),
+            Self::FeatCannotBeBinary(_, group, line, pos) | 
             Self::ExpectedAlphabetic(_, group, line, pos) |
             Self::ExpectedCharArrow (_, group, line, pos) |
             Self::ExpectedCharColon (_, group, line, pos) |
@@ -314,16 +320,17 @@ impl RuleSyntaxError {
                     first_item.position.line
                 )
             },
-            Self::UnexpectedDiacritic(elm_pos, dia_pos) | 
-            Self::DiacriticDoesNotMeetPreReqsFeat(elm_pos, dia_pos, ..) | 
-            Self::DiacriticDoesNotMeetPreReqsNode(elm_pos, dia_pos, ..) => (
-                " ".repeat(elm_pos.start) 
-                    + &"^".repeat(elm_pos.end - elm_pos.start)
-                    + &" ".repeat(dia_pos.start - elm_pos.end)
-                    + &"^".repeat(dia_pos.end - dia_pos.start)
+            Self::SupraConflict(x_pos, y_pos) | 
+            Self::UnexpectedDiacritic(x_pos, y_pos) | 
+            Self::DiacriticDoesNotMeetPreReqsFeat(x_pos, y_pos, ..) | 
+            Self::DiacriticDoesNotMeetPreReqsNode(x_pos, y_pos, ..) => (
+                " ".repeat(x_pos.start) 
+                    + &"^".repeat(x_pos.end - x_pos.start)
+                    + &" ".repeat(y_pos.start - x_pos.end)
+                    + &"^".repeat(y_pos.end - y_pos.start)
                     + "\n", 
-                elm_pos.group,
-                elm_pos.line
+                x_pos.group,
+                x_pos.line
             ),
         };
 

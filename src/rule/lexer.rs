@@ -326,10 +326,18 @@ impl<'a> Lexer<'a> {
             return Err(RuleSyntaxError::ExpectedAlphabetic(self.curr_char(), self.group, self.line, self.pos))
         }
 
-        let tkn_kind = self.feature_match(buffer, start, self.pos)?;
+        let tkn_kind = self.feature_match(&buffer, start, self.pos)?;
         
         if let TokenKind::Feature(FeatureCategory::Supr(SupraKind::Tone)) = tkn_kind && (mod_val == "+" || mod_val == "-") {
             return Err(RuleSyntaxError::WrongModTone(self.group, self.line, start))
+        }
+
+        if let TokenKind::Feature(FeatureCategory::Supr(SupraKind::LengthPair)) = tkn_kind && (mod_val == "+" || mod_val == "-") {
+            return Err(RuleSyntaxError::FeatCannotBeBinary(buffer, self.group, self.line, start))
+        }
+
+        if let TokenKind::Feature(FeatureCategory::Supr(SupraKind::StressPair)) = tkn_kind && (mod_val == "+" || mod_val == "-") {
+            return Err(RuleSyntaxError::FeatCannotBeBinary(buffer, self.group, self.line, start))
         }
 
         Ok(Some(Token::new(tkn_kind, &mod_val, self.group, self.line, start, self.pos)))
@@ -581,76 +589,81 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn feature_match(&mut self, buffer: String, start: usize, end: usize) -> Result<TokenKind, RuleSyntaxError> {
-        use TokenKind::*;
+    fn feature_match(&mut self, buffer: &String, start: usize, end: usize) -> Result<TokenKind, RuleSyntaxError> {
         use FeatureCategory::*;
         use NodeKind::*;
         use FeatKind::*;
         use SupraKind::*;
-        match buffer.to_lowercase().as_str() {
+        let feature = match buffer.to_lowercase().as_str() {
             // Root Node Features
-            "root"        | "rut"       | "rt"                    => Ok(Feature(Node(Root))),
-            "consonantal" | "consonant" | "cons" | "cns"          => Ok(Feature(Feat(Consonantal))),
-            "sonorant"    | "sonor"     | "son"  | "snrt" | "sn"  => Ok(Feature(Feat(Sonorant))),
-            "syllabic"    | "syllab"    | "syll" | "syl"  | "sl"  => Ok(Feature(Feat(Syllabic))),
+            "root"        | "rut"       | "rt"                    => Node(Root),
+            "consonantal" | "consonant" | "cons" | "cns"          => Feat(Consonantal),
+            "sonorant"    | "sonor"     | "son"  | "snrt" | "sn"  => Feat(Sonorant),
+            "syllabic"    | "syllab"    | "syll" | "syl"  | "sl"  => Feat(Syllabic),
             // Manner Node Features
-            "manner"         | "mann"   | "man"  | "mnnr" | "mnr" => Ok(Feature(Node(Manner))),
-            "continuant"     | "contin" | "cont" | "cnt"          => Ok(Feature(Feat(Continuant))),
-            "approximant"    | "approx" | "appr" | "app"          => Ok(Feature(Feat(Approximant))),
-            "lateral"        | "latrl"  | "ltrl" | "lat"  | "lt"  => Ok(Feature(Feat(Lateral))),
-            "nasal"          | "nsl"    | "nas"  | "ns" | "nl"    => Ok(Feature(Feat(Nasal))),
+            "manner"         | "mann"   | "man"  | "mnnr" | "mnr" => Node(Manner),
+            "continuant"     | "contin" | "cont" | "cnt"          => Feat(Continuant),
+            "approximant"    | "approx" | "appr" | "app"          => Feat(Approximant),
+            "lateral"        | "latrl"  | "ltrl" | "lat"  | "lt"  => Feat(Lateral),
+            "nasal"          | "nsl"    | "nas"  | "ns" | "nl"    => Feat(Nasal),
             "delayedrelease" | "delrel" | "d.r." | "del.rel." | 
             "delayed" | "dl" | "dlrl"   | "dr"   | "delay"    |
-            "drelease"       | "del.rel"| "drel" | "d.r" | "dr."  => Ok(Feature(Feat(DelayedRelease))),
+            "drelease"       | "del.rel"| "drel" | "d.r" | "dr."  => Feat(DelayedRelease),
             "strident"       | "strid"  | "stri" | "stridnt"  | 
-            "strdent"        | "strdnt"                           => Ok(Feature(Feat(Strident))),
+            "strdent"        | "strdnt"                           => Feat(Strident),
             "rhotic"         | "rhot"   | "rho"  | "rhtc" | "rh"
-            | "rht" | "rhc"                                       => Ok(Feature(Feat(Rhotic))),
-            "click"          | "clik"   | "clk"  | "clck"         => Ok(Feature(Feat(Click))),
+            | "rht" | "rhc"                                       => Feat(Rhotic),
+            "click"          | "clik"   | "clk"  | "clck"         => Feat(Click),
             // Laryngeal Node Features
-            "laryngeal"      | "laryng"     | "laryn"  | "lar"    => Ok(Feature(Node(Laryngeal))),
-            "voice"          | "voi"        | "vce"    | "vc"     => Ok(Feature(Feat(Voice))),
+            "laryngeal"      | "laryng"     | "laryn"  | "lar"    => Node(Laryngeal),
+            "voice"          | "voi"        | "vce"    | "vc"     => Feat(Voice),
             "spreadglottis"  | "spreadglot" | "spread" | 
-            "s.g."           | "s.g"        | "sg."    | "sg"     => Ok(Feature(Feat(SpreadGlottis))),
+            "s.g."           | "s.g"        | "sg."    | "sg"     => Feat(SpreadGlottis),
             "constrictedglottis"            | "constricted"  |
             "constglot"      | "constr"     | "c.g." | "c.g" | 
-            "cg." | "cg"                                          => Ok(Feature(Feat(ConstrGlottis))),
+            "cg." | "cg"                                          => Feat(ConstrGlottis),
             // Place Node Feature
-            "place"       | "plce"    | "plc"                     => Ok(Feature(Node(Place))),
+            "place"       | "plce"    | "plc"                     => Node(Place),
             // Labial Place Node Features
-            "labial"      | "lbl"     | "lab"                     => Ok(Feature(Node(Labial))),
+            "labial"      | "lbl"     | "lab"                     => Node(Labial),
             "labiodental" | "ldental" | "labiodent" | "labio" | 
-            "labiod" | "labdent" | "lbdntl" | "ldent" | "ldl"     => Ok(Feature(Feat(Labiodental))),
-            "round"       | "rund"    | "rnd"       | "rd"        => Ok(Feature(Feat(Round))),
+            "labiod" | "labdent" | "lbdntl" | "ldent" | "ldl"     => Feat(Labiodental),
+            "round"       | "rund"    | "rnd"       | "rd"        => Feat(Round),
             // Coronal Place Node Features
-            "coronal"     | "coron"   | "crnl" | "cor"            => Ok(Feature(Node(Coronal))),
-            "anterior"    | "anter"   | "antr" | "ant"            => Ok(Feature(Feat(Anterior))),
-            "distributed" | "distrib" | "dist" | "dis" | "dst"    => Ok(Feature(Feat(Distributed))),
+            "coronal"     | "coron"   | "crnl" | "cor"            => Node(Coronal),
+            "anterior"    | "anter"   | "antr" | "ant"            => Feat(Anterior),
+            "distributed" | "distrib" | "dist" | "dis" | "dst"    => Feat(Distributed),
             // Dorsal Place Node Features
-            "dorsal"  | "drsl"  | "dors" | "dor"                  => Ok(Feature(Node(Dorsal))),
-            "front"   | "frnt"  | "fnt"  | "fro" | "frt" | "fr"   => Ok(Feature(Feat(Front))),
-            "back"    | "bck"   | "bk"                            => Ok(Feature(Feat(Back))),
-            "high"    | "hgh"   | "hi"                            => Ok(Feature(Feat(High))),
-            "low"     | "lw"    | "lo"                            => Ok(Feature(Feat(Low))),
-            "tense"   | "tens"  | "tns"  | "ten"                  => Ok(Feature(Feat(Tense))),
-            "reduced" | "reduc" | "redu" | "rdcd" | "red"         => Ok(Feature(Feat(Reduced))),
+            "dorsal"  | "drsl"  | "dors" | "dor"                  => Node(Dorsal),
+            "front"   | "frnt"  | "fnt"  | "fro" | "frt" | "fr"   => Feat(Front),
+            "back"    | "bck"   | "bk"                            => Feat(Back),
+            "high"    | "hgh"   | "hi"                            => Feat(High),
+            "low"     | "lw"    | "lo"                            => Feat(Low),
+            "tense"   | "tens"  | "tns"  | "ten"                  => Feat(Tense),
+            "reduced" | "reduc" | "redu" | "rdcd" | "red"         => Feat(Reduced),
             // Pharyngeal Place Node Features
-            "pharyngeal" | "pharyng" | "pharyn"  |
-            "phar"       | "phr"                                  => Ok(Feature(Node(Pharyngeal))),
-            "advancedtongueroot"     | "a.t.r."  | "a.t.r" | 
-            "a.tr" | "at.r" | "atr"                               => Ok(Feature(Feat(AdvancedTongueRoot))),
-            "retractedtongueroot"    | "r.t.r."  | "r.t.r" | 
-            "r.tr" | "rt.r" | "rtr"                               => Ok(Feature(Feat(RetractedTongueRoot))),
+            "pharyngeal" | "pharyng" | "pharyn" | "phar"  | "phr" => Node(Pharyngeal),
+            "advancedtongueroot"     | "a.t.r." | "a.t.r" | 
+            "a.tr" | "at.r" | "atr"                               => Feat(AdvancedTongueRoot),
+            "retractedtongueroot"    | "r.t.r." | "r.t.r" | 
+            "r.tr" | "rt.r" | "rtr"                               => Feat(RetractedTongueRoot),
             // Suprasegmental Features
-            "long"     | "lng"                                    => Ok(Feature(Supr(Long))),
+            "long"     | "lng"                                    => Supr(Long),
             "overlong" | "overlng" | "ovrlng" | "vlong" | 
-            "olong" | "vlng" | "olng"                             => Ok(Feature(Supr(Overlong))),
-            "stress"   | "strs" | "str"                           => Ok(Feature(Supr(Stress))),
+            "olong" | "vlng" | "olng"                             => Supr(Overlong),
+            "stress"   | "strs" | "str"                           => Supr(Stress),
             "secondarystress"| "sec.stress" | "secstress" |
-            "sec.str."       | "sec.str"    | "secstr"    | "sec" => Ok(Feature(Supr(SecStress))),
-            
-            _ => Err(RuleSyntaxError::UnknownFeature(buffer, Position::new(self.group, self.line, start, end)))
-        }
+            "sec.str."       | "sec.str"    | "secstr"    | "sec" => Supr(SecStress),
+            // Grouped Suprasegmental Features
+            "length" | "len" => Supr(LengthPair),
+            // TODO: "" => Supr(StressPair),
+
+            // Will error
+            "tone" | "ton" | "tne" | "tn" => Supr(Tone),
+            _ => return Err(RuleSyntaxError::UnknownFeature(buffer.to_string(), Position::new(self.group, self.line, start, end)))
+        };
+
+        Ok(TokenKind::Feature(feature))
     }
 
     fn get_comment(&mut self) -> Result<Option<Token>, RuleSyntaxError> {

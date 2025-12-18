@@ -1,7 +1,7 @@
 use std     :: { cell::RefCell, collections::{ HashMap, VecDeque }, fmt };
 use crate   :: {
     error   :: RuleRuntimeError, 
-    rule    :: { Alpha, SpecMod, Modifiers, Position, SupraSegs }, 
+    rule    :: { Alpha, AlphaMod, ModKind, Modifiers, Position, SpecMod, SupraSegs }, 
     word    :: Segment,  
 };
 
@@ -173,7 +173,34 @@ impl Syllable {
                     },
                     (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
                 },
-                SpecMod::Joined(_) => todo!(),
+                SpecMod::Joined(val) => match val {
+                    ModKind::Binary(_) => return Err(RuleRuntimeError::GroupSuprIsBinary("length", err_pos)),
+                    ModKind::Alpha(am) => match am {
+                        AlphaMod::InvAlpha(_) => return Err(RuleRuntimeError::GroupSuprIsInverted("length", err_pos)),
+                        AlphaMod::Alpha(ch) => {
+                            if let Some(alph) = alphas.borrow().get(&ch) {
+                                let Some(group) = alph.as_grouped() else { return Err(RuleRuntimeError::AlphaIsNotSuprGroup(err_pos)) };
+                                match group {
+                                    (true, true) => if old_len < 3 {
+                                        len_change = 3 - old_len as i8; 
+                                        println!("{old_len} {len_change}");
+                                    },
+                                    (true, false) => if old_len > 2 {
+                                        len_change = 2 - old_len as i8; 
+                                    } else if old_len < 2 {
+                                        len_change = 1;
+                                    },
+                                    (false, false) => if old_len > 1 {
+                                        len_change = 1 - old_len as i8;
+                                    },
+                                    (false, true) => return Err(RuleRuntimeError::OverlongPosLongNeg(err_pos)),
+                                }
+                            } else {
+                                return Err(RuleRuntimeError::AlphaUnknown(err_pos))
+                            }
+                        },
+                    },
+                },
             }
         }
 
@@ -218,12 +245,31 @@ impl Syllable {
                     self.stress = StressKind::Unstressed;
                 },
                 SpecMod::Both(prim, sec) => match (prim.as_bool(alphas, err_pos)?, sec.as_bool(alphas, err_pos)?) {
-                    (true, true) => self.stress = StressKind::Secondary,
-                    (true, false) => self.stress = StressKind::Primary,
+                    (true, true)   => self.stress = StressKind::Secondary,
+                    (true, false)  => self.stress = StressKind::Primary,
                     (false, false) => self.stress = StressKind::Unstressed,
-                    (false, true) => return Err(RuleRuntimeError::SecStrPosStrNeg(err_pos)),
+                    (false, true)  => return Err(RuleRuntimeError::SecStrPosStrNeg(err_pos)),
                 },
-                SpecMod::Joined(_) => todo!(),
+                SpecMod::Joined(val) => match val {
+                    ModKind::Binary(_) => return Err(RuleRuntimeError::GroupSuprIsBinary("stress", err_pos)),
+                    ModKind::Alpha(am) => match am {
+                        AlphaMod::InvAlpha(_) => return Err(RuleRuntimeError::GroupSuprIsInverted("stress", err_pos)),
+                        AlphaMod::Alpha(ch) => {
+                            if let Some(alph) = alphas.borrow().get(&ch) {
+                                let Some(group) = alph.as_grouped() else { return Err(RuleRuntimeError::AlphaIsNotSuprGroup(err_pos)) };
+                                match group {
+                                    // Prim, Sec
+                                    (true, true)   => self.stress = StressKind::Secondary,
+                                    (true, false)  => self.stress = StressKind::Primary,
+                                    (false, false) => self.stress = StressKind::Unstressed,
+                                    (false, true)  => return Err(RuleRuntimeError::SecStrPosStrNeg(err_pos)),
+                                }
+                            } else {
+                                return Err(RuleRuntimeError::AlphaUnknown(err_pos))
+                            }
+                        },
+                    },
+                },
             }
         }
 

@@ -214,8 +214,8 @@ impl AliasParser {
                             SupraKind::Overlong   => length_mods[1] = Some(ModKind::Binary(b)),
                             SupraKind::Stress     => stress_mods[0] = Some(ModKind::Binary(b)),
                             SupraKind::SecStress  => stress_mods[1] = Some(ModKind::Binary(b)),
-                            SupraKind::LengthPair => todo!("Err: Cannot be binary"),
-                            SupraKind::StressPair => todo!("Err: Cannot be binary"),
+                            SupraKind::LengthPair => unreachable!("lengthpair is no implemented for Aliases"),
+                            SupraKind::StressPair => unreachable!("stresspair is no implemented for Aliases"),
                             SupraKind::Tone => unreachable!("Tone cannot be `+/-` (enforced by lexer)"),
                         },
                     }

@@ -655,8 +655,9 @@ impl Parser {
     fn get_param_args(&mut self, is_syll: bool) -> Result<Modifiers, RuleSyntaxError> {
         // Params ← '[' (Argument (','? Argument)*)? ','? ']'
         let mut args = Modifiers::new();
-        let mut length_mods: [Option<ModKind>; 3] = [None; 3];
-        let mut stress_mods: [Option<ModKind>; 3] = [None; 3];
+        //                   [Primary, Secondary, Joined]
+        let mut length_mods: [Option<(ModKind, Position)>; 3] = [None; 3];
+        let mut stress_mods: [Option<(ModKind, Position)>; 3] = [None; 3];
 
         while self.has_more_tokens() {
             if self.expect(TokenKind::RightSquare) {
@@ -684,21 +685,21 @@ impl Parser {
                     FeatureCategory::Supr(t) => match mk {
                         Mods::Number(n) => args.suprs.tone = Some(n),
                         Mods::Alpha(a) => match t {
-                            SupraKind::Long       => length_mods[0] = Some(ModKind::Alpha(a)),
-                            SupraKind::Overlong   => length_mods[1] = Some(ModKind::Alpha(a)),
-                            SupraKind::LengthPair => length_mods[2] = Some(ModKind::Alpha(a)),
-                            SupraKind::Stress     => stress_mods[0] = Some(ModKind::Alpha(a)),
-                            SupraKind::SecStress  => stress_mods[1] = Some(ModKind::Alpha(a)),
-                            SupraKind::StressPair => stress_mods[2] = Some(ModKind::Alpha(a)),
+                            SupraKind::Long       => length_mods[0] = Some((ModKind::Alpha(a), self.curr_tkn.position)),
+                            SupraKind::Overlong   => length_mods[1] = Some((ModKind::Alpha(a), self.curr_tkn.position)),
+                            SupraKind::LengthPair => length_mods[2] = Some((ModKind::Alpha(a), self.curr_tkn.position)),
+                            SupraKind::Stress     => stress_mods[0] = Some((ModKind::Alpha(a), self.curr_tkn.position)),
+                            SupraKind::SecStress  => stress_mods[1] = Some((ModKind::Alpha(a), self.curr_tkn.position)),
+                            SupraKind::StressPair => stress_mods[2] = Some((ModKind::Alpha(a), self.curr_tkn.position)),
                             SupraKind::Tone => unreachable!("Tone cannot be `Alpha'd` (yet anyway)"),
                         },
                         Mods::Binary(b) => match t {
-                            SupraKind::Long       => length_mods[0] = Some(ModKind::Binary(b)),
-                            SupraKind::Overlong   => length_mods[1] = Some(ModKind::Binary(b)),
-                            SupraKind::LengthPair => todo!("Error: Cannot be binary"),
-                            SupraKind::Stress     => stress_mods[0] = Some(ModKind::Binary(b)),
-                            SupraKind::SecStress  => stress_mods[1] = Some(ModKind::Binary(b)),
-                            SupraKind::StressPair => todo!("Error: Cannot be binary"),
+                            SupraKind::Long       => length_mods[0] = Some((ModKind::Binary(b), self.curr_tkn.position)),
+                            SupraKind::Overlong   => length_mods[1] = Some((ModKind::Binary(b), self.curr_tkn.position)),
+                            SupraKind::Stress     => stress_mods[0] = Some((ModKind::Binary(b), self.curr_tkn.position)),
+                            SupraKind::SecStress  => stress_mods[1] = Some((ModKind::Binary(b), self.curr_tkn.position)),
+                            SupraKind::LengthPair => unreachable!("Length cannot be `+/-`"),
+                            SupraKind::StressPair => unreachable!("StressPair cannot be `+/-`"),
                             SupraKind::Tone => unreachable!("Tone cannot be `+/-`"),
                         },
                     }
@@ -714,23 +715,35 @@ impl Parser {
         }
 
         args.suprs.length =  match length_mods {
-            [.., Some(_), Some(_)] | [Some(_), .., Some(_)] => todo!("Error"),
+            [Some((_, i)), .., Some((_, j))] | [.., Some((_, i)), Some((_, j))] => {
+                match i.start.cmp(&j.start) {
+                    std::cmp::Ordering::Less    => return Err(RuleSyntaxError::SupraConflict(i, j)),
+                    std::cmp::Ordering::Greater => return Err(RuleSyntaxError::SupraConflict(j, i)),
+                    std::cmp::Ordering::Equal   => unreachable!("Two tokens cannot have the same position"),
+                }
+            },
 
             [None, None, None]    => None,
-            [Some(l), None, None] => Some(SpecMod::First(l)),
-            [None, Some(o), None] => Some(SpecMod::Second(o)),
-            [None, None, Some(j)] => Some(SpecMod::Joined(j)),
-            [Some(l), Some(o), None] => Some(SpecMod::Both(l, o)),
+            [Some(l), None, None] => Some(SpecMod::First(l.0)),
+            [None, Some(o), None] => Some(SpecMod::Second(o.0)),
+            [None, None, Some(j)] => Some(SpecMod::Joined(j.0)),
+            [Some(l), Some(o), None] => Some(SpecMod::Both(l.0, o.0)),
         };
 
         args.suprs.stress =  match stress_mods {
-            [.., Some(_), Some(_)] | [Some(_), .., Some(_)] => todo!("Error"),
+            [Some((_, i)), .., Some((_, j))] | [.., Some((_, i)), Some((_, j))] => {
+                match i.start.cmp(&j.start) {
+                    std::cmp::Ordering::Less    => return Err(RuleSyntaxError::SupraConflict(i, j)),
+                    std::cmp::Ordering::Greater => return Err(RuleSyntaxError::SupraConflict(j, i)),
+                    std::cmp::Ordering::Equal   => unreachable!("Two tokens cannot have the same position"),
+                }
+            },
             
             [None, None, None]    => None,
-            [Some(l), None, None] => Some(SpecMod::First(l)),
-            [None, Some(o), None] => Some(SpecMod::Second(o)),
-            [None, None, Some(j)] => Some(SpecMod::Joined(j)),
-            [Some(l), Some(o), None] => Some(SpecMod::Both(l, o)),
+            [Some(p), None, None] => Some(SpecMod::First(p.0)),
+            [None, Some(s), None] => Some(SpecMod::Second(s.0)),
+            [None, None, Some(j)] => Some(SpecMod::Joined(j.0)),
+            [Some(p), Some(s), None] => Some(SpecMod::Both(p.0, s.0)),
         };
 
         Ok(args)

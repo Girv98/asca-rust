@@ -9,16 +9,22 @@ use super :: { ASCAError, RuleGroup };
 
 #[derive(Debug, Clone)]
 pub enum RuleRuntimeError { 
-    SubstitutionSylltoMatrix(Position, Position),
-    SubstitutionSylltoBound (Position, Position),
-    SubstitutionWordBound   (Position, Position),
-    SubstitutionBoundtoSyll (Position, Position),
-    SubstitutionSylltoSeg   (Position, Position),
-    SubstitutionBoundMod    (Position, Position),
-    MetathWordBoundary      (Position, Position),
-    MetathSyllBoundary      (Position, Position),
-    MetathSyllSegment       (Position, Position),
-    UnevenSet               (Position, Position),
+    BoundaryInsideUnderlineStruct(Position, Position),
+    SyllbleInsideUnderlineStruct (Position, Position),
+    SyllRefInsideUnderlineStruct (Position, Position),
+    StructInsideUnderlineStruct  (Position, Position),
+    SubstitutionSylltoMatrix     (Position, Position),
+    SubstitutionSylltoBound      (Position, Position),
+    SubstitutionWordBound        (Position, Position),
+    SubstitutionBoundtoSyll      (Position, Position),
+    SubstitutionSylltoSeg        (Position, Position),
+    SubstitutionBoundMod         (Position, Position),
+    MetathWordBoundary           (Position, Position),
+    MetathSyllBoundary           (Position, Position),
+    MetathSyllSegment            (Position, Position),
+    UnevenSet                    (Position, Position),
+    GroupSuprIsInverted(&'static str, Position),
+    GroupSuprIsBinary  (&'static str, Position),
     NodeCannotBeSome(String, Position),
     NodeCannotBeNone(String, Position),
     NodeCannotBeSet (String, Position),
@@ -28,6 +34,7 @@ pub enum RuleRuntimeError {
     SyllbleInsideStruct (Position),
     SyllRefInsideStruct (Position),
     InsertionGroupedEnv (Position),
+    AlphaIsNotSuprGroup (Position),
     StructInsideStruct  (Position),
     AlphaNodeAssignInv  (Position),
     OverlongPosLongNeg  (Position),
@@ -61,6 +68,10 @@ impl From<RuleRuntimeError> for ASCAError {
 impl fmt::Display for RuleRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::BoundaryInsideUnderlineStruct(..) => write!(f, "A boundary cannot be used inside a structure"),
+            Self::SyllbleInsideUnderlineStruct (..) => write!(f, "A syllable cannot be used inside a structure"),
+            Self::SyllRefInsideUnderlineStruct (..) => write!(f, "A reference assigned to a syllable cannot be used inside a structure"),
+            Self::StructInsideUnderlineStruct  (..) => write!(f, "A structure cannot be used inside a structure"),
             Self::SubstitutionSylltoMatrix(..) => write!(f, "Syllables and boundaries cannot be substituted by a segment"),
             Self::SubstitutionSylltoBound (..) => write!(f, "Syllables cannot be substituted by a boundary"),
             Self::SubstitutionWordBound   (..) => write!(f, "Word boundaries cannot be substituted."),
@@ -72,6 +83,8 @@ impl fmt::Display for RuleRuntimeError {
             Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable boundary"),
             Self::MetathSyllSegment       (..) => write!(f, "Cannot swap a syllable with a segment"),
             Self::UnevenSet               (..) => write!(f, "Two matched sets must have the same number of elements"),
+            Self::GroupSuprIsInverted(supr, _) => write!(f, "Grouped Suprasegmental '{supr}' cannot be inverted"),
+            Self::GroupSuprIsBinary  (supr, _) => write!(f, "Grouped Suprasegmental '{supr}' cannot be binary"),
             Self::NodeCannotBeSome(node, _) => write!(f, "{node} node cannot arbitrarily positive"),
             Self::NodeCannotBeNone(node, _) => write!(f, "{node} node cannot be removed"),
             Self::NodeCannotBeSet (node, _) => write!(f, "{node} node cannot be assigned using PLACE alpha"),
@@ -80,6 +93,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::BoundaryInsideStruct(_) => write!(f, "A boundary cannot be used inside a structure"),
             Self::SyllbleInsideStruct (_) => write!(f, "A syllable cannot be used inside a structure"),
             Self::SyllRefInsideStruct (_) => write!(f, "A reference assigned to a syllable cannot be used inside a structure"),
+            Self::AlphaIsNotSuprGroup (_) => write!(f, "This type of alpha cannot be used on 'length'"),
             Self::StructInsideStruct  (_) => write!(f, "A structure cannot be used inside a structure"),
             Self::InsertionGroupedEnv (_) => write!(f, "Grouped Environments cannot (yet) be used in insertion rules"),
             Self::AlphaNodeAssignInv  (_) => write!(f, "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive."),
@@ -136,46 +150,53 @@ impl RuleRuntimeError {
                 pos.group,
                 pos.line
             ),
-            Self::WordBoundSetLocError(pos) |
-            Self::SubstitutionEllipsis(pos) |
-            Self::BoundaryInsideStruct(pos) |
-            Self::SyllRefInsideStruct (pos) |
-            Self::SyllbleInsideStruct (pos) |
-            Self::StructInsideStruct  (pos) |
-            Self::InsertionGroupedEnv (pos) |
-            Self::AlphaNodeAssignInv  (pos) |
-            Self::OverlongPosLongNeg  (pos) |
-            Self::AlphaIsNotSameNode  (pos) |
-            Self::SubstitutionMatrix  (pos) |
-            Self::InsertionEllipsis   (pos) |
-            Self::SubstitutionSyll    (pos) |
-            Self::SubstitutionSet     (pos) |
-            Self::SubstitutionOpt     (pos) |
-            Self::SecStrPosStrNeg     (pos) |
-            Self::AlphaUnknownInv     (pos) |
-            Self::InsertionMatrix     (pos) |
-            Self::AlphaIsNotNode      (pos) |
-            Self::InsertionSet        (pos) |
-            Self::InsertionOpt        (pos) |
-            Self::AlphaUnknown        (pos) |
-            Self::LonelySet           (pos) | 
-            Self::NodeCannotBeSome (_, pos) |
-            Self::NodeCannotBeNone (_, pos) |
-            Self::NodeCannotBeSet  (_, pos) => (
+            Self::WordBoundSetLocError  (pos) |
+            Self::SubstitutionEllipsis  (pos) |
+            Self::BoundaryInsideStruct  (pos) |
+            Self::SyllRefInsideStruct   (pos) |
+            Self::SyllbleInsideStruct   (pos) |
+            Self::AlphaIsNotSuprGroup   (pos) |
+            Self::StructInsideStruct    (pos) |
+            Self::InsertionGroupedEnv   (pos) |
+            Self::AlphaNodeAssignInv    (pos) |
+            Self::OverlongPosLongNeg    (pos) |
+            Self::AlphaIsNotSameNode    (pos) |
+            Self::SubstitutionMatrix    (pos) |
+            Self::InsertionEllipsis     (pos) |
+            Self::SubstitutionSyll      (pos) |
+            Self::SubstitutionSet       (pos) |
+            Self::SubstitutionOpt       (pos) |
+            Self::SecStrPosStrNeg       (pos) |
+            Self::AlphaUnknownInv       (pos) |
+            Self::InsertionMatrix       (pos) |
+            Self::AlphaIsNotNode        (pos) |
+            Self::InsertionSet          (pos) |
+            Self::InsertionOpt          (pos) |
+            Self::AlphaUnknown          (pos) |
+            Self::LonelySet             (pos) | 
+            Self::GroupSuprIsInverted(_, pos) |
+            Self::GroupSuprIsBinary  (_, pos) |
+            Self::NodeCannotBeSome   (_, pos) |
+            Self::NodeCannotBeNone   (_, pos) |
+            Self::NodeCannotBeSet    (_, pos) => (
                 " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n",
                 pos.group,
                 pos.line
             ),
-            Self::SubstitutionSylltoMatrix(a, b) |
-            Self::SubstitutionSylltoBound (a, b) |
-            Self::SubstitutionSylltoSeg   (a, b) |
-            Self::SubstitutionWordBound   (a, b) |
-            Self::SubstitutionBoundtoSyll (a, b) |
-            Self::SubstitutionBoundMod    (a, b) |
-            Self::MetathWordBoundary      (a, b) |
-            Self::MetathSyllBoundary      (a, b) |
-            Self::MetathSyllSegment       (a, b) |
-            Self::UnevenSet               (a, b) => (
+            Self::BoundaryInsideUnderlineStruct(a, b) | 
+            Self::SyllbleInsideUnderlineStruct (a, b) | 
+            Self::SyllRefInsideUnderlineStruct (a, b) | 
+            Self::StructInsideUnderlineStruct  (a, b) | 
+            Self::SubstitutionSylltoMatrix     (a, b) |
+            Self::SubstitutionSylltoBound      (a, b) |
+            Self::SubstitutionSylltoSeg        (a, b) |
+            Self::SubstitutionWordBound        (a, b) |
+            Self::SubstitutionBoundtoSyll      (a, b) |
+            Self::SubstitutionBoundMod         (a, b) |
+            Self::MetathWordBoundary           (a, b) |
+            Self::MetathSyllBoundary           (a, b) |
+            Self::MetathSyllSegment            (a, b) |
+            Self::UnevenSet                    (a, b) => (
                    " ".repeat(a.start) + &"^".repeat(a.end - a.start) 
                 + &" ".repeat(b.start - a.end) + &"^".repeat(b.end - b.start) + "\n",
                 a.group,
@@ -207,6 +228,7 @@ pub enum AliasRuntimeError {
     SecStrPosStrNeg   (AliasPosition),
     LengthNoSegment   (AliasPosition),
     EmptySyllable     (AliasPosition),
+    GroupedSupras     (AliasPosition),
 }
 
 impl From<AliasRuntimeError> for ASCAError {
@@ -225,6 +247,7 @@ impl fmt::Display for AliasRuntimeError {
             Self::SecStrPosStrNeg   (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),
             Self::LengthNoSegment   (_) => write!(f, "Cannot apply length. If you would like to assign to the previous segment, use '+'."),
             Self::EmptySyllable     (_) => write!(f, "Cannot add at the start of a syllable"),
+            Self::GroupedSupras     (_) => write!(f, "Grouped Suprasegmentals cannot be used with aliases"),
         }
     }
 }
@@ -241,7 +264,8 @@ impl AliasRuntimeError {
             Self::OverlongPosLongNeg (pos) |
             Self::SecStrPosStrNeg    (pos) |
             Self::LengthNoSegment    (pos) |
-            Self::EmptySyllable      (pos) => (
+            Self::EmptySyllable      (pos) |
+            Self::GroupedSupras      (pos) => (
                 " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n",
                 pos.kind,
                 pos.line

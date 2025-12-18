@@ -52,6 +52,7 @@ pub(crate) enum Alpha {
     Place(PlaceMod),
     Feature(bool),
     Supra(bool),
+    Grouped(bool, bool),
 }
 
 impl Alpha {
@@ -71,11 +72,20 @@ impl Alpha {
         }
     }
 
+    pub(crate) fn as_grouped(&self) -> Option<(bool, bool)> {
+        if let Self::Grouped(f, s) = self {
+            Some((*f, *s))
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn as_binary(&self) -> bool {
         match self {
             Alpha::Feature(pos) | Alpha::Supra(pos) => *pos,
             Alpha::Node(_, node_mod) => node_mod.is_some(),
             Alpha::Place(pm) => pm.lab.is_some() || pm.cor.is_some() || pm.dor.is_some() || pm.phr.is_some(),
+            Alpha::Grouped(f, _) => *f,
         }
     }
 }
@@ -1060,7 +1070,7 @@ mod rule_tests {
 
     #[test]
     fn test_except_before_ipa() {
-        let test_rule = setup_rule(" i > e | _cc");
+        let test_rule = setup_rule(" i > e | _c:[+long]");
         let test_word = setup_word("ki.cːi");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(&[]), "ki.cːe");
     }
