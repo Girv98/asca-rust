@@ -671,10 +671,10 @@ Length also has a 3-way distinction; allowing for the overlong vowels of languag
 ├──────────────┼──────────────┬─────────────────┤
 │     Short    │   [- long]   │                 │
 ├──────────────┼──────────────┤   [-overlong]   │
-│     Long     │   [+ long]   │                 │
-├──────────────┼──────────────┴─────────────────┤
-│   Overlong   │          [+ overlong]          │
-└──────────────┴────────────────────────────────┘
+│     Long     │              │                 │
+├──────────────┤   [+ long]   ├─────────────────┤
+│   Overlong   │              │  [+ overlong]   │
+└──────────────┴──────────────┴─────────────────┘
 ```
 
 ```
@@ -1238,3 +1238,7 @@ Suprasegmental Features:
 * Overlong: `overlong` `overlng` `ovrlng` `vlong` `vlng` `olong` `olng`
 * Stress: `stress` `strs` `str`
 * Secondary Stress: `secondarystress` `sec.stress` `secstress` `sec.str.` `sec.str` `secstr` `sec`
+
+Grouped SupraSegmental Features:
+* Length: `length` `len`
+* Stress: TODO
