@@ -130,24 +130,24 @@ struct SeqFlags {
 
 type SeqTrace = Vec<Vec<String>>;
 
-fn confirm_config_path(dir: &Path, is_dir: bool) -> io::Result<PathBuf> {
+fn confirm_config_path(path: &Path, is_dir: bool) -> io::Result<PathBuf> {
     if is_dir {
-        let maybe_conf = util::get_dir_files(dir.to_str().unwrap(), &[CONF_FILE_EXT])?;
+        let maybe_conf = util::get_dir_files(path.to_str().unwrap(), &[CONF_FILE_EXT])?;
 
         if maybe_conf.is_empty() {
-            return Err(io::Error::other(format!("{} No config file found in directory {}", "Error:".bright_red(), format!("{dir:?}").yellow())))
+            return Err(io::Error::other(format!("{} No config file found in directory {}", "Error:".bright_red(), format!("{path:?}").yellow())))
         } else if maybe_conf.len() > 1 {
-            return Err(io::Error::other(format!("{} Multiple config files found in directory {}. Please specify.", "Error:".bright_red(), format!("{dir:?}").yellow())))
+            return Err(io::Error::other(format!("{} Multiple config files found in directory {}. Please specify.", "Error:".bright_red(), format!("{path:?}").yellow())))
         }
         Ok(maybe_conf[0].to_path_buf())
     } else {
-        Ok(dir.to_path_buf())
+        Ok(path.to_path_buf())
     }
 }
 
 /// Read config file and return result
-pub(super) fn get_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>> {
-    let conf = confirm_config_path(dir, is_dir)?;
+pub(super) fn get_config(path: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>> {
+    let conf = confirm_config_path(path, is_dir)?;
 
     let tokens = Lexer::new(&util::file_read(conf.as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
 
@@ -155,8 +155,8 @@ pub(super) fn get_config(dir: &Path, is_dir: bool) -> io::Result<Vec<ASCAConfig>
 }
 
 /// Read config file and return result
-pub(super) fn get_old_config(dir: &Path, is_dir: bool) -> io::Result<Vec<OldConfig>> {
-    let conf = confirm_config_path(dir, is_dir)?;
+pub(super) fn get_old_config(path: &Path, is_dir: bool) -> io::Result<Vec<OldConfig>> {
+    let conf = confirm_config_path(path, is_dir)?;
 
     let tokens = OldLexer::new(&util::file_read(conf.as_path())?.chars().collect::<Vec<_>>()).tokenise()?;
 
