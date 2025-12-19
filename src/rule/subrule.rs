@@ -616,29 +616,34 @@ impl SubRule {
 
 
             // Allows for | :{...}:
-            // TODO: test with center only
             'inner: for (before_expt, center_expt, after_expt) in self.get_exceptions() {
-                // We must take insertion position into account
-                // else it would treat <s_n> the same as <sn_>
+                // TODO FIXME: We must take insertion position into account, else it would treat <s_n> the same as <sn_>
+                // but this isn't entirely right. "| <C.._..C>" does not care about insert position
                 if let Some(ce) = &center_expt {
-                    // TODO: test stress and tone
-                    let mut items: Vec<_> = ce.before.iter().rev().cloned().collect();
-                    items.extend_from_slice(&ce.after);
+                    let mut items: Vec<_> = ce.before.iter().rev().cloned().collect(); items.extend_from_slice(&ce.after);                    
                     let mut ip = insert_pos;
-                    if self.match_underline_struct_items(&phrase, &items, pos, true, &mut Some((ce.before.len(), &mut ip)))? || ip != insert_pos {
+                    if (items.is_empty() && syll.segments.is_empty()) || self.match_underline_struct_items(&phrase, &items, pos, true, &mut Some((ce.before.len(), &mut ip)))? || ip != insert_pos {
+                        if !self.match_stress(&ce.stress, syll, ce.position)? {
+                            continue 'inner;
+                        }
+                        if let Some(tone) = ce.tone && !self.match_tone(&tone, syll) {
+                            continue 'inner;
+                        }
+                        let mut before_expt = before_expt.clone(); before_expt.reverse();
+                        if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
+                        && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, true)?) {
+                            Self::syll_inc(&phrase, &mut pos); continue 'outer;
+                        }
+                    }
+                } else {
+                    if before_expt.is_empty() && after_expt.is_empty() && center_expt.is_some() {
+                        continue 'inner;
+                    }
+                    let mut before_expt = before_expt.clone(); before_expt.reverse();
+                    if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
+                    && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, true)?) {
                         Self::syll_inc(&phrase, &mut pos); continue 'outer;
                     }
-                }
-
-                if before_expt.is_empty() && after_expt.is_empty() && center_expt.is_some() {
-                    continue 'inner;
-                }
-                
-                let mut before_expt = before_expt.clone();
-                before_expt.reverse();
-                if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
-                && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, true)?) {
-                    Self::syll_inc(&phrase, &mut pos); continue 'outer;
                 }
             }
             
@@ -715,12 +720,14 @@ impl SubRule {
         let exceptions = self.get_exceptions();
 
         let ((before_cont, center_cont, after_cont), (before_expt, center_expt, after_expt)) = match (context.len().cmp(&1), exceptions.len().cmp(&1)) {
+            // TODO FIXME: fix insertion_by_segment to allow this
+            // (std::cmp::Ordering::Equal, std::cmp::Ordering::Greater) |
             (std::cmp::Ordering::Equal,  std::cmp::Ordering::Less) => (context[0],(&empty, &None, &empty)),
             (std::cmp::Ordering::Equal, std::cmp::Ordering::Equal) => (context[0], exceptions[0]),
             (std::cmp::Ordering::Less,  std::cmp::Ordering::Equal) => ((&empty, &None, &empty), exceptions[0]),
             (std::cmp::Ordering::Less,   std::cmp::Ordering::Less) => return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position)),
             (std::cmp::Ordering::Greater, _) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.context.clone().unwrap().position)),
-            // TODO FIXME: this is (currently) fine when inserting by syllable
+            // TODO FIXME: this is implemented and works fine when inserting by syllable
             (_, std::cmp::Ordering::Greater) => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
         };
 
@@ -2646,19 +2653,30 @@ impl SubRule { // Context Matching
     fn match_underline_struct(&self, phrase_rev: &Phrase, phrase: &Phrase, matches: &[MatchElement], start_pos: SegPos, end_pos: SegPos, center: &UnderlineStruct) -> Result<bool, RuleRuntimeError> {
         
         { // Sanity Check Input
-            for m in matches {
+            for (i, m) in matches.iter().enumerate() {
                 match m {
-                    MatchElement::Syllable (..) => todo!("Err: Illegal Input"),
-                    MatchElement::SyllBound(..) => todo!("Err: Illegal Input"),
-                    MatchElement::WordBound(..) => todo!("Err: Illegal Input"),
-                    _ => {}
+                    MatchElement::Syllable (..) => {
+                        if let Some(input_item) = self.input.get(i) {
+                            return Err(RuleRuntimeError::SyllbleInsideUnderlineStruct(input_item.position, center.position))
+                        } else {
+                            return Err(RuleRuntimeError::SyllbleInsideStruct(center.position))
+                        }
+                    }
+                    
+                    MatchElement::SyllBound(..) | MatchElement::WordBound(..) => {
+                        if let Some(input_item) = self.input.get(i) {
+                            return Err(RuleRuntimeError::BoundaryInsideUnderlineStruct(input_item.position, center.position))
+                        } else {
+                            return Err(RuleRuntimeError::BoundaryInsideStruct(center.position))
+                        }
+                    }
+
+                    MatchElement::LongSegment(..) | MatchElement::Segment(..) => {}
                 }
             }
             // Check first and last input are in the same syllable
             if start_pos.word_index != end_pos.word_index || start_pos.syll_index != end_pos.syll_index { return Ok(false) }
         }
-
-        let cur_syll_index = start_pos.syll_index;
 
         // Check Suprasegmentals
         let syll = &phrase[start_pos.word_index].syllables[start_pos.syll_index];
@@ -2666,27 +2684,35 @@ impl SubRule { // Context Matching
         if !self.match_stress(&center.stress, syll, center.position)? { return Ok(false) }
 
         // Increment start_pos and end_pos before matching
-        let mut start_pos = start_pos;
+        let cur_syll_index = start_pos.syll_index;
+        let mut start_pos = start_pos.reversed(phrase);
+        let cur_syll_index_rev = start_pos.syll_index;
         let mut end_pos = end_pos;
-        start_pos.decrement(phrase);
+        start_pos.increment(phrase_rev);
         end_pos.increment(phrase);
-                
-        // Check we are not outside syllable
-        if start_pos.syll_index != cur_syll_index {
-            match center.before.first().unwrap().kind {
-                ParseElement::OptEllipsis | ParseElement::Optional(_,0,_)  => {},
-                _ => return Ok(false)
+
+        // Check we are not outside syllable (for an invalid reason)
+        if start_pos.syll_index != cur_syll_index_rev && let Some(x) = center.before.first() {
+            if let ParseElement::OptEllipsis | ParseElement::Optional(_,0,_) = x.kind {} else {
+                return Ok(false)
             }
         }
-        if end_pos.syll_index != cur_syll_index {
-            match center.after.first().unwrap().kind {
-                ParseElement::OptEllipsis | ParseElement::Optional(_,0,_)  => {},
-                _ => return Ok(false)
+        if end_pos.syll_index != cur_syll_index && let Some(x) = center.after.first() {
+            if let ParseElement::OptEllipsis | ParseElement::Optional(_,0,_) = x.kind {} else {
+                return Ok(false)
             }
+        }
+
+        if center.before.is_empty() && start_pos.syll_index == cur_syll_index {
+            return Ok(false)
+        }
+
+        if center.after.is_empty() && end_pos.syll_index == cur_syll_index {
+            return Ok(false)
         }
         
         Ok(
-            self.match_underline_struct_items(phrase_rev, &center.before, start_pos.reversed(phrase), false, &mut None)? 
+            self.match_underline_struct_items(phrase_rev, &center.before, start_pos, false, &mut None)? 
          && self.match_underline_struct_items(phrase, &center.after, end_pos, true, &mut None)?
         )
     }
@@ -2839,16 +2865,17 @@ impl SubRule { // Context Matching
 
     // TODO: more tests, I'm not sold that this is correct
     fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, phrase: &Phrase, pos: &mut SegPos, syll_index: usize, forwards: bool, inc: bool, ins_info: &mut Option<(usize, &mut SegPos)>) -> Result<bool, RuleRuntimeError> {
-        if *index >= items.len() {
-            return Ok(true)
-        }
-
+        
         if inc { pos.increment(phrase) }
         // TODO FIXME: This sucks, bef_len does not need to be mutable
         if let Some((bef_len, ins_pos)) = ins_info && *bef_len -1  == *index {
             **ins_pos = *pos;
         }
         *index += 1;
+        
+        if *index >= items.len() {
+            return Ok(!inc || phrase.in_bounds(*pos))
+        }
 
         let back_index = *index;
         let back_alphas = self.alphas.borrow().clone();
@@ -2922,31 +2949,39 @@ impl SubRule { // Context Matching
                     **ins_pos = pos_bef;
                 }
             }
-            if m {
-                if pos.seg_index == 0 && pos.syll_index == syll_index + 1 { 
-                    return Ok(true)
-                }
+            if m && pos.seg_index == 0 && pos.syll_index == syll_index + 1 { 
+                return Ok(true)
             }
             *self.alphas.borrow_mut() = back_alphas.clone();
             *self.references.borrow_mut() = back_refs.clone();
         }
 
+        *self.alphas.borrow_mut() = back_alphas;
+        *self.references.borrow_mut() = back_refs;
         Ok(false)
     }
 
     fn context_match_ellipsis(&self, states: &[ParseItem], state_index: &mut usize, phrase: &Phrase, pos: &mut SegPos, forwards: bool, inc: bool) -> Result<bool, RuleRuntimeError> {
-        if *state_index >= states.len() {
-            return Ok(true)
-        }
-
+        
         *state_index += 1;
         if inc { pos.increment(phrase) }
+        
+        if *state_index >= states.len() {
+            return Ok(!inc || phrase.in_bounds(*pos))
+        }
 
         let back_state = *state_index;
         let back_alphas = self.alphas.borrow().clone();
         let back_refs = self.references.borrow().clone();
-        while phrase.in_bounds(*pos) {
+        let mut back_pos = *pos;
+        while phrase.in_bounds(back_pos) {
             *state_index = back_state;
+            *pos = back_pos;
+            // if let ParseElement::Matrix(mods, ..) = &states[back_state].kind && let [None, None] = mods.suprs.length {} else {
+            //         self.matrix_increment(phrase, &mut back_pos)
+            // }
+            self.matrix_increment(phrase, &mut back_pos);
+            back_pos.increment(phrase);
             let mut m = true;
             while *state_index < states.len() {
                 if !self.context_match(states, state_index, phrase, pos, forwards, false, false)? {
@@ -2958,11 +2993,9 @@ impl SubRule { // Context Matching
             if m { return Ok(true) }
             *self.alphas.borrow_mut() = back_alphas.clone();
             *self.references.borrow_mut() = back_refs.clone();
-            pos.increment(phrase);
         }
-        
-        *self.alphas.borrow_mut() = back_alphas.clone();
-        *self.references.borrow_mut() = back_refs.clone();
+        *self.alphas.borrow_mut() = back_alphas;
+        *self.references.borrow_mut() = back_refs;
         Ok(false)
     }
 
@@ -3456,26 +3489,26 @@ impl SubRule { // Input Matching
     }
 
     fn input_match_ellipsis(&self, captures: &mut Vec<MatchElement>, phrase: &Phrase, pos: &mut SegPos, states: &[ParseItem], state_index: &mut usize, inc: bool) -> Result<bool, RuleRuntimeError> {
-        // should work akin to '.+?' or '.*?' in Regex, that is, a lazy-match of one-or-more elements or lazy-match of zero-or-more elements
-        // increment seg_pos
-        // save position
-        // try to match rest of states
-        // if match, return true
-        // else return to saved position
-        // increment seg_pos
-        // repeat until end of word
+        // should work akin to '.+?' or '.*?' (depending on value of inc) in Regex, 
+        // that is, a lazy-match of one-or-more elements or lazy-match of zero-or-more elements
         
-        if *state_index >= states.len() {
-            return Ok(true)
-        }
-
         *state_index += 1;
         if inc { pos.increment(phrase) }
+        
+        if *state_index >= states.len() {
+            return Ok(!inc || phrase.in_bounds(*pos))
+        }
 
+        let back_state = *state_index;
         let back_alphas = self.alphas.borrow().clone();
         let back_refs = self.references.borrow().clone();
-        let back_captures = captures.clone();
-        while phrase.in_bounds(*pos) {
+        let back_captures_len = captures.len();
+        let mut back_pos = *pos;
+        while phrase.in_bounds(back_pos) {
+            *state_index = back_state;
+            *pos = back_pos;
+            self.matrix_increment(phrase, &mut back_pos);
+            back_pos.increment(phrase);
             let mut m = true;
             while *state_index < states.len() {
                 if !self.input_match_item(captures, pos, state_index, phrase, states)? {
@@ -3483,18 +3516,15 @@ impl SubRule { // Input Matching
                     break;
                 }
             }
-            if m {
-                return Ok(true)
-            }
-            // TODO: Test if this is necessary, doesn't work well with multiple ellipses
+            if m { return Ok(true) }
             *self.alphas.borrow_mut() = back_alphas.clone();
             *self.references.borrow_mut() = back_refs.clone();
-            pos.increment(phrase);
+            captures.truncate(back_captures_len);
         }
         
         *self.alphas.borrow_mut() = back_alphas;
         *self.references.borrow_mut() = back_refs;
-        *captures = back_captures;
+        captures.truncate(back_captures_len);
         Ok(false)
     }
 
@@ -3860,6 +3890,12 @@ impl SubRule { // Insertion
             std::cmp::Ordering::Equal => exceptions[0],
             std::cmp::Ordering::Greater => return Err(RuleRuntimeError::InsertionGroupedEnv(self.except.clone().unwrap().position)),
         };
+
+        // TODO: test this
+        if center_expt.is_some() {
+            unreachable!("We only enter this function when matching by segment")
+        }
+
         let mut before_expt = before_expt.clone();
         before_expt.reverse();
 
@@ -3912,6 +3948,10 @@ impl SubRule { // Insertion
             return Err(RuleRuntimeError::InsertionNoEnv(self.output.last().unwrap().position))
         }
 
+        // TODO: test this
+        if center_cont.is_some() {
+            unreachable!("We only enter this function when matching by segment")
+        }
         let maybe_ins = match (before_cont.is_empty(), after_cont.is_empty()) {
             (true, true) => Some(start_pos), // _
             (false, true) => self.insertion_after(before_cont, phrase, start_pos)?, // #_
