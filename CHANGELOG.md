@@ -26,7 +26,7 @@ Features:
 Fixes:
 * Lib: corrected structure location error highlighting
 
-Perf: 30% average execution speed up of Proto-Germanic example config (~5ms -> ~3.5ms)
+Perf: 20-30% average execution speed up of example configs
 
 0.9.3
 ==================
