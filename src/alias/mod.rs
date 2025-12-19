@@ -224,10 +224,10 @@ fn test_escape_repr() {
     assert_eq!(NamedEscape::Ogonek.to_char()     , '\u{0328}');
 }
 
-pub(crate) fn parse_into(into: &[String]) -> Result<Vec<Transformation>, AliasSyntaxError> {
+pub(crate) fn parse_into<S: AsRef<str>>(into: &[S]) -> Result<Vec<Transformation>, AliasSyntaxError> {
     let mut into_parsed = Vec::with_capacity(into.len());
     for (line, alias) in into.iter().enumerate() {
-        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.as_ref().chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
     }
 
     Ok(into_parsed)

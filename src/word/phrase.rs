@@ -47,16 +47,24 @@ impl Phrase {
         Self(Vec::with_capacity(cap))
     }
 
-    pub fn try_from(unparsed_phrase: &str, aliases: &[String]) -> Result<Self, ASCAError> {
+    pub fn try_from_vec<S: AsRef<str>>(unparsed_phrases: &[S], aliases: &[S]) -> Result<Vec<Self>, ASCAError> {
         let alias_into = alias::parse_into(aliases)?;
-        unparsed_phrase.trim_end().split(' ').map(|w| Word::new(w, &alias_into)).collect()
+
+        unparsed_phrases.iter().map(|up| 
+            up.as_ref().trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect()
+        ).collect()
     }
 
-    pub fn render_debug(&self, aliases: &[Transformation]) -> (String, Vec<Segment>) {
+    pub fn try_from(unparsed_phrase: &str, aliases: &[String]) -> Result<Self, ASCAError> {
+        let alias_into = alias::parse_into(aliases)?;
+        unparsed_phrase.trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect()
+    }
+
+    pub fn render_debug(&self, aliases: &[Transformation]) -> Result<(String, Vec<Segment>), ASCAError> {
         let mut buffer = String::new();
         let mut unknowns = Vec::new();
         for word in self.iter() {
-            let (w, u) = word.render_debug(aliases);
+            let (w, u) = word.render_debug(aliases)?;
             buffer.push(' ');
             buffer.push_str(&w);
             unknowns.extend(u);
@@ -66,13 +74,13 @@ impl Phrase {
         // spaces will be stripped of such padding in the output.
         // This is currently advantageous for word boundary deletion rules,
         // however this means that the user's formatting is not respected.
-        (buffer.trim().to_string(), unknowns)
+        Ok((buffer.trim().to_string(), unknowns))
     }
 
-    pub fn render(&self, aliases: &[Transformation]) -> String {
+    pub fn render(&self) -> String {
         let mut buffer = String::new();
         for word in self.iter() {
-            let w = word.render(aliases);
+            let w = word.render();
             buffer.push(' ');
             buffer.push_str(&w);
         }
@@ -82,6 +90,21 @@ impl Phrase {
         // This is currently advantageous for word boundary deletion rules,
         // however this means that the user's formatting is not respected.
         buffer.trim().to_string()
+    }
+
+    pub fn render_with(&self, aliases: &[Transformation]) -> Result<String, ASCAError> {
+        let mut buffer = String::new();
+        for word in self.iter() {
+            let w = word.render_with(aliases)?;
+            buffer.push(' ');
+            buffer.push_str(&w);
+        }
+
+        // TODO / NOTE: the trim() here means that phrases with leading
+        // spaces will be stripped of such padding in the output.
+        // This is currently advantageous for word boundary deletion rules,
+        // however this means that the user's formatting is not respected.
+        Ok(buffer.trim().to_string())
     }
 
     #[inline]

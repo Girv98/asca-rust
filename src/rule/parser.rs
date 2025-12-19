@@ -1602,7 +1602,7 @@ mod parser_tests {
         eprintln!("{:?}", maybe_result);
         let result = maybe_result.unwrap().unwrap();
 
-        let x = crate::word::Word::new("sin", &[]).unwrap();
+        let x = crate::word::Word::new("sin").unwrap();
 
         let exp_struct = UnderlineStruct { 
             before: vec![

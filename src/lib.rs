@@ -113,7 +113,7 @@ fn apply_rules_trace(rules: &[Vec<Rule>], phrase: &Phrase) -> Result<Vec<Change>
     Ok(changes)
 }
 
-fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (Vec<String>, Vec<Segment>) {
+fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> Result<(Vec<String>, Vec<Segment>), ASCAError> {
     let mut res = Vec::with_capacity(phrases.len());
     let mut unknowns = Vec::new();
 
@@ -122,7 +122,7 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
         phr_res.clear();
         // let mut phr_res = String::with_capacity(phrase.len());
         for word in phrase.iter() {
-            let (w, u) = word.render_debug(&alias_from);
+            let (w, u) = word.render_debug(&alias_from)?;
             phr_res.push(' ');
             phr_res.push_str(&w);
             unknowns.extend(u);
@@ -130,7 +130,7 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> (
         res.push(phr_res.trim().to_string());
     }
 
-    (res, unknowns)
+    Ok((res, unknowns))
 }
 
 fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
@@ -155,7 +155,7 @@ pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], u
     let alias_from = alias::parse_from(unparsed_from)?;
 
     unparsed_phrases.iter().map(|up| {
-        let phrase = match up.split(' ').map(|w| Word::new(w, &alias_into)).collect::<Result<Phrase, _>>() {
+        let phrase = match up.split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect::<Result<Phrase, _>>() {
             Ok(ph) => ph,
             Err(e) => return Err(e),
         };
@@ -165,7 +165,10 @@ pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], u
             Err(e) => return Err(e),
         };
 
-        Ok(applied.iter().map(|word| word.render(&alias_from)).collect::<Vec<_>>().join(" "))
+        match applied.iter().map(|word| { word.render_with(&alias_from) }).collect::<Result<Vec<_>, _>>() {
+            Ok(y) => Ok(y.join(" ")),
+            Err(e) => Err(e),
+        }
     }).collect()
 }
 
@@ -179,12 +182,15 @@ pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[Stri
     let alias_from = alias::parse_from(unparsed_from)?;
     
     let (input, applied) = unparsed_phrases.par_iter().map(|up| {
-        let phrase = match up.trim_end().split(' ').map(|w| Word::new(w, &alias_into)).collect::<Result<Phrase, _>>() {
+        let phrase = match up.trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect::<Result<Phrase, _>>() {
             Ok(ph) => ph,
             Err(e) => return Err(e),
         };
 
-        let rendered_input = phrase.iter().map(|word| word.render(&[])).collect::<Vec<_>>().join(" ");
+        let rendered_input = match phrase.iter().map(|word| word.render_with(&[])).collect::<Result<Vec<_>, _>>() {
+            Ok(ri) => ri.join(" "),
+            Err(e) => return Err(e),
+        };
 
         let applied = match phrase.apply_all(&rules) {
             Ok(ap) => ap,
@@ -194,7 +200,7 @@ pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[Stri
         Ok((rendered_input, applied))
     }).collect::<Result<(Vec<String>, Vec<Phrase>), ASCAError>>()?;
 
-    let (output, unknowns) = phrases_to_string(applied, alias_from);
+    let (output, unknowns) = phrases_to_string(applied, alias_from)?;
 
     let unknowns = unknowns.iter().map(|seg| format!("{seg:?}")).collect();
 
@@ -207,7 +213,7 @@ pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String
     let alias_from = alias::parse_from(unparsed_from)?;
 
     unparsed_phrases.par_iter().map(|up| {
-        let phrase = match up.trim_end().split(' ').map(|w| Word::new(w, &alias_into)).collect::<Result<Phrase, _>>() {
+        let phrase = match up.trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect::<Result<Phrase, _>>() {
             Ok(ph) => ph,
             Err(e) => return Err(e),
         };
@@ -217,7 +223,10 @@ pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String
             Err(e) => return Err(e),
         };
 
-        Ok(applied.iter().map(|word| word.render(&alias_from)).collect::<Vec<_>>().join(" "))
+        match applied.iter().map(|word| { word.render_with(&alias_from) }).collect::<Result<Vec<_>, _>>() {
+            Ok(y) => Ok(y.join(" ")),
+            Err(e) => Err(e),
+        }
     }).collect()
 }
 
@@ -305,9 +314,12 @@ fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alia
     let phrase = get_trace_phrase(unparsed_phrase, alias_into, trace_index)?.unwrap_or_default();
     let res = apply_rules_trace(&rules, &phrase)?;
     
-    let rendered_input = phrase.iter().map(|word| word.render(&[])).collect::<Vec<_>>().join(" ");
+    let rendered_input = match phrase.iter().map(|word| word.render_with(&[])).collect::<Result<Vec<_>, _>>() {
+        Ok(ri) => ri.join(" "),
+        Err(e) => return Err(e),
+    };
     
-    let (output, unknowns, rule_indices) = rule::trace::to_string_wasm(&phrase, res, unparsed_rules);
+    let (output, unknowns, rule_indices) = rule::trace::to_string_wasm(&phrase, res, unparsed_rules)?;
 
     Ok((rendered_input, output, unknowns, rule_indices))
 }

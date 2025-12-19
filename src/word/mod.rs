@@ -67,6 +67,7 @@ impl SegPos {
         Self { word_index, syll_index, seg_index }
     }
 
+    /// Must not use reversed phrase
     pub(crate) fn reversed(&self, phrase: &Phrase) -> Self {
         if phrase.in_bounds(*self) {
             SegPos::new(
@@ -206,17 +207,25 @@ impl fmt::Debug for Word {
 }
 
 impl Word { 
-    pub fn new<I>(text: I, aliases: &[Transformation]) -> Result<Self, ASCAError> where I: Into<String> {
+    pub fn new<S: AsRef<str>>(text: S) -> Result<Self, ASCAError> {
         let mut w = Self { syllables: Vec::new() };
-        w.setup(Self::normalise(text.into()), aliases)?;
+        w.setup(Self::normalise(text.as_ref()), &[])?;
+
+        Ok(w)
+    }
+
+    pub fn with_aliases<S: AsRef<str>>(text: S, aliases: &[Transformation]) -> Result<Self, ASCAError> {
+        let mut w = Self { syllables: Vec::new() };
+        w.setup(Self::normalise(text.as_ref()), aliases)?;
 
         Ok(w)
     }
 
     // FIXME: In the docs, we say that no normalisation is done before the aliasing stage
-    fn normalise(input_txt: String) -> String {
-        let mut output = String::with_capacity(input_txt.len());
-        for ch in input_txt.chars() {
+    fn normalise<S: AsRef<str>>(input_txt: S) -> String {
+        let txt = input_txt.as_ref();
+        let mut output = String::with_capacity(txt.len());
+        for ch in txt.chars() {
             match ch {
                 'ã' => output.push_str("ã"),
                 'ẽ' => output.push_str("ẽ"),
@@ -378,7 +387,7 @@ impl Word {
                 },
                 _ => unreachable!()
             },
-            SpecMod::Joined(_) => todo!(),
+            SpecMod::Joined(_) => return Err(AliasRuntimeError::GroupedSupras(err_pos)),
         }
     }
 
@@ -402,13 +411,13 @@ impl Word {
                 (BinMod::Negative, BinMod::Negative) => sy.stress = StressKind::Unstressed,
                 (BinMod::Negative, BinMod::Positive) => return Err(AliasRuntimeError::SecStrPosStrNeg(err_pos)),
             },
-            SpecMod::Joined(_) => todo!(),
+            SpecMod::Joined(_) => return Err(AliasRuntimeError::GroupedSupras(err_pos)),
         }
 
         Ok(())
     }
 
-    fn fill_segments(&mut self, input_txt: &String, txt: &mut Vec<char>, i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, ASCAError> {
+    fn fill_segments<S: AsRef<str>>(&mut self, input_txt: S, txt: &mut Vec<char>, i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, ASCAError> {
         for alias in aliases {
             if let AliasParseElement::Replacement(string, plus) = &alias.input.kind {
                 let back_pos = *i;
@@ -551,7 +560,7 @@ impl Word {
                     sy.segments.push_back(*seg) ;
                     Ok(false)
                 } else {
-                    Err(WordSyntaxError::UnknownChar(input_txt.to_string(), *i).into())
+                    Err(WordSyntaxError::UnknownChar(input_txt.as_ref().to_owned(), *i).into())
                 }
             }
         } else {
@@ -571,28 +580,28 @@ impl Word {
                                         ModKind::Binary(bin_mod) => bin_mod == BinMod::Positive,
                                         _ => unreachable!(),
                                     };
-                                    return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsFeat(input_txt.to_string(), *i, ft.to_string(), pos).into())
+                                    return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsFeat(input_txt.as_ref().to_owned(), *i, ft.to_string(), pos).into())
                                 } else {
                                     let nt = NodeKind::from_usize(mod_index);
                                     let pos = match d.prereqs.nodes[mod_index].unwrap() {
                                         ModKind::Binary(bin_mod) => bin_mod == BinMod::Positive,
                                         _ => unreachable!(),
                                     };
-                                    return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsNode(input_txt.to_string(), *i, nt.to_string(), pos).into())
+                                    return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsNode(input_txt.as_ref().to_owned(), *i, nt.to_string(), pos).into())
                                 };
                             },
                         },
-                        None => return Err(WordSyntaxError::DiacriticBeforeSegment(input_txt.to_string(), *i).into())
+                        None => return Err(WordSyntaxError::DiacriticBeforeSegment(input_txt.as_ref().to_owned(), *i).into())
                     }
                 }
             }
-            Err(WordSyntaxError::UnknownChar(input_txt.to_string(), *i).into())
+            Err(WordSyntaxError::UnknownChar(input_txt.as_ref().to_owned(), *i).into())
         }
     }
 
-    fn setup(&mut self, input_txt: String, aliases: &[Transformation]) -> Result<(), ASCAError> {
+    fn setup<S: AsRef<str>>(&mut self, input_txt: S, aliases: &[Transformation]) -> Result<(), ASCAError> {
         let mut i = 0;
-        let mut txt: Vec<char> = input_txt.chars().collect();
+        let mut txt: Vec<char> = input_txt.as_ref().chars().collect();
 
         let mut sy = Syllable::new();
 
@@ -607,13 +616,13 @@ impl Word {
                     sy = Syllable { segments: VecDeque::new(), stress: StressKind::Secondary, tone: 0 };
                 }
                 ';' => { // Length and Close
-                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt, i).into()) }
+                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt.as_ref().to_owned(), i).into()) }
                     sy.segments.push_back(*sy.segments.back().unwrap()); 
                     self.syllables.push(sy);
                     sy = Syllable::new();
                 }
                 'ː' | ':' => { // Length
-                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt, i).into()) }
+                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt.as_ref().to_owned(), i).into()) }
                     sy.segments.push_back(*sy.segments.back().unwrap());
                 }
                 '.' => { // Close
@@ -632,7 +641,7 @@ impl Word {
                     
                     tone_buffer = tone_buffer.replace('0', "");
                     if tone_buffer.chars().count() > 4 {
-                        Err(WordSyntaxError::ToneTooBig(input_txt.clone(), i-tone_buffer.chars().count()))?
+                        Err(WordSyntaxError::ToneTooBig(input_txt.as_ref().to_owned(), i-tone_buffer.chars().count()))?
                     }
                     sy.tone = tone_buffer.parse().unwrap_or(0);
 
@@ -656,13 +665,13 @@ impl Word {
         if sy.stress == StressKind::Primary {
             // Check if previous syllable had a segment which would indicate that ' might have been meant as ejective
             if  let Some(syll) = self.syllables.last() && !syll.segments.is_empty() { 
-                return Err(WordSyntaxError::CouldNotParseEjective(input_txt).into())
+                return Err(WordSyntaxError::CouldNotParseEjective(input_txt.as_ref().to_owned()).into())
             }
         }
         
         // if tone or stress is set
         if sy.tone != 0 || sy.stress != StressKind::Unstressed {
-            return Err(WordSyntaxError::CouldNotParse(input_txt).into());
+            return Err(WordSyntaxError::CouldNotParse(input_txt.as_ref().to_owned()).into());
         } 
 
         Ok(())
@@ -698,7 +707,7 @@ impl Word {
         (buffer, reprs)
     }
 
-    fn render_normal(&self) -> String {
+    pub fn render(&self) -> String {
         let mut buffer = String::new();
         for (i, syll) in self.syllables.iter().enumerate() {
             match syll.stress {
@@ -771,47 +780,47 @@ impl Word {
         true
     }
 
-    fn alias_match_stress(&self, stress: &Option<SpecMod>, syll: &Syllable) -> bool {
-        let Some(str_mod) = stress else { return true };
+    fn alias_match_stress(&self, stress: &Option<SpecMod>, syll: &Syllable, err_pos: AliasPosition) -> Result<bool, AliasRuntimeError> {
+        let Some(str_mod) = stress else { return Ok(true) };
 
         match str_mod {
             SpecMod::First(prim) => match prim {
                 ModKind::Binary(bm) => match bm {
-                    BinMod::Negative => if syll.stress != StressKind::Unstressed { return false },
-                    BinMod::Positive => if syll.stress == StressKind::Unstressed { return false },
+                    BinMod::Negative => if syll.stress != StressKind::Unstressed { return Ok(false) },
+                    BinMod::Positive => if syll.stress == StressKind::Unstressed { return Ok(false) },
                 },
                 ModKind::Alpha(_) => unreachable!(),
             },
             SpecMod::Second(sec) => match sec {
                 ModKind::Binary(bm) => match bm {
-                    BinMod::Negative => if syll.stress == StressKind::Secondary { return false },
-                    BinMod::Positive => if syll.stress != StressKind::Secondary { return false },
+                    BinMod::Negative => if syll.stress == StressKind::Secondary { return Ok(false) },
+                    BinMod::Positive => if syll.stress != StressKind::Secondary { return Ok(false) },
                 },
                 ModKind::Alpha(_) => unreachable!(),
             },
             SpecMod::Both(prim, sec) => {
                 match prim {
                     ModKind::Binary(bm) => match bm {
-                        BinMod::Negative => if syll.stress != StressKind::Unstressed { return false },
-                        BinMod::Positive => if syll.stress == StressKind::Unstressed { return false },
+                        BinMod::Negative => if syll.stress != StressKind::Unstressed { return Ok(false) },
+                        BinMod::Positive => if syll.stress == StressKind::Unstressed { return Ok(false) },
                     },
                     ModKind::Alpha(_) => unreachable!(),
                 }
                 match sec {
                     ModKind::Binary(bm) => match bm {
-                        BinMod::Negative => if syll.stress == StressKind::Secondary { return false },
-                        BinMod::Positive => if syll.stress != StressKind::Secondary { return false },
+                        BinMod::Negative => if syll.stress == StressKind::Secondary { return Ok(false) },
+                        BinMod::Positive => if syll.stress != StressKind::Secondary { return Ok(false) },
                     },
                     ModKind::Alpha(_) => unreachable!(),
                 }
             },
-            SpecMod::Joined(_) => todo!(),
+            SpecMod::Joined(_) => return Err(AliasRuntimeError::GroupedSupras(err_pos)),
         }
 
-        true
+        Ok(true)
     }
 
-    fn alias_match_seg_length(&self, length: &Option<SpecMod>, syll_index: usize, seg_index: usize) -> (bool, Option<usize>) {
+    fn alias_match_seg_length(&self, length: &Option<SpecMod>, syll_index: usize, seg_index: usize, err_pos: AliasPosition) -> Result<(bool, Option<usize>), AliasRuntimeError> {
         let seg_length = self.seg_length_at(SegPos { word_index: 0, syll_index, seg_index });
         let mut matched_len = false;
 
@@ -820,78 +829,77 @@ impl Word {
             match len_mods {
                 SpecMod::First(long) => match long {
                     ModKind::Binary(bm) => match bm {
-                        BinMod::Positive => if seg_length < 2 { return (false, None) },
-                        BinMod::Negative => if seg_length > 1 { return (false, None) },
+                        BinMod::Positive => if seg_length < 2 { return Ok((false, None)) },
+                        BinMod::Negative => if seg_length > 1 { return Ok((false, None)) },
                     },
                     ModKind::Alpha(_) => unreachable!(),
                 },
                 SpecMod::Second(vlong) => match vlong {
                     ModKind::Binary(bm) => match bm {
-                        BinMod::Positive => if seg_length < 3 { return (false, None) },
-                        BinMod::Negative => if seg_length > 2 { return (false, None) },
+                        BinMod::Positive => if seg_length < 3 { return Ok((false, None)) },
+                        BinMod::Negative => if seg_length > 2 { return Ok((false, None)) },
                     },
                     ModKind::Alpha(_) => unreachable!(),
                 },
                 SpecMod::Both(long, vlong) => {
                     match long {
                         ModKind::Binary(bm) => match bm {
-                            BinMod::Positive => if seg_length < 2 { return (false, None) },
-                            BinMod::Negative => if seg_length > 1 { return (false, None) },
+                            BinMod::Positive => if seg_length < 2 { return Ok((false, None)) },
+                            BinMod::Negative => if seg_length > 1 { return Ok((false, None)) },
                         },
                         ModKind::Alpha(_) => unreachable!(),
                     }
                     match vlong {
                         ModKind::Binary(bm) => match bm {
-                            BinMod::Positive => if seg_length < 3 { return (false, None) },
-                            BinMod::Negative => if seg_length > 2 { return (false, None) },
+                            BinMod::Positive => if seg_length < 3 { return Ok((false, None)) },
+                            BinMod::Negative => if seg_length > 2 { return Ok((false, None)) },
                         },
                         ModKind::Alpha(_) => unreachable!(),
                     }
                 },
-                // TODO: If this is reachable, then the above unreachable() calls are not valid
-                SpecMod::Joined(_) => todo!("Error: Aliases cannot use [Alength]"),
+                SpecMod::Joined(_) => return Err(AliasRuntimeError::GroupedSupras(err_pos)),
             }
         }
 
         if matched_len {
-            (true, Some(seg_length))
+            Ok((true, Some(seg_length)))
         } else {
-            (true, None)
+            Ok((true, None))
         }
     }
 
-    fn alias_match_supr_mod_seg(&self, mods: &SupraSegs, syll_index: usize, seg_index: usize) -> (bool, Option<usize>, bool) {
+    fn alias_match_supr_mod_seg(&self, mods: &SupraSegs, syll_index: usize, seg_index: usize, err_pos: AliasPosition) -> Result<(bool, Option<usize>, bool), AliasRuntimeError> {
         let syll = &self.syllables[syll_index];
 
-        if !self.alias_match_stress(&mods.stress, syll) { return (false, None, false) }
+        if !self.alias_match_stress(&mods.stress, syll, err_pos)? { return Ok((false, None, false)) }
 
         let is_matching_tone = if let Some(t) = mods.tone.as_ref() {
-            if *t != syll.tone { return (false, None, true) }
+            if *t != syll.tone { return Ok((false, None, true)) }
             true
         } else { false };
 
-        let (is_match, is_matching_len) = self.alias_match_seg_length(&mods.length, syll_index, seg_index);
+        let (is_match, is_matching_len) = self.alias_match_seg_length(&mods.length, syll_index, seg_index, err_pos)?;
 
-        (is_match, is_matching_len, is_matching_tone)
+        Ok((is_match, is_matching_len, is_matching_tone))
     }
 
-    fn alias_match_modifiers(&self, syll_index: usize, seg_index: usize, mods: &Modifiers) -> (bool, Option<usize>, bool) {
+    fn alias_match_modifiers(&self, syll_index: usize, seg_index: usize, mods: &Modifiers, err_pos: AliasPosition) -> Result<(bool, Option<usize>, bool), AliasRuntimeError> {
         let seg = self.syllables[syll_index].segments[seg_index];
 
         for (i, m) in mods.feats.iter().enumerate() {
             if !self.alias_match_feat_mod(m, i, seg) {
-                return (false, None, false)
+                return Ok((false, None, false))
             }
         }
         for (i, m) in mods.nodes.iter().enumerate() {
             if !self.alias_match_node_mod(m, i, seg) {
-                return (false, None, false)
+                return Ok((false, None, false))
             }
         }
-        self.alias_match_supr_mod_seg( &mods.suprs, syll_index, seg_index)
+        self.alias_match_supr_mod_seg( &mods.suprs, syll_index, seg_index, err_pos)
     }
 
-    fn alias_match_ipa_with_mods(&self, syll_index: usize, seg_index: usize, ipa: &Segment, mods: &Modifiers) -> (bool, Option<usize>, bool) {
+    fn alias_match_ipa_with_mods(&self, syll_index: usize, seg_index: usize, ipa: &Segment, mods: &Modifiers, err_pos: AliasPosition) -> Result<(bool, Option<usize>, bool), AliasRuntimeError> {
         let mut joined_mods = ipa.as_modifiers();
         for (i, n) in mods.nodes.iter().enumerate() {
             if n.is_some() { joined_mods.nodes[i] = *n }
@@ -901,12 +909,12 @@ impl Word {
         }
         joined_mods.suprs = mods.suprs;
 
-        self.alias_match_modifiers(syll_index, seg_index, &joined_mods)   
+        self.alias_match_modifiers(syll_index, seg_index, &joined_mods, err_pos)   
     }
 
-    pub(crate) fn render_debug(&self, aliases: &[Transformation]) -> (String, Vec<Segment>) {
+    pub(crate) fn render_debug(&self, aliases: &[Transformation]) -> Result<(String, Vec<Segment>), ASCAError> {
         if aliases.is_empty() {
-            return self.render_normal_debug()
+            return Ok(self.render_normal_debug())
         }
 
         let empty: String = String::new();
@@ -944,7 +952,7 @@ impl Word {
                             match segtype {
                                 SegType::Ipa(segment, modifiers) => {
                                     if let Some(mods) = modifiers {
-                                        let (m, maybe_len, maybe_tone) = self.alias_match_ipa_with_mods(i, j, segment, mods);
+                                        let (m, maybe_len, maybe_tone) = self.alias_match_ipa_with_mods(i, j, segment, mods, alias.input.position)?;
                                         if !m { is_match = false; break; }
                                         if let Some(len) = maybe_len { j+=len; } else { j+=1; }
                                         if maybe_tone { strip_tone = true; }
@@ -956,7 +964,7 @@ impl Word {
                                     }
                                 },
                                 SegType::Matrix(modifiers) => {
-                                    let (m, maybe_len, maybe_tone) = self.alias_match_modifiers(i, j, modifiers);
+                                    let (m, maybe_len, maybe_tone) = self.alias_match_modifiers(i, j, modifiers, alias.input.position)?;
                                     if !m { is_match = false; break; }
                                     if let Some(len) = maybe_len { j+=len; plus_match_len = true; } else { j+=1; }
                                     if maybe_tone { strip_tone = true; }
@@ -1019,12 +1027,12 @@ impl Word {
             buffer = buffer.replace(['.', 'ˈ', 'ˌ'], b_repl);
         }
 
-        (buffer, unknowns)
+        Ok((buffer, unknowns))
     }
 
-    pub(crate) fn render(&self, aliases: &[Transformation]) -> String {
+    pub(crate) fn render_with(&self, aliases: &[Transformation]) -> Result<String, ASCAError> {
         if aliases.is_empty() {
-            return self.render_normal()
+            return Ok(self.render())
         }
 
         let empty: String = String::new();
@@ -1061,7 +1069,7 @@ impl Word {
                             match segtype {
                                 SegType::Ipa(segment, modifiers) => {
                                     if let Some(mods) = modifiers {
-                                        let (m, maybe_len, maybe_tone) = self.alias_match_ipa_with_mods(i, j, segment, mods);
+                                        let (m, maybe_len, maybe_tone) = self.alias_match_ipa_with_mods(i, j, segment, mods, alias.input.position)?;
                                         if !m { is_match = false; break; }
                                         if let Some(len) = maybe_len { j+=len; } else { j+=1; }
                                         if maybe_tone { strip_tone = true; }
@@ -1073,7 +1081,7 @@ impl Word {
                                     }
                                 },
                                 SegType::Matrix(modifiers) => {
-                                    let (m, maybe_len, maybe_tone) = self.alias_match_modifiers(i, j, modifiers);
+                                    let (m, maybe_len, maybe_tone) = self.alias_match_modifiers(i, j, modifiers, alias.input.position)?;
                                     if !m { is_match = false; break; }
                                     if let Some(len) = maybe_len { j+=len; plus_match_len = true; } else { j+=1; }
                                     if maybe_tone { strip_tone = true; }
@@ -1133,7 +1141,7 @@ impl Word {
             buffer = buffer.replace(['.', 'ˈ', 'ˌ'], b_repl);
         }
 
-        buffer
+        Ok(buffer)
     }
     
     pub fn get_syll_segments(&self, syll_index: usize) -> Option<&VecDeque<Segment>> {
@@ -1234,99 +1242,99 @@ mod word_tests {
 
     #[test]
     fn test_get_grapheme() {
-        let s = Word::new("n".to_owned(), &[]).unwrap().syllables[0].segments[0];
+        let s = Word::new("n").unwrap().syllables[0].segments[0];
         assert_eq!(s.get_as_grapheme(), Some("n".to_owned()));
 
-        let s = Word::new("x".to_owned(), &[]).unwrap().syllables[0].segments[0];
+        let s = Word::new("x").unwrap().syllables[0].segments[0];
         assert_eq!(s.get_as_grapheme(), Some("x".to_owned()));
 
-        let s = Word::new("xʷ".to_owned(), &[]).unwrap().syllables[0].segments[0];
+        let s = Word::new("xʷ").unwrap().syllables[0].segments[0];
         assert_eq!(s.get_as_grapheme(), Some("xʷ".to_owned()));
     }
 
     #[test]
     fn test_render_word() {
-        let w = Word::new("ˌna.kiˈsa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ˌna.kiˈsa");
+        let w = Word::new("ˌna.kiˈsa").unwrap();
+        assert_eq!(w.render(), "ˌna.kiˈsa");
 
-        let w = Word::new(",na.ki'sa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ˌna.kiˈsa");
+        let w = Word::new(",na.ki'sa").unwrap();
+        assert_eq!(w.render(), "ˌna.kiˈsa");
 
-        let w = Word::new("ˈna.ki.sa123", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ˈna.ki.sa123");
+        let w = Word::new("ˈna.ki.sa123").unwrap();
+        assert_eq!(w.render(), "ˈna.ki.sa123");
 
-        let w = Word::new("aɫ.ɫa:h", &[]).unwrap();
-        assert_eq!(w.render(&[]), "aɫ.ɫaːh");
+        let w = Word::new("aɫ.ɫa:h").unwrap();
+        assert_eq!(w.render(), "aɫ.ɫaːh");
 
-        let w = Word::new("aɫ.ɫa;hu", &[]).unwrap();
-        assert_eq!(w.render(&[]), "aɫ.ɫaː.hu");
+        let w = Word::new("aɫ.ɫa;hu").unwrap();
+        assert_eq!(w.render(), "aɫ.ɫaː.hu");
 
-        let w = Word::new("ˈɫɫaa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ˈɫːaː");
+        let w = Word::new("ˈɫɫaa").unwrap();
+        assert_eq!(w.render(), "ˈɫːaː");
 
-        let w = Word::new("ˈt͡saa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ˈt͡saː");
+        let w = Word::new("ˈt͡saa").unwrap();
+        assert_eq!(w.render(), "ˈt͡saː");
 
-        let w = Word::new("ˈt^saa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ˈt͡saː");
+        let w = Word::new("ˈt^saa").unwrap();
+        assert_eq!(w.render(), "ˈt͡saː");
 
-        let w = Word::new("ɴǃa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ɴǃa");
+        let w = Word::new("ɴǃa").unwrap();
+        assert_eq!(w.render(), "ɴǃa");
 
-        let w = Word::new("ǃɴa", &[]).unwrap();
-        assert_eq!(w.render(&[]), "ǃɴa");
+        let w = Word::new("ǃɴa").unwrap();
+        assert_eq!(w.render(), "ǃɴa");
     }
 
     #[test]
     fn test_render_tone() {
-        let w = Word::new("ma12", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma12");
+        let w = Word::new("ma12").unwrap(); 
+        assert_eq!(w.render(), "ma12");
 
-        let w = Word::new("ma196", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma196");
+        let w = Word::new("ma196").unwrap(); 
+        assert_eq!(w.render(), "ma196");
 
-        let w = Word::new("ma51", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma51");
+        let w = Word::new("ma51").unwrap(); 
+        assert_eq!(w.render(), "ma51");
 
-        let w = Word::new("ma05", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma5");
+        let w = Word::new("ma05").unwrap(); 
+        assert_eq!(w.render(), "ma5");
 
-        let w = Word::new("ma00", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma");
+        let w = Word::new("ma00").unwrap(); 
+        assert_eq!(w.render(), "ma");
 
-        let w = Word::new("ma1965", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma1965");
+        let w = Word::new("ma1965").unwrap(); 
+        assert_eq!(w.render(), "ma1965");
 
-        let w = Word::new("ma190065", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ma1965");
+        let w = Word::new("ma190065").unwrap(); 
+        assert_eq!(w.render(), "ma1965");
     }
 
     #[test]
     fn test_render_tone_multi() {
-        assert_eq!(Word::new("ma12ma12", &[]).unwrap().render(&[]), "ma12.ma12");
-        assert_eq!(Word::new("ma00ma12", &[]).unwrap().render(&[]), "ma.ma12");
-        assert_eq!(Word::new("ma12ma00", &[]).unwrap().render(&[]), "ma12.ma");
-        assert_eq!(Word::new("ma12ma1009", &[]).unwrap().render(&[]), "ma12.ma19");
+        assert_eq!(Word::new("ma12ma12").unwrap().render(), "ma12.ma12");
+        assert_eq!(Word::new("ma00ma12").unwrap().render(), "ma.ma12");
+        assert_eq!(Word::new("ma12ma00").unwrap().render(), "ma12.ma");
+        assert_eq!(Word::new("ma12ma1009").unwrap().render(), "ma12.ma19");
     }
 
 
     #[test]
     fn test_render_diacritics() {
         // TODO: Test other diacritic combinations
-        let w = Word::new("ˈmu.ðr̩", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ˈmu.ðr̩");
+        let w = Word::new("ˈmu.ðr̩").unwrap(); 
+        assert_eq!(w.render(), "ˈmu.ðr̩");
 
-        let w = Word::new("ˈpʰiːkʲ", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ˈpʰiːkʲ");
+        let w = Word::new("ˈpʰiːkʲ").unwrap(); 
+        assert_eq!(w.render(), "ˈpʰiːkʲ");
 
-        let w = Word::new("ˈpʰiikʲ", &[]).unwrap(); 
-        assert_eq!(w.render(&[]), "ˈpʰiːkʲ");
+        let w = Word::new("ˈpʰiikʲ").unwrap(); 
+        assert_eq!(w.render(), "ˈpʰiːkʲ");
     }
 
     #[test]
     fn test_render_aliases() {
-        match Word::new("'\"NGAN;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a\"r", &[]) {
-            Ok(w) => assert_eq!(w.render(&[]), "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼaʵ"),
+        match Word::new("'\"NGAN;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a\"r") {
+            Ok(w) => assert_eq!(w.render(), "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼaʵ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1352,8 +1360,8 @@ mod word_tests {
             0
         ).parse().unwrap();
 
-        match Word::new("¢:añ.φλełƛ", &into) {
-            Ok(w) => assert_eq!(w.render(&from), "¢ːañ.ɸλełƛ"),
+        match Word::with_aliases("¢:añ.φλełƛ", &into) {
+            Ok(w) => assert_eq!(w.render_with(&from).unwrap(), "¢ːañ.ɸλełƛ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1364,24 +1372,24 @@ mod word_tests {
     #[test]
     fn test_romanisation_simple() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"ʃ, a:[+str], $ > sh, á, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("ʃa'ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "shatá"),
+        match Word::new("ʃa'ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "shatá"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"k > c".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka;ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "ˈcaː.ta"),
+        match Word::new("'ka;ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "ˈcaː.ta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"a > o".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka::.ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "ˈkoːː.to"),
+        match Word::new("'ka::.ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "ˈkoːː.to"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1392,8 +1400,8 @@ mod word_tests {
     #[test]
     fn test_romanisation_length() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"ʃ:[+long], a:[+str, +long], t:[+long], $ > ssh, â, tt, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("ʃ:a't:a:", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "sshattâ"),
+        match Word::new("ʃ:a't:a:") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "sshattâ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1404,8 +1412,8 @@ mod word_tests {
     #[test]
     fn test_romanisation_syllables() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"ka, ta, na, $ > カ, タ, ナ, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("ka.ta.ka.na", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "カタカナ"),
+        match Word::new("ka.ta.ka.na") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "カタカナ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1416,8 +1424,8 @@ mod word_tests {
     #[test]
     fn test_romanisation_syllables_with_tone() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"ha:[tone: 55]n, ha:[tone: 51]n, y:[tone:214], $ > A, 汉, 语, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("han51.y214", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "汉语"),
+        match Word::new("han51.y214") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "汉语"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1428,8 +1436,8 @@ mod word_tests {
     #[test]
     fn test_romanisation_segment_with_unicode_plus() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"a:[+str], $ > +@{acute}, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka.ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "káta"),
+        match Word::new("'ka.ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "káta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1437,8 +1445,8 @@ mod word_tests {
         }
 
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"a:[+str], $ > @{acute}, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka.ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "ḱta"),
+        match Word::new("'ka.ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "ḱta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1449,8 +1457,8 @@ mod word_tests {
     #[test]
     fn test_romanisation_group_with_unicode_plus() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"V:[+str], $ > +@{acute}, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka.ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "káta"),
+        match Word::new("'ka.ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "káta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1458,8 +1466,8 @@ mod word_tests {
         }
 
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"V:[+str,+long], $ > +@{acute}, *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("'ka:.ta", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "káta"),
+        match Word::new("'ka:.ta") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "káta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1470,15 +1478,15 @@ mod word_tests {
     #[test]
     fn test_romanisation_remove_segment() {
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"a > *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("san.da", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "sn.d"),
+        match Word::new("san.da") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "sn.d"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
             }
         }
-        match Word::new("sa:n.da", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "sn.d"),
+        match Word::new("sa:n.da") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "sn.d"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1486,8 +1494,8 @@ mod word_tests {
         }
 
         let t = AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &"a:[+long] > *".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("sa:n.da", &[]) {
-            Ok(w) => assert_eq!(w.render(&t), "sn.da"),
+        match Word::new("sa:n.da") {
+            Ok(w) => assert_eq!(w.render_with(&t).unwrap(), "sn.da"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1498,8 +1506,8 @@ mod word_tests {
     #[test]
     fn test_deromanisation_simple() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"sh, á => ʃ, a:[+str]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("sha.tá", &t) {
-            Ok(w) => assert_eq!(w.render(&[]), "ʃaˈta"),
+        match Word::with_aliases("sha.tá", &t) {
+            Ok(w) => assert_eq!(w.render(), "ʃaˈta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1510,8 +1518,8 @@ mod word_tests {
     #[test]
     fn test_deromanisation_length() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"ssh, â => ʃ:[+long], a:[+str, +long]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("ssha.tâ", &t) {
-            Ok(w) => assert_eq!(w.render(&[]), "ʃːaˈtaː"),
+        match Word::with_aliases("ssha.tâ", &t) {
+            Ok(w) => assert_eq!(w.render(), "ʃːaˈtaː"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1519,8 +1527,8 @@ mod word_tests {
         }
 
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"+@{circum} => [+str, +long]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("tâ", &t) {
-            Ok(w) => assert_eq!(w.render(&[]), "ˈtaː"),
+        match Word::with_aliases("tâ", &t) {
+            Ok(w) => assert_eq!(w.render(), "ˈtaː"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1531,8 +1539,8 @@ mod word_tests {
     #[test]
     fn test_deromanisation_syllables() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"カ, タ, ナ > ka, ta, na".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("カ.タ.カ.ナ", &t) {
-            Ok(w) => assert_eq!(w.render(&[]), "ka.ta.ka.na"),
+        match Word::with_aliases("カ.タ.カ.ナ", &t) {
+            Ok(w) => assert_eq!(w.render(), "ka.ta.ka.na"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
@@ -1543,8 +1551,8 @@ mod word_tests {
     #[test]
     fn test_deromanisation_syllables_with_tone() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"汉, 语 => ha:[tn: 51]n, y:[tone:214]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::new("汉.语", &t) {
-            Ok(w) => assert_eq!(w.render(&[]), "han51.y214"),
+        match Word::with_aliases("汉.语", &t) {
+            Ok(w) => assert_eq!(w.render(), "han51.y214"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);

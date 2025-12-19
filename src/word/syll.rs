@@ -73,7 +73,7 @@ impl Syllable {
     ///
     /// ```
     /// use asca::word::Word;
-    /// let word = Word::new("sta:r".to_string(), &[]).unwrap();
+    /// let word = Word::new("sta:r".to_string()).unwrap();
     ///
     /// let seg_indices = word.syllables[0].seg_indices();
     /// assert_eq!(4, seg_indices.len());
@@ -298,19 +298,19 @@ impl fmt::Display for Syllable {
 #[test]
 fn test_seg_indices() {
     use super::*;
-    let indices = (&Word::new("ka:r".to_owned(), &[]).unwrap().syllables[0]).seg_indices();
+    let indices = (&Word::new("ka:r".to_owned()).unwrap().syllables[0]).seg_indices();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[1], 1);
     assert_eq!(indices[2], 3);
 
-    let indices = (&Word::new("ka::r".to_owned(), &[]).unwrap().syllables[0]).seg_indices();
+    let indices = (&Word::new("ka::r".to_owned()).unwrap().syllables[0]).seg_indices();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[1], 1);
     assert_eq!(indices[2], 4);
 
-    let indices = (&Word::new("k:ar:".to_owned(), &[]).unwrap().syllables[0]).seg_indices();
+    let indices = (&Word::new("k:ar:".to_owned()).unwrap().syllables[0]).seg_indices();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices[0], 0);
     assert_eq!(indices[1], 2);
