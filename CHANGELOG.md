@@ -2,19 +2,29 @@ NEXT RELEASE
 ==================
 [0.9.3...latest](https://github.com/Girv98/asca-rust/compare/0.9.3...master)
 
+Breaking:
+* Lib: 
+    * Rules such as `a > e` now preserve length
+        * Previously, this rule would cause a word such as `ha:t` to become `het`. 
+        * This change now brings the behaviour of IPA Literals in line with Groupings and Matrices.
+        * Previous behaviour is preserved when the input is matched by length e.g. `a:[+lng] > e` which is equiv. to `a:[+lng] > e:[-lng]`
+        * See [here](https://github.com/Girv98/asca-rust/blob/ed82cfc45e556addda79bdcbfed7b0bf08e1ba8d/doc/doc.md#substituting-long-ipa) for an archived explanation of the previous behaviour
+    * Library API changes
+        * `Word` and `Phrase` functions now split into variants with and without alias parameters
+            * i.e. `Word::new` && `Word::with`, `Word::render` && `Word::render_with`
+        * Functions now generic over types that implement `AsRef<str>`
+
 Features:
 * Lib:
     * Combined Alpha Suprasegmentals
-        * Allows for multi-dimensional suprasegmentals (i.e. stress and length) to be referenced with one alpha notation.
+        * Allows for multi-dimensional suprasegmentals (i.e. stress and length) to be referenced with one alpha.
         * `[A long, B overlong]` can be replaced with just `[A length]`
         * `[A stress, B sec.stress]` can be replaced with just `[A anystress]`
     * Allow for the underline to be placed within an environment structure.
         * E.g. `VN > [+nas] / <.._>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable 
 
-
 Fixes:
 * Lib: corrected structure location error highlighting
-
 
 Perf: 30% average execution speed up of Proto-Germanic example config (~5ms -> ~3.5ms)
 
