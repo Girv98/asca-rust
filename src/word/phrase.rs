@@ -51,13 +51,13 @@ impl Phrase {
         let alias_into = alias::parse_into(aliases)?;
 
         unparsed_phrases.iter().map(|up| 
-            up.as_ref().trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect()
+            up.as_ref().trim_end().split(' ').map(|w| Word::with(w, &alias_into)).collect()
         ).collect()
     }
 
     pub fn try_from(unparsed_phrase: &str, aliases: &[String]) -> Result<Self, ASCAError> {
         let alias_into = alias::parse_into(aliases)?;
-        unparsed_phrase.trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect()
+        unparsed_phrase.trim_end().split(' ').map(|w| Word::with(w, &alias_into)).collect()
     }
 
     pub fn render_debug(&self, aliases: &[Transformation]) -> Result<(String, Vec<Segment>), ASCAError> {

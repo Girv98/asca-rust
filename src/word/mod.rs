@@ -214,7 +214,7 @@ impl Word {
         Ok(w)
     }
 
-    pub fn with_aliases<S: AsRef<str>>(text: S, aliases: &[Transformation]) -> Result<Self, ASCAError> {
+    pub fn with<S: AsRef<str>>(text: S, aliases: &[Transformation]) -> Result<Self, ASCAError> {
         let mut w = Self { syllables: Vec::new() };
         w.setup(Self::normalise(text.as_ref()), aliases)?;
 
@@ -1360,7 +1360,7 @@ mod word_tests {
             0
         ).parse().unwrap();
 
-        match Word::with_aliases("¢:añ.φλełƛ", &into) {
+        match Word::with("¢:añ.φλełƛ", &into) {
             Ok(w) => assert_eq!(w.render_with(&from).unwrap(), "¢ːañ.ɸλełƛ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
@@ -1506,7 +1506,7 @@ mod word_tests {
     #[test]
     fn test_deromanisation_simple() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"sh, á => ʃ, a:[+str]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::with_aliases("sha.tá", &t) {
+        match Word::with("sha.tá", &t) {
             Ok(w) => assert_eq!(w.render(), "ʃaˈta"),
             Err(e) => {
                 println!("{}", e.format_word_error());
@@ -1518,7 +1518,7 @@ mod word_tests {
     #[test]
     fn test_deromanisation_length() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"ssh, â => ʃ:[+long], a:[+str, +long]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::with_aliases("ssha.tâ", &t) {
+        match Word::with("ssha.tâ", &t) {
             Ok(w) => assert_eq!(w.render(), "ʃːaˈtaː"),
             Err(e) => {
                 println!("{}", e.format_word_error());
@@ -1527,7 +1527,7 @@ mod word_tests {
         }
 
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"+@{circum} => [+str, +long]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::with_aliases("tâ", &t) {
+        match Word::with("tâ", &t) {
             Ok(w) => assert_eq!(w.render(), "ˈtaː"),
             Err(e) => {
                 println!("{}", e.format_word_error());
@@ -1539,7 +1539,7 @@ mod word_tests {
     #[test]
     fn test_deromanisation_syllables() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"カ, タ, ナ > ka, ta, na".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::with_aliases("カ.タ.カ.ナ", &t) {
+        match Word::with("カ.タ.カ.ナ", &t) {
             Ok(w) => assert_eq!(w.render(), "ka.ta.ka.na"),
             Err(e) => {
                 println!("{}", e.format_word_error());
@@ -1551,7 +1551,7 @@ mod word_tests {
     #[test]
     fn test_deromanisation_syllables_with_tone() {
         let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &"汉, 语 => ha:[tn: 51]n, y:[tone:214]".chars().collect::<Vec<_>>(), 0).get_line().unwrap(), 0).parse().unwrap();
-        match Word::with_aliases("汉.语", &t) {
+        match Word::with("汉.语", &t) {
             Ok(w) => assert_eq!(w.render(), "han51.y214"),
             Err(e) => {
                 println!("{}", e.format_word_error());

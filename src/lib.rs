@@ -155,7 +155,7 @@ pub fn run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String], u
     let alias_from = alias::parse_from(unparsed_from)?;
 
     unparsed_phrases.iter().map(|up| {
-        let phrase = match up.split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect::<Result<Phrase, _>>() {
+        let phrase = match up.split(' ').map(|w| Word::with(w, &alias_into)).collect::<Result<Phrase, _>>() {
             Ok(ph) => ph,
             Err(e) => return Err(e),
         };
@@ -182,7 +182,7 @@ pub fn run_unparsed_debug(unparsed_rules: &[RuleGroup], unparsed_phrases: &[Stri
     let alias_from = alias::parse_from(unparsed_from)?;
     
     let (input, applied) = unparsed_phrases.par_iter().map(|up| {
-        let phrase = match up.trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect::<Result<Phrase, _>>() {
+        let phrase = match up.trim_end().split(' ').map(|w| Word::with(w, &alias_into)).collect::<Result<Phrase, _>>() {
             Ok(ph) => ph,
             Err(e) => return Err(e),
         };
@@ -213,7 +213,7 @@ pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String
     let alias_from = alias::parse_from(unparsed_from)?;
 
     unparsed_phrases.par_iter().map(|up| {
-        let phrase = match up.trim_end().split(' ').map(|w| Word::with_aliases(w, &alias_into)).collect::<Result<Phrase, _>>() {
+        let phrase = match up.trim_end().split(' ').map(|w| Word::with(w, &alias_into)).collect::<Result<Phrase, _>>() {
             Ok(ph) => ph,
             Err(e) => return Err(e),
         };
