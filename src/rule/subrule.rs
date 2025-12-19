@@ -3581,7 +3581,7 @@ impl SubRule { // Input Matching
 
         if let Some(m) = mods {
             if self.match_ipa_with_modifiers(s, m, phrase, pos, err_pos)? {
-                if phrase.seg_length_at(*pos) > 1 {
+                if m.suprs.length.is_some() {
                     captures.push(MatchElement::LongSegment(*pos, None));
                 } else {
                     captures.push(MatchElement::Segment(*pos, None));
@@ -3593,11 +3593,7 @@ impl SubRule { // Input Matching
                 Ok(false)
             }
         } else if *s == seg {
-            if phrase.seg_length_at(*pos) > 1 {
-                captures.push(MatchElement::LongSegment(*pos, None));
-            } else {
-                captures.push(MatchElement::Segment(*pos, None));
-            }
+            captures.push(MatchElement::Segment(*pos, None));
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
@@ -3657,10 +3653,7 @@ impl SubRule { // Input Matching
                 let Some(seg) = phrase.get_seg_at(*pos) else { return Ok(false) };
                 self.references.borrow_mut().insert(*r, RefKind::Segment(seg));
             }
-            match mods.suprs.length {
-                None => captures.push(MatchElement::Segment(*pos, None)),
-                _    => captures.push(MatchElement::LongSegment(*pos, None))
-            }
+            captures.push(MatchElement::LongSegment(*pos, None));
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
