@@ -3339,15 +3339,10 @@ impl SubRule { // Input Matching
     }
 
     fn contains_syll_bound(&self, x: &ParseItem) -> Option<usize> {
-        let ParseElement::Set(set) = &x.kind else { return None };
-
-        for (i, item) in set.iter().enumerate() {
-            if item.kind == ParseElement::SyllBound {
-                return Some(i)
-            }
+        match &x.kind {
+            ParseElement::Set(set) => set.contains_at(ParseElement::SyllBound),
+            _ => None,
         }
-
-        None
     }
 
     fn input_match_item(

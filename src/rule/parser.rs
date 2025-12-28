@@ -1,4 +1,4 @@
-use std::{ fmt, sync::Arc };
+use std::{ fmt, ops, sync::Arc };
 
 use crate :: {
     error :: RuleSyntaxError, 
@@ -86,6 +86,41 @@ impl Env {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+// pub(crate) struct ItemSet(Vec<SetElement>);
+pub(crate) struct ItemSet(Vec<ParseItem>);
+
+impl ops::Deref for ItemSet {
+    type Target = Vec<ParseItem>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ops::DerefMut for ItemSet {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl ItemSet {
+    pub(crate) fn reverse(&mut self) {
+        self.0.reverse();
+        for el in &mut self.0 { el.reverse(); }
+    }
+
+    pub(crate) fn contains_at(&self, element: ParseElement) -> Option<usize> {
+        for (i, item) in self.0.iter().enumerate() {
+            if item.kind == element {
+                return Some(i)
+            }
+        }
+
+        None
+    }
+}
+
 #[doc(hidden)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Reference {
@@ -130,7 +165,7 @@ pub(crate) enum ParseElement {
     Metathesis , // &
     Ellipsis   , // ..
     OptEllipsis, // (..)
-    Set      (Vec<ParseItem>),
+    Set      (ItemSet),
     Ipa      (Segment, Option<Modifiers>),
     Matrix   (Modifiers, RefAssign),
     Syllable (StressMod, Option<Tone>, RefAssign),
@@ -155,11 +190,11 @@ impl ParseElement {
             Self::Matrix(..) | Self::Reference(..) | Self::Syllable(..) | 
             Self::OptEllipsis  | Self::ExtlBound => {},
             
-            Self::Optional(items, ..) | Self::Structure(items, ..) | 
-            Self::Set(items) => {
+            Self::Optional(items, ..) | Self::Structure(items, ..) => {
                 items.reverse();
                 for i in items { i.reverse(); }
             },
+            Self::Set(set) => { set.reverse(); }
         }
     }
 }
@@ -174,13 +209,13 @@ impl fmt::Display for ParseElement {
                 // write!(f, "{} = [{}]", t, tt)
                 write!(f, "{tk:#?} = {p:#?}")
             },
-            Self::EmptySet   => write!(f, "∅"),
-            Self::ExtlBound  => write!(f, "##"),
-            Self::WordBound  => write!(f, "#"),
-            Self::SyllBound  => write!(f, "$"),
-            Self::Ellipsis   => write!(f, "…"),
-            Self::OptEllipsis  => write!(f, "(…)"),
-            Self::Metathesis => write!(f, "&"),
+            Self::EmptySet    => write!(f, "∅"),
+            Self::ExtlBound   => write!(f, "##"),
+            Self::WordBound   => write!(f, "#"),
+            Self::SyllBound   => write!(f, "$"),
+            Self::Ellipsis    => write!(f, "…"),
+            Self::OptEllipsis => write!(f, "(…)"),
+            Self::Metathesis  => write!(f, "&"),
 
             Self::Ipa(s, m) => write!(f, "{s:?} + {m:?}"),
 
@@ -211,7 +246,7 @@ impl fmt::Display for ParseElement {
             // }
             Self::Set(s) => {
                 write!(f, "{{")?;
-                for i in s {
+                for i in s.iter() {
                     write!(f, "{i}")?;
                     write!(f, ", ")?;
                 }
@@ -998,7 +1033,7 @@ impl Parser {
         if terms.is_empty() {
             Err(RuleSyntaxError::EmptySet(pos))
         } else {
-            Ok(Some(ParseItem::new(ParseElement::Set(terms.clone()), pos)))
+            Ok(Some(ParseItem::new(ParseElement::Set(ItemSet(terms.clone())), pos)))
         }
     }
 
