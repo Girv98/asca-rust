@@ -749,9 +749,7 @@ impl SubRule {
 
     fn gen_syll_from_struct(&self, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, err_pos: Position, is_inserting: bool) -> Result<Syllable, RuleRuntimeError> {
         let mut syll = Syllable::new();
-        let mods = SupraSegs { stress: *stress, length: None, tone: *tone };
-
-        syll.apply_syll_mods(&self.alphas, &mods, err_pos)?;
+        syll.apply_syll_mods(&self.alphas, &SupraSegs { stress: *stress, length: None, tone: *tone }, err_pos)?;
 
         for item in items {
             match &item.kind {
@@ -865,12 +863,8 @@ impl SubRule {
     }
 
     fn concat_tone(prev: Tone, aft: Tone) -> Tone {
-        if prev == aft {
-            return prev
-        }
-        if prev == 0 || aft == 0 {
-            return prev | aft
-        }
+        if prev == aft { return prev }
+        if prev == 0 || aft == 0 { return prev | aft }
 
         let new_tone = prev as u64 * 10u64.pow(aft.ilog10()+1) + aft as u64;
 
