@@ -99,10 +99,18 @@ impl SegPos {
         }
     }
 
+    pub(crate) fn ins_inc(&mut self, phrase: &Phrase) {
+        if self.syll_index >= phrase[self.word_index].syllables.len() { return }
+        
+        self.seg_index += 1;
+        if self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() + 1 {
+            self.seg_index = 0;
+            self.syll_index += 1;
+        }
+    }
+
     pub(crate) fn increment(&mut self, phrase: &Phrase) {
         // NOTE: Does not guarantee that the resulting position is within the bounds of the word
-        // debug_assert!(self.syll_index < word.syllables.len(), "error incrementing");
-
         if self.syll_index >= phrase[self.word_index].syllables.len() { return }
 
         self.seg_index += 1;

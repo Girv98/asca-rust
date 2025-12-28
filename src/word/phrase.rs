@@ -137,6 +137,10 @@ impl Phrase {
         self[sp.word_index].syllables[sp.syll_index].get_seg_length_at(sp.seg_index)
     }
 
+    pub(crate) fn insertion_in_bounds(&self, pos: SegPos) -> bool {
+        pos.syll_index < self[pos.word_index].syllables.len() && pos.seg_index <= self[pos.word_index].syllables[pos.syll_index].segments.len()
+    }
+
     pub(crate) fn in_bounds(&self, pos: SegPos) -> bool {
         pos.syll_index < self[pos.word_index].syllables.len() && pos.seg_index < self[pos.word_index].syllables[pos.syll_index].segments.len()
     }
