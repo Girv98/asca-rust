@@ -71,6 +71,15 @@ impl ModKind {
         }
     }
 
+    #[allow(unused)]
+    pub(crate) fn as_alpha_mod(&self) -> Option<&AlphaMod> {
+        if let Self::Alpha(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn as_bin_mod(&self) -> Option<&BinMod> {
         if let Self::Binary(v) = self {
             Some(v)
