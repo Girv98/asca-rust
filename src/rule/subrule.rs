@@ -630,8 +630,8 @@ impl SubRule {
                             continue 'inner;
                         }
                         let mut before_expt = before_expt.clone(); before_expt.reverse();
-                        if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
-                        && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, true)?) {
+                        if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, false)?) 
+                        && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, false)?) {
                             Self::syll_inc(&phrase, &mut pos); continue 'outer;
                         }
                     }
@@ -640,8 +640,8 @@ impl SubRule {
                         continue 'inner;
                     }
                     let mut before_expt = before_expt.clone(); before_expt.reverse();
-                    if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, true)?) 
-                    && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, true)?) {
+                    if (before_expt.is_empty() || self.match_before_env(&before_expt, &phrase_rev, &pos.reversed(&phrase), false, true, false)?) 
+                    && (after_expt.is_empty()  || self.match_after_env(after_expt, &phrase, &end_pos, false, true, false)?) {
                         Self::syll_inc(&phrase, &mut pos); continue 'outer;
                     }
                 }
