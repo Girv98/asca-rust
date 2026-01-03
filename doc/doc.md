@@ -190,7 +190,7 @@ Named escapes take to form of `@{....}`. They allow for common diacritics to be 
 @{Macron}       (U+0304 Combining Macron)
 @{OverLine}     (U+0305 Combining Overline)
 @{Breve}        (U+0306 Combining Breve)
-@{OverDot}      (U+0307 Combining Dot Below)
+@{OverDot}      (U+0307 Combining Dot Above)
 @{Umlaut}       (U+0308 Combining Diaeresis)
 @{OverHook}     (U+0309 Combining Hook Above)
 @{OverRing}     (U+030A Combining Ring Above)
