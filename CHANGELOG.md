@@ -8,7 +8,7 @@ Breaking:
         * Previously, this rule would cause a word such as `ha:t` to become `het`. 
         * This change now brings the behaviour of IPA Literals in line with Groupings and Matrices.
         * Previous behaviour is preserved when the input is matched by length e.g. `a:[+lng] > e` which is equiv. to `a:[+lng] > e:[-lng]`
-        * See [here](https://github.com/Girv98/asca-rust/blob/ed82cfc45e556addda79bdcbfed7b0bf08e1ba8d/doc/doc.md#substituting-long-ipa) for an archived explanation of the previous behaviour
+        * See [here](https://github.com/Girv98/asca-rust/blob/ed82cfc45e556addda79bdcbfed7b0bf08e1ba8d/doc/doc.md#substituting-long-ipa) for an archived explanation for the previous behaviour
     * Library API changes
         * `Word` and `Phrase` functions now split into variants with and without alias parameters
             * i.e. `Word::new` && `Word::with`, `Word::render` && `Word::render_with`
@@ -21,7 +21,8 @@ Features:
         * `[A long, B overlong]` can be replaced with just `[A length]`
         * `[A stress, B sec.stress]` can be replaced with just `[A anystress]`
     * Allow for the underline to be placed within an environment structure.
-        * E.g. `VN > [+nas] / <.._>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable 
+        * E.g. `VN > [+nas] / <(..)_>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable and `N` is coda.
+    * New insertion implementation which is hopefully more stable
 
 Fixes:
 * Lib: corrected structure location error highlighting
@@ -33,7 +34,7 @@ Perf: 20-30% average execution speed up of example configs
 [0.9.2...0.9.3](https://github.com/Girv98/asca-rust/compare/0.9.2...0.9.3)
 
 Fixes: 
-* Cli: Core ASCA errors return with exit code 1
+* Cli: Core ASCA errors return with exit code 1 ([#7](https://github.com/Girv98/asca-rust/issues/7))
 * Lib: 
     * Avoid infinite loop after lengthening a segment in certain situations at the end of a word
     * Enforce use of commas within a set i.e. `{p,t,k}` not `{ptk}` (trailing comma allowed)
