@@ -67,7 +67,7 @@ Doubly articulated stops, such as `ɡ͡b`, are not supported.
 
 In the event that ASCA is unable to render a segment in IPA, `�` will be used in its place.
 
-Unless the diacritic is inherent to the base phone (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
+Unless the diacritic is inherent to the base phoneme (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
 
 A full list of supported base phones and diacritics (with their values) can be found [here](https://bit.ly/3sHjqvA).
 
@@ -207,9 +207,9 @@ Named escapes take to form of `@{....}`. They allow for common diacritics to be 
 @{Ogonek}       (U+0328 Combining Ogonek)
 ```
 Capitalisation and spaces have no effect i.e. `@{OverDot}` is equal to `@{over dot}`. 
-Many also have alternatives, for examples as `@{OverX}` can be `@{XAbove}` or just `@{X}`.
+Many also have alternatives, for example `@{OverX}` can be `@{XAbove}` or just `@{X}`. <!-- TODO: list  alternatives -->
 
-It is important to note that at the aliasing stage asca does not decompose any unicode characters, so `ą (U+0105)` will not match `a @{ogonek}` which is the sequence `U+0061 U+0328` (This may change).
+It is important to note that at the aliasing stage ASCA does not decompose any unicode characters, so `ą (U+0105)` will not match `a @{ogonek}` which is the sequence `U+0061 U+0328` (This may change).
 
 More characters can be added on request.
 
