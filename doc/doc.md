@@ -454,8 +454,16 @@ can be condensed into:
 ```
 e > * / #_, _#
 ```
-It is important to remember that the rules are still applied sequentially and not at the same time (see [environment sets](#environment-sets) for this).
-Parts of a condensed rule must either be of the same length or contain only one item.
+It is important to remember that this is essentially 'syntactic sugar' and that the rules are still applied sequentially and not at the same time (see [sets](#sets) and [environment sets](#environment-sets) for this).
+
+Parts of a condensed rule must either be of the same length or contain only one item:
+
+```
+p,t,k > b,d,g ;; Works, each input part is mapped to an output part
+p,t,k > b     ;; Works, each input part is mapped onto /b/
+p > b,d,g     ;; Works, each output part is mapped onto /p/
+p,t,k > b,d   ;; Errors, /k/ isn't paired
+```
 
 ### Special Environment
 
