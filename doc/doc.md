@@ -33,7 +33,7 @@ This is documentation for the core principles of defining words and sound change
         * [Groupings](#groupings)
         * [Sets](#sets)
         * [Environment Sets](#environment-sets)
-        * [Optional Segments](#optional-segments)
+        * [Optionals](#optionals)
         * [References](#references)
         * [Ellipses](#ellipses)
         * [Syllable Structure Matching](#syllable-structure-matching)
@@ -881,14 +881,14 @@ juːθ => juːθ (youth)
 These sets can be used as part of condensed rules, and are valid in substitution, deletion, and metathesis rules.
 They are currently not allowed in insertion rules, however this will change in further updates.
 
-### Optional Segments
-Optional Segments are declared as `(S, M:N)` where: 
+### Optionals
+Optionals are declared as `(S, M:X)` where: 
 ```
-S = the segment(s) to be repeated
+S = the items(s) to be repeated (Boundaries, Syllables, Segments, References, Matrices, Sets)
 M = the minimum number of iterations
-N = the maximum number of iterations (inclusive). N must be greater than or equal to M.
+X = the maximum number of iterations (inclusive). X must be greater than or equal to M.
 ```
-Both `M` and `N` can be omitted, with default values being `0` and `Max` respectfully. When `M` is omitted, an option can be declared simply as `(S, N)`.
+Both `M` and `X` can be omitted, with default values being `0` and `'Max'` respectfully. When `M` is omitted, an optional can be declared simply as `(S, X)`.
 
 For example, `(C,5)_` is equivalent to `(C, 0:5)` or `(C, :5)` and matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
 
@@ -898,7 +898,7 @@ For example, `(C,5)_` is equivalent to `(C, 0:5)` or `(C, :5)` and matches up to
 
 `(C, 3:3)_` matches exactly `CCC_`
 
-`(C,0)_` or `(C,:)` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)`.
+`(C,0)_` or `(C,:)` matches any number of consonants preceding the target. This is equivalent in use to regex’s Lazy-Zero-Or-More operator `(*?)` or standard notation `C₀`.
 
 `(C)_` matches zero or one consonant preceding the target. This is the same as `(C,1)_`, `(C,0:1)_` or `(C, :1)`.
 
@@ -971,7 +971,7 @@ r(..)l > l(..)r
 
 Sometimes it can be useful to match a syllable based on the segments within. We can do this by using a Structure. 
 
-Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-than signs `< >`. They can contain segments, matrices, references, sets, options, or ellipses.
+Structures are defined between angle brackets `⟨ ⟩` or less-than/greater-than signs `< >`. They can contain segments, matrices, references, sets, optionals, or ellipses.
 Ellipses are useful for matching a certain part of the syllable, such as the onset or coda.
 ```
 ⟨..P:[-voi]⟩ => [tone: 35]
