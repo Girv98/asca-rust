@@ -340,13 +340,18 @@ e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
 
 The 'arrow' can be `=>`, `->`, or just `>`. The exception block can be introduced by either `|` or `//`.
 
-An environment can only contain one underline `_` or a series of joined underlines. An empty environment can be omitted:
+An environment can only contain one underline `_` or a series of joined underlines. An empty context environment can be omitted:
 ```wasm
 a > e           ;; /saj/ > /sej/
 a > e / _       ;; this is equivalent to the above
 a > e / ___     ;; this is also valid
 a > e / _ _     ;; this is invalid
 a > e /         ;; this is invalid
+```
+Note however, that an empty exception environment is not semantically equivalent to an omitted one:
+``` wasm
+a > e           ;; /saj/ > /sej/    "/a/ goes to /e/ everywhere"
+a > e | _       ;; /saj/ > /saj/    "/a/ goes to /e/ except everywhere (nowhere)"
 ```
 
 ### Single Line Comments
