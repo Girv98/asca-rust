@@ -5,8 +5,9 @@
     - Syllable boundary insertion
 - Cli
     - Better rule file `.rsca` syntax
-- Other
+- Rule Features
     - Underline in structures i.e. `N > * / <..V_>` instead of `N > * / V_$` to guarantee same syllable
+    - Sets to contain sequences of items
 
 
 ### Known Bugs
