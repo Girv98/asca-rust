@@ -290,10 +290,10 @@ This indicates that the string should be **added** to the normal rendering of th
 
 This can be useful for generalising diacritics to certain features:
 ```
-V:[+str, +long] => +@{circumflex}       ( equiv. to:    a:[+str, +long], e:[+str, +long], ... => â, ê, ... )
-V:[-str, +long] => +@{macron}           ( equiv. to:    a:[-str, +long], e:[-str, +long], ... => ā, ē, ... )
-V:[+str, -long] => +@{acute}            ( equiv. to:    a:[+str, -long], e:[+str, -long], ... => á, é, ... )
-V:[+nasal]      => +@{ogonek}           ( equiv. to:    a:[+nasal], e:[+nasal], ...           => ą, ę, ... )
+V:[+str, +long] => +@{circumflex}   ( equiv. to:    a:[+str, +long], e:[+str, +long], ... => â, ê, ... )
+V:[-str, +long] => +@{macron}       ( equiv. to:    a:[-str, +long], e:[-str, +long], ... => ā, ē, ... )
+V:[+str, -long] => +@{acute}        ( equiv. to:    a:[+str, -long], e:[+str, -long], ... => á, é, ... )
+V:[+nasal]      => +@{ogonek}       ( equiv. to:    a:[+nasal], e:[+nasal], ...           => ą, ę, ... )
 ```
 
 When used in deromanisation rules, this allows for payload to be added to the previously calculated segment.
@@ -301,7 +301,6 @@ When used in deromanisation rules, this allows for payload to be added to the pr
 +@{ogonek} => [+nasal]
 
 as.tą (becomes) /as.tã/
-
 ```
 It should be noted that this same rule without '+' errors as incomplete matrices cannot be converted to a canonical segment.
 
@@ -757,19 +756,19 @@ Any alpha in the output must be prior set in either the input or context.
 
 A node alpha carries all the features within it. This can be very useful for assimilation rules.
 
-```
+```wasm
 Rule Example: Nasal Assimilation
 
 [+cons, +nasal] > [α PLACE] / _[+cons, αPLACE] 
-(A nasal consonant takes the place of a following consonant i.e. [nk] > [ŋk])
+;; A nasal consonant takes the place of a following consonant i.e. [nk] > [ŋk]
 ```
 When an alpha first assigned to a node is used on a binary feature, it is coerced positive or negative. The place node is positive when the segment has any place subnode.
 
-```
+```wasm
 Random Example: 
 
 P:[α DOR] > [α round]
-(Any dorsal plosive becomes +round, any non-dorsal plosive becomes -round)
+;; Any dorsal plosive becomes +round, any non-dorsal plosive becomes -round
 ```
 
 ### Inversion
@@ -782,15 +781,15 @@ It would be nice if we were able to join them into one rule. To accomplish this,
 ```wasm
 O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid] / _#
 
-/pat/ => /paʔ/, /pas/ => /pah/
+;; /pat/ => /paʔ/, /pas/ => /pah/
 ```
 The above means that when matching an obstruent that is `[-cont]` the output becomes `[-s.g., +c.g.]`, while when the obstruent is `[+cont]`, the output is `[+s.g., -c.g.]`
 
 This can be used with nodes for conditional clustering:
-```
+```wasm
 ə$ > * / P:[αPLACE]_N:[-αPLACE]
 
-/pə.no/ => /pno/, /pə.mo/ => /pə.mo/
+;; /pə.no/ => /pno/, /pə.mo/ => /pə.mo/
 ```
 In the rule above, plosives and nasals cluster only if they are of a different place of articulation.
 
