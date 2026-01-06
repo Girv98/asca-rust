@@ -17,7 +17,7 @@ This is documentation for the core principles of defining words and sound change
         * [Insertion and Deletion](#insertion-and-deletion-rules)
         * [Metathesis](#metathesis-rules)
         * [Condensed Rules](#condensed-rules)
-        * [Special Environment](#special-environment)
+        * [Environment Shorthand](#environment-shorthand)
         * [Syllable Structure](#syllable-structure)
     * [Segment Features](#segment-features)
         * [Using Distinctive Features](#using-distinctive-features)
@@ -462,13 +462,13 @@ Parts of a condensed rule must either be of the same length or contain only one 
 ```
 p,t,k > b,d,g ;; Works, each input part is mapped to an output part
 p,t,k > b     ;; Works, each input part is mapped onto /b/
-p > b,d,g     ;; Works, each output part is mapped onto /p/
+p     > b,d,g ;; Works, each output part is mapped onto /p/
 p,t,k > b,d   ;; Errors, /k/ isn't paired
 ```
 
-### Special Environment
+### Environment Shorthand
 
-You may often have condensed rules like the one above where the same environs are being matched both before and after the input. As this can be common, there is a shorthand form of `_,` followed by the environment elements in question.
+You may often have condensed rules like above, where the same environment is being matched both before and after the input. As this can be common, there is a shorthand form of `_,` followed by the environment elements in question.
 
 ``` wasm
 e > * / #_, _#
@@ -480,6 +480,13 @@ Any elements past the comma are mirrored such that:
 ```
 _,ABC => ABC_ , _CBA
 ```
+
+This cannot be used with other environments or within an environment set.
+```
+e > * / _,#, _C     ;; Error!
+```
+
+*(Shout out to [LangTime Studio](https://www.youtube.com/live/9KhHvrtG8Z8?si=oL63v-2s81YR8v-T&t=6408))*
 
 ### Syllable Structure
 ASCA does not enforce 'legal' syllables and it is up to you to maintain syllable boundaries.
