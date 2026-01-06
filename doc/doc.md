@@ -109,9 +109,9 @@ g => ɡ
 φ => ɸ
 ñ => ɲ
 ł => ɬ
-
-(Some diacritics can be aliased with a double-quote ")
-
+```
+Some common diacritics can be aliased with a double-quote `"`:
+```
 "' => ʼ
 "j => ʲ
 "w => ʷ
@@ -136,24 +136,25 @@ g => ɡ
 "R or "ʁ => ʶ
 "e or "ə => ᵊ
 "? or "ʔ => ˀ
+```
+The following cannot be used inside a rule (as they clash with [rule specific syntax](#groupings)), but can be used when defining a word:
+```
+S => ʃ  (voiceless postalveolar fricative)
+Z => ʒ  (voiced postalveolar fricative)
+C => ɕ  (voiceless alveolo-palatal fricative)
+G => ɢ  (voiced uvular plosive)
+N => ɴ  (voiced uvular nasal)
+B => ʙ  (voiced bilabial trill)
+R => ʀ  (voiced uvular trill)
+X => χ  (voiceless uvular fricative)
+H => ʜ  (voiceless epiglottal fricative)
 
-(Note: The following cannot be used inside a rule, but can be used when defining a word)
-
-S => ʃ
-Z => ʒ
-C => ɕ
-G => ɢ
-N => ɴ
-B => ʙ
-R => ʀ
-X => χ (voiceless uvular fricative)
-H => ʜ
-A => ɐ
-E => ɛ
-I => ɪ
-O => ɔ
-U => ʊ
-Y => ʏ
+A => ɐ  (near-low central vowel)
+E => ɛ  (low-mid front unrounded vowel)
+I => ɪ  (near-high near-front unrounded vowel)
+O => ɔ  (low-mid back rounded vowel)
+U => ʊ  (near-high near-back rounded vowel)
+Y => ʏ  (near-high near-front rounded vowel)
 ```
 Aliases are rendered as their target IPA characters in the output.
 
