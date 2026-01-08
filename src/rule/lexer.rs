@@ -214,6 +214,14 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn next_next_char(&self) -> char {
+        if self.source.len() > self.pos+2 {
+            self.source[self.pos+2]
+        } else {
+            '\0'
+        }
+    }
+
     fn last_char_eq(&self, ch: char) -> bool {
         if self.pos == 0 { return false }
 
@@ -239,7 +247,8 @@ impl<'a> Lexer<'a> {
             ']' => { tokenkind = TokenKind::RightSquare;  value = "]"; self.inside_matrix = false },
             '⟩' => { tokenkind = TokenKind::RightAngle;   value = "⟩"; self.inside_syll   = false },
             '}' => match self.next_char() {
-                ':' => { tokenkind = TokenKind::RightColCurly; value = "}:"; self.inside_env_set = false; self.advance(); },
+                ':' if self.next_next_char() != '[' => 
+                       { tokenkind = TokenKind::RightColCurly; value = "}:"; self.inside_env_set = false; self.advance(); },
                  _  => { tokenkind = TokenKind::RightCurly;    value = "}";  self.inside_set = false; }
             },
             '⟨' => { 
@@ -1000,6 +1009,42 @@ mod lexer_tests {
             Token::new(TokenKind::RightCurly,     "}", 0, 0, 19, 20),
             Token::new(TokenKind::RightColCurly, "}:", 0, 0, 21, 23),
             Token::new(TokenKind::Eol,             "", 0, 0, 23, 24),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn test_modified_set() {
+        let test_input= String::from("{C,V}:[] > * / :{ j_{}:[] }:");
+                let expected_result = vec![
+            Token::new(TokenKind::LeftCurly,      "{", 0, 0,  0,  1),
+            Token::new(TokenKind::Group,          "C", 0, 0,  1,  2),
+            Token::new(TokenKind::Comma,          ",", 0, 0,  2,  3),
+            Token::new(TokenKind::Group,          "V", 0, 0,  3,  4),
+            Token::new(TokenKind::RightCurly,     "}", 0, 0,  4,  5),
+            Token::new(TokenKind::Colon,          ":", 0, 0,  5,  6),
+            Token::new(TokenKind::LeftSquare,     "[", 0, 0,  6,  7),
+            Token::new(TokenKind::RightSquare,    "]", 0, 0,  7,  8),
+            Token::new(TokenKind::GreaterThan,    ">", 0, 0,  9, 10),
+            Token::new(TokenKind::Star,           "*", 0, 0, 11, 12),
+            Token::new(TokenKind::Slash,          "/", 0, 0, 13, 14),
+            Token::new(TokenKind::LeftColCurly,  ":{", 0, 0, 15, 17),
+            Token::new(TokenKind::Cardinal,       "j", 0, 0, 18, 19),
+            Token::new(TokenKind::Underline,      "_", 0, 0, 19, 20),
+            Token::new(TokenKind::LeftCurly,      "{", 0, 0, 20, 21),
+            Token::new(TokenKind::RightCurly,     "}", 0, 0, 21, 22),
+            Token::new(TokenKind::Colon,          ":", 0, 0, 22, 23),
+            Token::new(TokenKind::LeftSquare,     "[", 0, 0, 23, 24),
+            Token::new(TokenKind::RightSquare,    "]", 0, 0, 24, 25),
+            Token::new(TokenKind::RightColCurly, "}:", 0, 0, 26, 28),
+            Token::new(TokenKind::Eol,             "", 0, 0, 28, 29),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        

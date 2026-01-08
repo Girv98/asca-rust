@@ -1,4 +1,4 @@
-use std::{ fmt, ops, sync::Arc };
+use std::{ fmt, sync::Arc };
 
 use crate :: {
     error :: RuleSyntaxError, 
@@ -88,36 +88,78 @@ impl Env {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 // pub(crate) struct ItemSet(Vec<SetElement>);
-pub(crate) struct ItemSet(Vec<ParseItem>);
-
-impl ops::Deref for ItemSet {
-    type Target = Vec<ParseItem>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl ops::DerefMut for ItemSet {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
+pub(crate) struct ItemSet {
+    pub(crate) items: Vec<ParseItem>,
 }
 
 impl ItemSet {
     pub(crate) fn reverse(&mut self) {
-        self.0.reverse();
-        for el in &mut self.0 { el.reverse(); }
+        self.items.reverse();
+        for el in &mut self.items { el.reverse(); }
     }
 
     pub(crate) fn contains_at(&self, element: ParseElement) -> Option<usize> {
-        for (i, item) in self.0.iter().enumerate() {
+        for (i, item) in self.items.iter().enumerate() {
             if item.kind == element {
                 return Some(i)
             }
         }
 
         None
+    }
+    
+    // TODO: This will have to change when we allow multiple 
+    fn join_params(&mut self, matrix: &Modifiers, matrix_pos: Position) -> Result<(), RuleSyntaxError> {
+        
+        let node_mods: Vec<(usize, &Option<ModKind>)> = matrix.nodes.iter().enumerate().filter(|(_, nk)| nk.is_some()).collect();
+        let feat_mods: Vec<(usize, &Option<ModKind>)> = matrix.feats.iter().enumerate().filter(|(_, fk)| fk.is_some()).collect();
+        
+        // item = Reference | Segment | Boundary | Syll
+        for item in &mut self.items {
+            match &mut item.kind {
+                ParseElement::Reference(_, m @ None) | ParseElement::Ipa(_, m @ None) => *m = Some(*matrix),
+                
+                ParseElement::Reference(_, Some(m)) | ParseElement::Ipa(_, Some(m)) | ParseElement::Matrix(m, _) => {
+                    for (ni, nk) in &node_mods { m.nodes[*ni] = **nk; }
+                    for (fi, fk) in &feat_mods { m.feats[*fi] = **fk; }
+
+                    if let Some(stress) = matrix.suprs.stress {
+                        m.suprs.stress = Some(stress)
+                    }
+                    if let Some(length) = matrix.suprs.length {
+                        m.suprs.length = Some(length)
+                    }
+                    if let Some(tone) = matrix.suprs.tone {
+                        m.suprs.tone = Some(tone)
+                    }
+                }
+                ParseElement::Structure(_, stress, tone, _) | ParseElement::Syllable (stress, tone, _) => {
+                    if !node_mods.is_empty() { 
+                        return Err(RuleSyntaxError::SetSyllWrongMods(item.position, matrix_pos, NodeKind::from_usize(node_mods[0].0).as_str()))
+                    }
+                    if !feat_mods.is_empty() {
+                        return Err(RuleSyntaxError::SetSyllWrongMods(item.position, matrix_pos, FeatKind::from_usize(feat_mods[0].0).as_str()))
+                    }
+                    if matrix.suprs.length.is_some() { 
+                        return Err(RuleSyntaxError::SetSyllWrongMods(item.position, matrix_pos, "length"))
+                    }
+
+                    if let Some(str) = matrix.suprs.stress {
+                        *stress = Some(str)
+                    }
+                    if let Some(tn) = matrix.suprs.tone {
+                        *tone = Some(tn)
+                    }
+                },
+                
+                ParseElement::ExtlBound | // => unimplemented!(),
+                ParseElement::SyllBound | ParseElement::WordBound => return Err(RuleSyntaxError::SetSyllBoundMods(item.position, matrix_pos)),
+
+                _ => unreachable!()
+            }
+        }
+        
+        Ok(())
     }
 }
 
@@ -246,7 +288,7 @@ impl fmt::Display for ParseElement {
             // }
             Self::Set(s) => {
                 write!(f, "{{")?;
-                for i in s.iter() {
+                for i in s.items.iter() {
                     write!(f, "{i}")?;
                     write!(f, ", ")?;
                 }
@@ -595,6 +637,7 @@ impl Parser {
             chr.feats[i] = *f
         }
 
+        // A group never encodes these, so we can savely overwrite
         chr.suprs.stress = params.suprs.stress;
         chr.suprs.length = params.suprs.length;
         chr.suprs.tone = params.suprs.tone;
@@ -935,12 +978,12 @@ impl Parser {
 
             let params = Self::diacritics_as_params(&diacrits)?;
             pos.end = end;
+            // TODO: Allow for matrix by not returning and joining the Modifiers
             return Ok(Some(ParseItem::new(ParseElement::Reference(refr, Some(params)), pos)))
         }
 
         if !self.expect(TokenKind::Colon) {
-            let refr = ParseItem::new(ParseElement::Reference(refr, None), pos);
-            return Ok(Some(refr))
+            return Ok(Some(ParseItem::new(ParseElement::Reference(refr, None), pos)))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -1028,13 +1071,29 @@ impl Parser {
         }
 
         let end_pos = self.token_list[self.pos-1].position.end;
-        let pos = Position::new(self.group, self.line, start_pos, end_pos);
+        let mut pos = Position::new(self.group, self.line, start_pos, end_pos);
 
         if terms.is_empty() {
-            Err(RuleSyntaxError::EmptySet(pos))
-        } else {
-            Ok(Some(ParseItem::new(ParseElement::Set(ItemSet(terms.clone())), pos)))
+            return Err(RuleSyntaxError::EmptySet(pos))
         }
+
+        if !self.expect(TokenKind::Colon) {
+            return Ok(Some(ParseItem::new(ParseElement::Set(ItemSet{items: terms.clone()}), pos)))
+        }
+
+        if !self.expect(TokenKind::LeftSquare) {
+            return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
+        }
+
+        let params = self.get_params()?;
+        let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`");
+        pos.end = params.position.end;
+
+        let mut set = ItemSet { items: terms.clone() };
+
+        set.join_params(matrix, params.position)?;
+
+        Ok(Some(ParseItem::new(ParseElement::Set(set), pos)))
     }
 
     fn get_syll(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {

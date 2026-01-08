@@ -143,6 +143,8 @@ pub enum RuleSyntaxError {
     DiacriticDoesNotMeetPreReqsNode(Position, Position, NodeString, IsPlus),
     UnexpectedDiacritic(Position, Position),
     SupraConflict      (Position, Position),
+    SetSyllWrongMods   (Position, Position, &'static str),
+    SetSyllBoundMods   (Position, Position),
     UnbalancedRuleEnv(Vec<EnvItem>),
     UnbalancedRuleIO (Vec<Vec<ParseItem>>),
     UnexpectedEol(Token, char),
@@ -200,7 +202,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::StuffBeforeWordBound   (_) => write!(f, "Cannot have segments before the beginning of a word"),
             Self::StuffAfterWordBound    (_) => write!(f, "Cannot have segments after the end of a word"),
             Self::FloatingDiacritic      (_) => write!(f, "Floating diacritic. Diacritics can only be used to modify IPA Segments"),
-            Self::WordBoundLoc           (_) => write!(f, "Wordboundaries are not allowed in the input or output"),
+            Self::WordBoundLoc           (_) => write!(f, "Word boundaries are not allowed in the input or output"),
             Self::OptLocError            (_) => write!(f, "Options can only be used in Environments or Structures"),
             Self::EmptySet               (_) => write!(f, "Sets cannot be empty"),
             Self::UnknownEnbyFeature(feat, pos) => write!(f, "Feature '{feat}' has no modifier at {}:{}-{}.", pos.line, pos.start, pos.end),
@@ -211,10 +213,12 @@ impl fmt::Display for RuleSyntaxError {
             },
             Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only be used to modify IPA Segments"),
             Self::SupraConflict      (..) => write!(f, "Cannot use conflicting suprasegmental types in the same matrix"),
+            Self::SetSyllBoundMods   (..) => write!(f, "Boundaries cannot be modified by a matrix"),
+            Self::SetSyllWrongMods   (.., feat) => write!(f, "Syllables cannot be modified with '{feat}'"),
             Self::UnbalancedRuleEnv(_) => write!(f, "Environment has too few elements"),
             Self::UnbalancedRuleIO (_) => write!(f, "Input or Output has too few elements"),
             Self::UnexpectedEol(_, c) => write!(f, "Expected `{c}`, but received End of Line"),
-            Self::OptMathError (_, lo, hi) => write!(f, "An Option's second argument '{hi}' must be greater than or equal to it's first argument '{lo}'"),
+            Self::OptMathError (_, lo, hi) => write!(f, "An Optional's second argument '{hi}' must be greater than or equal to it's first argument '{lo}'"),
         }
     }
 }
@@ -320,8 +324,10 @@ impl RuleSyntaxError {
                     first_item.position.line
                 )
             },
-            Self::SupraConflict(x_pos, y_pos) | 
+            Self::SupraConflict      (x_pos, y_pos) | 
             Self::UnexpectedDiacritic(x_pos, y_pos) | 
+            Self::SetSyllBoundMods   (x_pos, y_pos) | 
+            Self::SetSyllWrongMods   (x_pos, y_pos, ..) | 
             Self::DiacriticDoesNotMeetPreReqsFeat(x_pos, y_pos, ..) | 
             Self::DiacriticDoesNotMeetPreReqsNode(x_pos, y_pos, ..) => (
                 " ".repeat(x_pos.start) 

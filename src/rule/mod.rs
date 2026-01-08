@@ -724,6 +724,17 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_sub_set_mod() {
+        let test_rule = setup_rule("{p, t, k} > {b, d, g}:[+long]");
+        let test_word = setup_word("pa.ta.ka");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "bːa.dːa.ɡːa");
+
+        let test_rule = setup_rule("{i, e}:[+long] > [-long]");
+        let test_word = setup_word("pi:.te.me:");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "pi.te.me");
+    }
+
+    #[test]
     fn test_sub_set() {
         let test_rule = setup_rule("{p, t, k} > {b, d, g}");
         let test_word = setup_word("pa.ta.ka");

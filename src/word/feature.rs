@@ -50,6 +50,19 @@ impl NodeKind {
             _ => unreachable!("\nOut of Range converting `{value}` to `NodeType`(max: 7) \nThis is a bug!\n")
         }
     }
+
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            NodeKind::Root       => "root",
+            NodeKind::Manner     => "manner",
+            NodeKind::Laryngeal  => "laryngeal",
+            NodeKind::Place      => "place",
+            NodeKind::Labial     => "labial",
+            NodeKind::Coronal    => "coronal",
+            NodeKind::Dorsal     => "dorsal",
+            NodeKind::Pharyngeal => "pharyngeal",
+        }
+    }
 }
 
 impl fmt::Display for NodeKind {
@@ -82,34 +95,7 @@ pub enum FeatKind {
 
 impl fmt::Display for FeatKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FeatKind::Consonantal         => write!(f, "consonantal"),
-            FeatKind::Sonorant            => write!(f, "sonorant"),
-            FeatKind::Syllabic            => write!(f, "syllablic"),
-            FeatKind::Continuant          => write!(f, "continuant"),
-            FeatKind::Approximant         => write!(f, "approx."),
-            FeatKind::Lateral             => write!(f, "lateral"),
-            FeatKind::Nasal               => write!(f, "nasas"),
-            FeatKind::DelayedRelease      => write!(f, "del.rel."),
-            FeatKind::Strident            => write!(f, "strident"),
-            FeatKind::Rhotic              => write!(f, "rhotic"),
-            FeatKind::Click               => write!(f, "click"),
-            FeatKind::Voice               => write!(f, "voice"),
-            FeatKind::SpreadGlottis       => write!(f, "s.g."),
-            FeatKind::ConstrGlottis       => write!(f, "c.g."),
-            FeatKind::Labiodental         => write!(f, "labiodental"),
-            FeatKind::Round               => write!(f, "round"),
-            FeatKind::Anterior            => write!(f, "anterior"),
-            FeatKind::Distributed         => write!(f, "distributed"),
-            FeatKind::Front               => write!(f, "front"),
-            FeatKind::Back                => write!(f, "back"),
-            FeatKind::High                => write!(f, "high"),
-            FeatKind::Low                 => write!(f, "low"),
-            FeatKind::Tense               => write!(f, "tense"),
-            FeatKind::Reduced             => write!(f, "reduced"),
-            FeatKind::AdvancedTongueRoot  => write!(f, "atr"),
-            FeatKind::RetractedTongueRoot => write!(f, "rtr")
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -153,6 +139,38 @@ impl FeatKind {
             24 => Self::AdvancedTongueRoot,
             25 => Self::RetractedTongueRoot,
             _  => unreachable!("\nOut of Range Error converting `usize` to `FeatType`\nThis is a bug!\n")
+        }
+
+    }
+    
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            FeatKind::Consonantal         => "consonantal",
+            FeatKind::Sonorant            => "sonorant",
+            FeatKind::Syllabic            => "syllabic",
+            FeatKind::Continuant          => "continuant",
+            FeatKind::Approximant         => "approx.",
+            FeatKind::Lateral             => "lateral",
+            FeatKind::Nasal               => "nasal",
+            FeatKind::DelayedRelease      => "del.rel.",
+            FeatKind::Strident            => "strident",
+            FeatKind::Rhotic              => "rhotic",
+            FeatKind::Click               => "click",
+            FeatKind::Voice               => "voice",
+            FeatKind::SpreadGlottis       => "s.g.",
+            FeatKind::ConstrGlottis       => "c.g.",
+            FeatKind::Labiodental         => "labiodental",
+            FeatKind::Round               => "round",
+            FeatKind::Anterior            => "anterior",
+            FeatKind::Distributed         => "distributed",
+            FeatKind::Front               => "front",
+            FeatKind::Back                => "back",
+            FeatKind::High                => "high",
+            FeatKind::Low                 => "low",
+            FeatKind::Tense               => "tense",
+            FeatKind::Reduced             => "reduced",
+            FeatKind::AdvancedTongueRoot  => "atr",
+            FeatKind::RetractedTongueRoot => "rtr",
         }
     }
 

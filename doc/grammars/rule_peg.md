@@ -28,7 +28,7 @@ Term        ← Syll / Struct / Set / Segment / Reference
 Syll        ← '%' (':' Params)? RefAssign?
 Struct      ← '<' SyllTerm* '>' (':' Params)? RefAssign?
 SyllTerm    ← Segment / OptEllipsis / Ellipsis / Reference / Set / Option       // NOTE: Boundaries and Syllables inside a struct are runtime invalid
-Set         ← '{' SetTerm (',' SetTerm)* ','? '}'                               // NOTE: At the moment, we can't have multi-segment sets i.e. "{nd}" is not allowed 
+Set         ← '{' SetTerm (',' SetTerm)* ','? '}' (':' Params)?                 // NOTE: At the moment, we can't have multi-segment sets i.e. "{nd}" is not allowed 
 SetTerm     ← Reference / Segment / Boundary / Syll                             // NOTE: WordBound not valid in input/output
 Option      ← '(' (OptTerm+ (',' [0-9]* (':' [1-9]+)?)?)? ')'
 OptTerm     ← CrossBound / Boundary / Syll / Set / Segment / Reference
