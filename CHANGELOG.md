@@ -21,7 +21,9 @@ Features:
         * `[A long, B overlong]` can be replaced with just `[A length]`
         * `[A stress, B sec.stress]` can be replaced with just `[A anystress]`
     * Allow for the underline to be placed within an environment structure.
-        * E.g. `VN > [+nas] / <(..)_>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable and `N` is coda.
+        * e.g. `VN > [+nas] / <(..)_>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable and `N` is coda.
+    * Allow for sets, as a whole, to be modified by a matrix
+        * i.e. `{i, e}:[+long]` rather than `{i:[+long], e:[+long]}`
     * New insertion implementation which is hopefully more stable
 
 Fixes:
