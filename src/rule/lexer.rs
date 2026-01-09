@@ -614,23 +614,27 @@ impl<'a> Lexer<'a> {
             "continuant"     | "contin" | "cont" | "cnt"          => Feat(Continuant),
             "approximant"    | "approx" | "appr" | "app"          => Feat(Approximant),
             "lateral"        | "latrl"  | "ltrl" | "lat"  | "lt"  => Feat(Lateral),
-            "nasal"          | "nsl"    | "nas"  | "ns" | "nl"    => Feat(Nasal),
+            "nasal"          | "nsl"    | "nas"  | "ns"   | "nl"  => Feat(Nasal),
+
             "delayedrelease" | "delrel" | "d.r." | "del.rel." | 
-            "delayed" | "dl" | "dlrl"   | "dr"   | "delay"    |
+            "delayed" | "dl" | "dlrl"   | "dr"   | "delay"    | 
             "drelease"       | "del.rel"| "drel" | "d.r" | "dr."  => Feat(DelayedRelease),
+            
             "strident"       | "strid"  | "stri" | "stridnt"  | 
             "strdent"        | "strdnt"                           => Feat(Strident),
-            "rhotic"         | "rhot"   | "rho"  | "rhtc" | "rh"
-            | "rht" | "rhc"                                       => Feat(Rhotic),
-            "click"          | "clik"   | "clk"  | "clck"         => Feat(Click),
+            
+            "rhotic" | "rho" | "rhot"   | "rhtc" | "rh" | 
+            "rht"    | "rhc"                                      => Feat(Rhotic),
+            "click"          | "clik" | "clk"  | "clck"           => Feat(Click),
             // Laryngeal Node Features
-            "laryngeal"      | "laryng"     | "laryn"  | "lar"    => Node(Laryngeal),
-            "voice"          | "voi"        | "vce"    | "vc"     => Feat(Voice),
-            "spreadglottis"  | "spreadglot" | "spread" | 
-            "s.g."           | "s.g"        | "sg."    | "sg"     => Feat(SpreadGlottis),
-            "constrictedglottis"            | "constricted"  |
-            "constglot"      | "constr"     | "c.g." | "c.g" | 
-            "cg." | "cg"                                          => Feat(ConstrGlottis),
+            "laryngeal"     | "laryng"     | "laryn"  | "lar"     => Node(Laryngeal),
+            "voice"         | "voi"        | "vce"    | "vc"      => Feat(Voice),
+            
+            "spreadglottis" | "spreadglot" | "spread" | "sprd" |
+            "spr" | "s.g."  | "s.g"        | "sg."    | "sg"      => Feat(SpreadGlottis),
+
+            "constricted"   | "constglot"  | "constr" | "c.g." | 
+            "c.g" | "cg."   | "cg"         | "constrictedglottis" => Feat(ConstrGlottis),
             // Place Node Feature
             "place"       | "plce"    | "plc"                     => Node(Place),
             // Labial Place Node Features
@@ -665,7 +669,8 @@ impl<'a> Lexer<'a> {
             "sec.str."       | "sec.str"    | "secstr"    | "sec" => Supr(SecStress),
             // Grouped Suprasegmental Features
             "length" | "len"                                      => Supr(LengthPair),
-            "anystress" | "anystr" | "stressany" | "strany"       => Supr(StressPair),
+            "anystress" | "anystr" | "stressany" | "strany" |
+            "allstress" | "allstr" | "stressall" | "strall"       => Supr(StressPair),
 
             // Parsing so we can error
             "tone" | "ton" | "tne" | "tn" => Supr(Tone),
