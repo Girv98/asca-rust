@@ -426,10 +426,11 @@ mod rule_tests {
     fn test_considerations() {
         assert_eq!(setup_rule("a > e").apply_word(setup_word("hat")).unwrap().render(), "het");
         assert_eq!(setup_rule("a > e").apply_word(setup_word("ha:t")).unwrap().render(), "heːt");
-        // assert_eq!(setup_rule("a > e").apply_word(setup_word("ha:t")).unwrap().render(), "het"); // OR
+        // assert_eq!(setup_rule("a > e").apply_word(setup_word("ha:t")).unwrap().render(), "het"); // Previous behaviour
         
-        assert_eq!(setup_rule("a > ee").apply_word(setup_word("ha:t")).unwrap().render(), "heːːːt"); // a a > ee ee
+        assert_eq!(setup_rule("a > ee").apply_word(setup_word("ha:t")).unwrap().render(), "heːːːt");       // a a > ee ee
         assert_eq!(setup_rule("a:[+long] > ee").apply_word(setup_word("ha:t")).unwrap().render(), "heːt"); // aa > ee
+        assert_eq!(setup_rule("a:[+long] > e").apply_word(setup_word("ha:t")).unwrap().render(), "het");   // aa > e
 
         assert_eq!(setup_rule("a > [+fr, -lo, +tns]").apply_word(setup_word("ha:t")).unwrap().render(), "heːt");
         assert_eq!(setup_rule("a:[Alen] > e:[Alen]").apply_word(setup_word("ha:t")).unwrap().render(), "heːt");
@@ -1169,6 +1170,13 @@ mod rule_tests {
     }
 
     #[test]
+    fn test_hang() {
+        // TODO
+        // run("* > e / ()_", "san", "eseaene");
+
+    }
+
+    #[test]
     fn test_insertion_between_syll_break_and_else() {
         let test_rule = setup_rule(" * > e / #_CC");
         let test_word = setup_word("ki.ci");
@@ -1275,6 +1283,10 @@ mod rule_tests {
         let test_word = setup_word("ski");
         println!("* > e / _{{s,k}}");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "eseki");
+
+        let test_rule = setup_rule("* > e / _k");
+        let test_word = setup_word("ski");
+        assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "seki");
     }
 
     #[test]
@@ -1328,7 +1340,7 @@ mod rule_tests {
     fn test_insertion_bound_after_segment() {
         let test_rule = setup_rule("* > $ / s_");
         let test_word = setup_word("ski");
-        println!("* > e / C_");
+        println!("* > $ / s_");
         assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "s.ki");
     }
 
@@ -2467,6 +2479,9 @@ mod rule_tests {
         
         let test_rule = setup_rule("* > e / <.._C:[+long]C>");
         assert_eq!(test_rule.apply_word(setup_word("stn:t.ta")).unwrap().render(), "stenːt.ta");
+
+        run("* > e / <.._..>", "san", "sean");
+        run("* > e / <(..)_(..)>", "san", "esan");
     }
 
     #[test]
