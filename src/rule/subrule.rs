@@ -3319,7 +3319,7 @@ impl SubRule { // Input Matching
             if self.input.len() == 1 && self.input[0].kind == ParseElement::SyllBound  {
                 captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), None));
                 Ok((captures, None))
-            } else if self.input.len() == 1 && let Some(si) =  self.contains_syll_bound(&self.input[0]) {
+            } else if self.input.len() == 1 && let Some(si) = self.contains_syll_bound(&self.input[0]) {
                 captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), Some(si)));
                 Ok((captures, None))
             } else {
