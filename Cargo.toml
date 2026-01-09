@@ -12,6 +12,7 @@ description = "A linguistic sound change applier"
 
 [profile.release]
 strip = true
+# debug = true # Enable for perf
 
 [lib]
 name = "asca"
