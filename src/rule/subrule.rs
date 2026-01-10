@@ -2493,9 +2493,12 @@ impl SubRule { // Substitution
                 })
             },
             ActionKind::InsertBoundary => {
+                // So that rules such as '$ < a$' don't hang
+                let offset = if self.input.first().unwrap().kind == ParseElement::SyllBound { 1 } else { 0 };
+
                 Some(SegPos{
                     word_index: last_action.pos.word_index,
-                    syll_index: (last_action.pos.syll_index).saturating_add_signed(word_len_change),
+                    syll_index: (last_action.pos.syll_index).saturating_add_signed(word_len_change) + offset,
                     seg_index: 0
                 })
             },
