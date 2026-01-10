@@ -2322,9 +2322,10 @@ impl SubRule { // Substitution
                 ActionKind::InsertBoundary => {
                     // Break syllable into two at position
                     let mut new_syll = Syllable::new();
-                    let syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
 
-                    while syll.segments.len() > action.pos.seg_index {
+                    let Some(syll) = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index) else { continue };
+
+                    while !syll.segments.is_empty() && syll.segments.len() > action.pos.seg_index {
                         new_syll.segments.push_front(syll.segments.pop_back().unwrap());
                     }
                     res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1, new_syll);
