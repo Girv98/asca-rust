@@ -1107,6 +1107,7 @@ V > [α front, β back] / V:[α front, β back] (C) _   ;; Vowels assimilate in 
 ```
 
 ### Faux Right-to-left Propagation
+***This is here for legacy reasons, I'd recommend using 'true' right-to-left when possible***
 
 To achieve right to left harmonies in a "left-to-right" context, we can use a fixed harmonic trigger, which in this case is the last vowel in the word. Like with [hyperthesis](#metathesis-rules), we can place an `(..)` in the environment between `_` and the trigger to denote "skipping" the inbetween segments. 
 
@@ -1135,8 +1136,8 @@ V ~ [α front, β back] / _ (C) V:[α front, β back]
 ``` wasm
 Rule Example: Secondary Stressing
 
-% > [+str] / #_#, _%#           ;; The penultimate (or ultimate if none) syllable is stressed.
-% ~ [+sec.str] / _%%:[+str]     ;; Every other syllable before another stressed syllable has secondary stress.
+% > [+str] / #_#, _%#       ;; The penultimate (or ultimate if none) syllable is stressed.
+% ~ [+sec.str] / _%%:[+str] ;; Every other syllable before another stressed syllable has secondary stress.
 
 /sa.me.ka.se.ne.ta.ni.lo.ti.ne/ => /ˌsa.meˌka.seˌne.taˌni.loˈti.ne/
 Without '~', only the last would match, becoming /sa.me.ka.se.ne.taˌni.loˈti.ne/
