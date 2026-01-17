@@ -30,9 +30,10 @@ toggled using the arrow to the right of the button.
 A single rule block can be removed with the `x` button present on each block, or all blocks can be removed with the `Clear All` button.
 
 ### Reordering Rules
-The block structure allows you to easily reorder rules to test certain orderings without accidentally reordering dependant sub-rules. A 
-rule can be dragged, much like a window, by holding any part of the 'title' section of a rule block. This can be done both when the rule 
-is collapsed or expanded. Rule blocks can also be moved with the keyboard (see [Hotkeys and Keyboard Navigation](#hotkeys-and-keyboard-navigation)).
+The block structure allows you to easily reorder rules to test certain orderings without accidentally reordering dependant sub-rules. 
+A rule can be dragged, like a window, by holding any part of the 'title' section of a rule block. This can be done both when the rule 
+is collapsed or expanded. To allow for easier scrolling on small screens, a grabber is instead placed on the left-hand side of each
+rule block. Rule blocks can also be moved with the keyboard (see [Hotkeys and Keyboard Navigation](#hotkeys-and-keyboard-navigation)).
 
 ### Cloning Rules
 As a language can go through the same sound change multiple times, it is useful to not have to rewrite the same rules again and again. 
