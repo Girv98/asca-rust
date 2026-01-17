@@ -258,11 +258,11 @@ pub(super) fn write_to_file(path: &Path, content: String, extension: &str, auto:
 pub(super) fn sanitise_str(str: &str) -> String {
     // 26 is arbitrary, but we want to make sure that the file names don't get too long
     str.chars().take(26).filter_map(|ch| match ch { 
-        ' ' | '*' | '/' | '\\' | 
-        '?' | ':' | '|' | '<'  | 
-        '>' | '%' => Some('-'), 
-        '"' | '\'' | '\0' => None,
-        _ => Some(ch.to_ascii_lowercase())
+        '"' | '\'' | '|' | '?' | 
+        '!' | '\\' | '*' | '/' | 
+        ':' | '\0' | '%' | '<' | '>' => None,
+        ' ' => Some('-'), 
+         _  => Some(ch.to_ascii_lowercase())
     }).collect()
 }
 
