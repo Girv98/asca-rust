@@ -12,3 +12,13 @@ setup > proto-germanic:
 proto-germanic > proto-nw-germanic: nwg/asdf.rsca;
 
 proto-nw-germanic > proto-west-germanic: wg/asdf.rsca;
+
+
+# version 0.10 or higher
+# Functionally the same as "proto-germanic" tag, but breaks "early.rsca" into two separate steps
+# run "seq -at pg" on this config to see the difference
+# setup > pg: 
+#    pgmc/pre.rsca;
+#    pgmc/early.rsca <= "Germanic Spirant's Law";
+#    pgmc/early.rsca  > "Germanic Spirant's Law";
+#    pgmc/late.rsca;

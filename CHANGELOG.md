@@ -15,6 +15,10 @@ Breaking:
         * Functions now generic over types that implement `AsRef<str>`
 
 Features:
+* Cli:
+    * Add `<`, `>`, `<=`, `>=` rule filter operators
+        * Allows inclusion of only rules before or after a given rule in a file
+        * e.g. `setup > pg-spirant: pgmc/pre.rsca; pgmc/early.rsca <= "Germanic Spirant's Law";`
 * Lib:
     * Combined Alpha Suprasegmentals
         * Allows for multi-dimensional suprasegmentals (i.e. stress and length) to be referenced with one alpha.

@@ -97,6 +97,10 @@ pub enum RuleFilter {
     Without(String),
     OnlyMult(Vec<String>),
     WithoutMult(Vec<String>),
+    Before(String),
+    BeforeInc(String),
+    After(String),
+    AfterInc(String),
 }
 
 impl RuleFilter {
@@ -115,7 +119,18 @@ impl RuleFilter {
             RuleFilter::WithoutMult(filters) => {
                 let abv_filt =  filters.iter().map(|s| s.split(" ").filter_map(|x| x.chars().next()).collect::<String>()).collect::<Vec<String>>().join("-");
                 format!("_xm_{}", util::sanitise_str(&abv_filt))
-                
+            },
+            RuleFilter::Before(rule_str) => {
+                format!("_bef_{}", util::sanitise_str(rule_str))
+            },
+            RuleFilter::BeforeInc(rule_str) => {
+                format!("_bi_{}", util::sanitise_str(rule_str))
+            },
+            RuleFilter::After(rule_str) => {
+                format!("_aft_{}", util::sanitise_str(rule_str))
+            },
+            RuleFilter::AfterInc(rule_str) => {
+                format!("_ai_{}", util::sanitise_str(rule_str))
             },
         }
     }

@@ -127,6 +127,7 @@ impl OldParser{
                         rule_str.push('\"');
                     }
                 },
+                _ => unimplemented!("Old parser does not implement Greater than or less than rule filters")
             }
         }
         rule_str

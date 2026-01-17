@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
                 }
                 break;
             }
-            if self.eat_expect(TokenKind::Arrow).is_some() {
+            if self.eat_expect(TokenKind::Gt).is_some() {
                 if has_arrow {
                     // TODO: Better errors
                     return Err(self.error("Can't have multiple arrows".to_string()))
@@ -219,26 +219,66 @@ impl<'a> Parser<'a> {
 
     fn get_filter(&mut self) -> io::Result<Option<RuleFilter>> {
         match self.curr_tkn.kind {
-            TokenKind::Bang => {
+            TokenKind::Bang => { // FILE ! "rule" (, "rule");
                 self.advance();
                 let pos = self.curr_tkn.position;
                 let list = self.get_filter_list()?;
                 match list.len().cmp(&1) {
                     std::cmp::Ordering::Greater => Ok(Some(RuleFilter::WithoutMult(list))),
-                    std::cmp::Ordering::Equal => Ok(Some(RuleFilter::Without(list[0].clone()))),
-                    std::cmp::Ordering::Less => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Equal   => Ok(Some(RuleFilter::Without(list[0].clone()))),
+                    std::cmp::Ordering::Less    => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
                 }
             },
-            TokenKind::Tilde => {
+            TokenKind::Tilde => { // FILE ~ "rule" (, "rule");
                 self.advance();
                 let pos = self.curr_tkn.position;
                 let list = self.get_filter_list()?;
                 match list.len().cmp(&1) {
                     std::cmp::Ordering::Greater => Ok(Some(RuleFilter::OnlyMult(list))),
-                    std::cmp::Ordering::Equal => Ok(Some(RuleFilter::Only(list[0].clone()))),
-                    std::cmp::Ordering::Less => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Equal   => Ok(Some(RuleFilter::Only(list[0].clone()))),
+                    std::cmp::Ordering::Less    => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
                 }
             },
+            TokenKind::Gt => { // // FILE > "rule"0;
+                self.advance();
+                let pos = self.curr_tkn.position;
+                let list = self.get_filter_list()?;
+                match list.len().cmp(&1) {
+                    std::cmp::Ordering::Equal   => Ok(Some(RuleFilter::After(list[0].clone()))),
+                    std::cmp::Ordering::Greater => Err(self.error(format!("'Greater Than' operator cannot take more than one rule @ {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Less    => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
+                }
+            }
+            TokenKind::GtEq => { // FILE >= "rule";
+                self.advance();
+                let pos = self.curr_tkn.position;
+                let list = self.get_filter_list()?;
+                match list.len().cmp(&1) {
+                    std::cmp::Ordering::Equal   => Ok(Some(RuleFilter::AfterInc(list[0].clone()))),
+                    std::cmp::Ordering::Greater => Err(self.error(format!("'Greater Than Equal' operator cannot take more than one rule @ {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Less    => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
+                }
+            }
+            TokenKind::Lt => { // FILE < "rule";
+                self.advance();
+                let pos = self.curr_tkn.position;
+                let list = self.get_filter_list()?;
+                match list.len().cmp(&1) {
+                    std::cmp::Ordering::Equal   => Ok(Some(RuleFilter::Before(list[0].clone()))),
+                    std::cmp::Ordering::Greater => Err(self.error(format!("'Less Than' operator cannot take more than one rule @ {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Less    => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
+                }
+            }
+            TokenKind::LtEq => { // FILE <= "rule";
+                self.advance();
+                let pos = self.curr_tkn.position;
+                let list = self.get_filter_list()?;
+                match list.len().cmp(&1) {
+                    std::cmp::Ordering::Equal   => Ok(Some(RuleFilter::BeforeInc(list[0].clone()))),
+                    std::cmp::Ordering::Greater => Err(self.error(format!("'Less Than Equal' operator cannot take more than one rule @ {}:{}", pos.s_line, pos.s_pos))),
+                    std::cmp::Ordering::Less    => Err(self.error(format!("Empty filter list at line {}:{}", pos.s_line, pos.s_pos))),
+                }
+            }
             _ => Ok(None)
         }
     }
@@ -291,6 +331,32 @@ impl<'a> Parser<'a> {
                     return Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
                 }
                 Ok(Entry::from(file_path, entries))
+            },
+            RuleFilter::Before(rule_str) => {
+                match entry_rules.iter().position(|r| r.name.to_lowercase() == rule_str.to_lowercase()) {
+                    Some(pos) => Ok(Entry::from(file_path, entry_rules[0..pos].to_vec())),
+                    None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
+                }
+            },
+            RuleFilter::BeforeInc(rule_str) => {
+                match entry_rules.iter().position(|r| r.name.to_lowercase() == rule_str.to_lowercase()) {
+                    Some(pos) => Ok(Entry::from(file_path, entry_rules[0..=pos].to_vec())),
+                    None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
+                }
+            },
+            // TODO: This could lead to Entry.rules being empty if pos+1 == len
+            // explore the implications of this
+            RuleFilter::After(rule_str) => {
+                match entry_rules.iter().position(|r| r.name.to_lowercase() == rule_str.to_lowercase()) {
+                    Some(pos) => Ok(Entry::from(file_path, entry_rules[pos+1..].to_vec())),
+                    None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
+                }
+            },
+            RuleFilter::AfterInc(rule_str) => {
+                match entry_rules.iter().position(|r| r.name.to_lowercase() == rule_str.to_lowercase()) {
+                    Some(pos) => Ok(Entry::from(file_path, entry_rules[pos..].to_vec())),
+                    None => Err(self.error(format!("Could not find rule '{}' in '{}'. Did you mean {}?", rule_str, rule_file.to_str().unwrap(), self.lev(entry_rules, &rule_str).yellow())))
+                }
             },
             RuleFilter::OnlyMult(filters) => {
                 let entries = filters.iter().map(|filter| {

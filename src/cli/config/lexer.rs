@@ -6,10 +6,14 @@ use colored::Colorize;
 pub(super) enum TokenKind {
     Comma,      // ,
     Bang,       // !
-    Tilde,      // !
+    Tilde,      // ~
     Colon,      // : 
     Semi,       // ;
-    Arrow,      // >
+    Lt,         // <
+    LtEq,       // <=
+    Gt,         // >
+    GtEq,       // >=
+    // Arrow,      // >
     Literal,   
     String, 
     Comment,    // '#'.* '\n'
@@ -19,16 +23,19 @@ pub(super) enum TokenKind {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenKind::Comma    => write!(f, ","),
-            TokenKind::Bang     => write!(f, "!"),
-            TokenKind::Tilde    => write!(f, "~"),
-            TokenKind::Colon    => write!(f, ":"),
-            TokenKind::Semi     => write!(f, ";"),
-            TokenKind::Arrow    => write!(f, ">"),
-            TokenKind::Literal  => write!(f, "a literal"),
-            TokenKind::String   => write!(f, "a string"),
-            TokenKind::Comment  => write!(f, "a comment"),
-            TokenKind::Eof      => write!(f, "end of file"),
+            Self::Comma    => write!(f, ","),
+            Self::Bang     => write!(f, "!"),
+            Self::Tilde    => write!(f, "~"),
+            Self::Colon    => write!(f, ":"),
+            Self::Semi     => write!(f, ";"),
+            Self::Lt       => write!(f, "<"),
+            Self::LtEq     => write!(f, "<="),
+            Self::Gt       => write!(f, ">"),
+            Self::GtEq     => write!(f, ">="),
+            Self::Literal  => write!(f, "a literal"),
+            Self::String   => write!(f, "a string"),
+            Self::Comment  => write!(f, "a comment"),
+            Self::Eof      => write!(f, "end of file"),
         }
     }
 }
@@ -140,12 +147,20 @@ impl<'a> Lexer<'a> {
         let tokenkind: TokenKind;
 
         let value = match self.curr_char() {
-            '>' => { tokenkind = TokenKind::Arrow;  self.chop(1) },
-            ',' => { tokenkind = TokenKind::Comma;  self.chop(1) },
-            ':' => { tokenkind = TokenKind::Colon;  self.chop(1) },
-            '~' => { tokenkind = TokenKind::Tilde;  self.chop(1) },
-            '!' => { tokenkind = TokenKind::Bang;   self.chop(1) },
-            ';' => { tokenkind = TokenKind::Semi;   self.chop(1) },
+            '<' => match self.next_char() {
+                '=' => { tokenkind = TokenKind::LtEq; self.chop(2) }
+                 _  => { tokenkind = TokenKind::Lt;   self.chop(1) }
+            }
+            '>' => match self.next_char() {
+                '=' => { tokenkind = TokenKind::GtEq; self.chop(2) }
+                 _  => { tokenkind = TokenKind::Gt;   self.chop(1) }
+            }
+
+            ',' => { tokenkind = TokenKind::Comma;  self.chop(1) }
+            ':' => { tokenkind = TokenKind::Colon;  self.chop(1) }
+            '~' => { tokenkind = TokenKind::Tilde;  self.chop(1) }
+            '!' => { tokenkind = TokenKind::Bang;   self.chop(1) }
+            ';' => { tokenkind = TokenKind::Semi;   self.chop(1) }
              _  => return Ok(None)
         };
 
@@ -279,7 +294,7 @@ mod lexer_tests {
         let expected_result = vec![
             Token::new(TokenKind::Literal,               "foo.wsca", 1, 0,  1,  8),
             Token::new(TokenKind::Literal,               "bar.wsca", 1, 9,  1, 17),
-            Token::new(TokenKind::Arrow,                        ">", 1, 18, 1, 19),
+            Token::new(TokenKind::Gt,                           ">", 1, 18, 1, 19),
             Token::new(TokenKind::Literal,                   "beta", 1, 20, 1, 24),
             Token::new(TokenKind::Colon,                        ":", 1, 24, 1, 25),
             Token::new(TokenKind::Comment,                 "# test", 1, 26, 1, 32),
@@ -300,7 +315,7 @@ mod lexer_tests {
 
             Token::new(TokenKind::Literal,               "foo.wsca", 5, 0,  5,  8),
             Token::new(TokenKind::Literal,               "bar.wsca", 5, 9,  5, 17),
-            Token::new(TokenKind::Arrow,                        ">", 5, 18, 5, 19),
+            Token::new(TokenKind::Gt,                           ">", 5, 18, 5, 19),
             Token::new(TokenKind::Literal,                   "beta", 5, 20, 5, 24),
             Token::new(TokenKind::Colon,                        ":", 5, 24, 5, 25),
             Token::new(TokenKind::Comment,                 "# test", 5, 26, 5, 32),
@@ -323,7 +338,7 @@ mod lexer_tests {
 
             Token::new(TokenKind::Literal,               "foo.wsca", 9, 0,  9,  8),
             Token::new(TokenKind::Literal,               "bar.wsca", 9, 9,  9, 17),
-            Token::new(TokenKind::Arrow,                        ">", 9, 18, 9, 19),
+            Token::new(TokenKind::Gt,                        ">", 9, 18, 9, 19),
             Token::new(TokenKind::Literal,                   "beta", 9, 20, 9, 24),
             Token::new(TokenKind::Colon,                        ":", 9, 24, 9, 25),
             Token::new(TokenKind::Comment,                 "# test", 9, 26, 9, 32),
@@ -344,7 +359,7 @@ mod lexer_tests {
 
             Token::new(TokenKind::Literal,               "foo.wsca", 12, 0,  12,  8),
             Token::new(TokenKind::Literal,               "bar.wsca", 12, 9,  12, 17),
-            Token::new(TokenKind::Arrow,                        ">", 12, 18, 12, 19),
+            Token::new(TokenKind::Gt,                           ">", 12, 18, 12, 19),
             Token::new(TokenKind::Literal,                   "beta", 12, 20, 12, 24),
             Token::new(TokenKind::Colon,                        ":", 12, 24, 12, 25),
             Token::new(TokenKind::Comment,                 "# test", 12, 26, 12, 32),
@@ -395,7 +410,7 @@ mod lexer_tests {
         let expected_result = vec![
             Token::new(TokenKind::Literal,              "foo.wsca", 1, 0,  1,  8),
             Token::new(TokenKind::Literal,              "bar.wsca", 1, 9,  1, 17),
-            Token::new(TokenKind::Arrow,                       ">", 1, 18, 1, 19),
+            Token::new(TokenKind::Gt,                          ">", 1, 18, 1, 19),
             Token::new(TokenKind::Literal,                  "beta", 1, 20, 1, 24),
             Token::new(TokenKind::Colon,                       ":", 1, 24, 1, 25),
             Token::new(TokenKind::Comment,                "# test", 1, 26, 1, 32),
@@ -447,7 +462,7 @@ mod lexer_tests {
         let expected_result = vec![
             Token::new(TokenKind::Literal,              "foo.wsca", 1, 0,  1,  8),
             Token::new(TokenKind::Literal,              "bar.wsca", 1, 9,  1, 17),
-            Token::new(TokenKind::Arrow,                       ">", 1, 18, 1, 19),
+            Token::new(TokenKind::Gt,                          ">", 1, 18, 1, 19),
             Token::new(TokenKind::Literal,                  "beta", 1, 20, 1, 24),
             Token::new(TokenKind::Colon,                       ":", 1, 24, 1, 25),
             
@@ -500,6 +515,84 @@ mod lexer_tests {
             Token::new(TokenKind::Eof,                          "", 1, 31, 1, 32),
         ];
             
+        let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
+        
+        let result = match &maybe_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+                unreachable!()
+            },
+        };
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..expected_result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn test_lt_gt() {
+        let test_input= String::from(
+            "alpha > beta: rules1.rsca < \"asdf\"; rules2.rsca > \"asdf\";"
+        );
+        let expected_result = vec![
+            Token::new(TokenKind::Literal,                 "alpha", 1,  0, 1,  5),
+            Token::new(TokenKind::Gt,                          ">", 1,  6, 1,  7),
+            Token::new(TokenKind::Literal,                  "beta", 1,  8, 1, 12),
+            Token::new(TokenKind::Colon,                       ":", 1, 12, 1, 13),
+            Token::new(TokenKind::Literal,           "rules1.rsca", 1, 14, 1, 25),
+            Token::new(TokenKind::Lt,                          "<", 1, 26, 1, 27),
+            Token::new(TokenKind::String,                   "asdf", 1, 29, 1, 34),
+            Token::new(TokenKind::Semi,                        ";", 1, 34, 1, 35),
+            Token::new(TokenKind::Literal,           "rules2.rsca", 1, 36, 1, 47),
+            Token::new(TokenKind::Gt,                          ">", 1, 48, 1, 49),
+            Token::new(TokenKind::String,                   "asdf", 1, 51, 1, 56),
+            Token::new(TokenKind::Semi,                        ";", 1, 56, 1, 57),
+            Token::new(TokenKind::Eof,                          "", 1, 57, 1, 58),
+        ];
+
+        let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
+        
+        let result = match &maybe_result {
+            Ok(r) => r,
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+                unreachable!()
+            },
+        };
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..expected_result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn test_lt_eq_gt_eq() {
+        let test_input= String::from(
+            "alpha > beta: rules1.rsca <= \"asdf\"; rules2.rsca >= \"asdf\";"
+        );
+        let expected_result = vec![
+            Token::new(TokenKind::Literal,                 "alpha", 1,  0, 1,  5),
+            Token::new(TokenKind::Gt,                          ">", 1,  6, 1,  7),
+            Token::new(TokenKind::Literal,                  "beta", 1,  8, 1, 12),
+            Token::new(TokenKind::Colon,                       ":", 1, 12, 1, 13),
+            Token::new(TokenKind::Literal,           "rules1.rsca", 1, 14, 1, 25),
+            Token::new(TokenKind::LtEq,                       "<=", 1, 26, 1, 28),
+            Token::new(TokenKind::String,                   "asdf", 1, 30, 1, 35),
+            Token::new(TokenKind::Semi,                        ";", 1, 35, 1, 36),
+            Token::new(TokenKind::Literal,           "rules2.rsca", 1, 37, 1, 48),
+            Token::new(TokenKind::GtEq,                       ">=", 1, 49, 1, 51),
+            Token::new(TokenKind::String,                   "asdf", 1, 53, 1, 58),
+            Token::new(TokenKind::Semi,                        ";", 1, 58, 1, 59),
+            Token::new(TokenKind::Eof,                          "", 1, 59, 1, 60),
+        ];
+
         let maybe_result = Lexer::new(&test_input.chars().collect::<Vec<_>>()).tokenise();        
         
         let result = match &maybe_result {
