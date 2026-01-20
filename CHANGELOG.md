@@ -28,10 +28,17 @@ Features:
         * e.g. `VN > [+nas] / <(..)_>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable and `N` is coda.
     * Allow for sets, as a whole, to be modified by a matrix
         * i.e. `{i, e}:[+long]` rather than `{i:[+long], e:[+long]}`
+    * Add aliases `J` and `W` for `ʝ` and `ɯ` respectively
     * New insertion implementation which is hopefully more stable
 
 Fixes:
-* Lib: corrected structure location error highlighting
+* Lib:
+    * Rules such as `$ < a$` no longer hang
+    * Corrected structure location error highlighting
+
+Tweaks:
+* Cli: (Potentially Breaking) Update file string sanitation so that special characters and punctuation is now omitted rather than being replaced with `-`
+* Lib: Removed redundant error locations from error messages
 
 Perf: 20-30% average execution speed up of example configs
 
