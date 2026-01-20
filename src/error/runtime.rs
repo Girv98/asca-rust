@@ -113,7 +113,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::InsertionOpt        (_) => write!(f, "Options cannot be used in insertion output"),
             Self::AlphaUnknown        (_) => write!(f, "Alpha has not be assigned before applying"),
             Self::LonelySet           (_) => write!(f, "A Set in output must have a matching Set in input"),
-            Self::UnknownReference(token) => write!(f, "Unknown reference '{}' at {}", token.value, token.position.start),
+            Self::UnknownReference(token) => write!(f, "Unknown reference '{}'", token.value),
             Self::DeletionOnlySyll => write!(f, "Can't delete a word's only syllable"),
             Self::DeletionOnlySeg  => write!(f, "Can't delete a word's only segment"),
             Self::UnevenEllipsis      (_) => write!(f, "Uneven number of ellipses in input and output"),
