@@ -59,23 +59,23 @@ ASCA recognises over 360 base IPA phonemes which can be modified with any of 30 
 - Advanced & Retracted Tongue Root
 - Labialised, Glottalised, Velarised, Palatalised, Pharyngealised (etc.) Segments
 
-ASCA supports digraphs; where two characters are joined by a tie (`◌͡◌`or `◌͜◌`) or, if not available, a caret `^` (i.e. `d͡ʒ` can be represented as `d^ʒ`). The tie/caret is not optional, `dʒ` is considered a sequence of two segments `d` and `ʒ`.
+ASCA supports digraphs; where two characters are joined by a ligature tie (`◌͡◌`or `◌͜◌`) or, if not available, a caret `^` (i.e. `d͡ʒ` can be represented as `d^ʒ`). The tie/caret is not optional, `dʒ` is considered a sequence of two segments `d` and `ʒ`. The tie cannot be used to join arbitrary sounds, only those that require it such as affricates and (hopefully in the future) doubly articulated consonants.
 
-Clicks are preceded by a velar or uvular plosive/nasal, denoting place of rear articulation, voicing, and nasality. These do not need to be joined by a tie as it is implicit (i.e. `ŋʘ` not `ŋ^ʘ` nor `ʘ`).
+Clicks are preceded by a velar or uvular plosive/nasal, denoting place of rear articulation, voicing, and nasality. These do not need to be, but can be, joined by a tie as it is implicit (i.e. `ŋʘ` over `ŋ^ʘ`, and never `ʘ`).
 
-Doubly articulated stops, such as `ɡ͡b`, are not supported.
+Doubly articulated stops, such as `ɡ͡b`, are not supported (I am up for ideas on how to represent them given [the current system](#segment-features))
 
 In the event that ASCA is unable to render a segment in IPA, `�` will be used in its place.
 
 Unless the diacritic is inherent to the base phoneme (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
 
-A full list of supported base phonemes and diacritics (with their values) can be found [here](https://bit.ly/3sHjqvA).
+***A full table of supported base phonemes, a vowel space diagram, and diacritics (each with their feature values) can be found [here](https://bit.ly/3sHjqvA).***
 
 ### Suprasegmentals
 
 #### Syllable Boundary
 Syllables are separated by `.`.
-A word with no marked boundaries is considered one syllable. There are no rules regarding internal syllable structure.
+A word with no marked boundaries is considered one syllable. There are no rules regarding internal syllable structure. An empty syllable will be automatically removed, e.g. `sa..na` will become `sa.na`.
 
 #### Length
 Segment length can be represented by either `ː` or `:`. A segment can be followed by multiple length markers, representing overlong segments. Alternatively, length can be represented by repetition of the segment (i.e. `si:m` can be `siim`). Identical segments that are separated by a syllable boundary are not considered one long segment. If a long segment falls at the end of a syllable, `;` can be used as shorthand to also close the syllable (i.e. `si:.tiŋ` can be `si;tiŋ`).
