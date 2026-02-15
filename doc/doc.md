@@ -50,7 +50,7 @@ This is documentation for the core principles of defining words and sound change
 
 ### IPA Characters
 
-ASCA recognises over 360 base IPA phones which can be modified with any of 30 diacritics. Meaning that most commonly used IPA codepoints are representable, including:
+ASCA recognises over 360 base IPA phonemes which can be modified with any of 30 diacritics. Meaning that most commonly used IPA codepoints are representable, including:
 - Clicks (Velar, uvular, and uvular contour)
 - Ejectives & Implosives
 - Voiceless, Creaky, & Breathy Phonation
@@ -69,7 +69,7 @@ In the event that ASCA is unable to render a segment in IPA, `�` will be used 
 
 Unless the diacritic is inherent to the base phoneme (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
 
-A full list of supported base phones and diacritics (with their values) can be found [here](https://bit.ly/3sHjqvA).
+A full list of supported base phonemes and diacritics (with their values) can be found [here](https://bit.ly/3sHjqvA).
 
 ### Suprasegmentals
 
@@ -797,7 +797,7 @@ In the rule above, plosives and nasals cluster only if they are of a different p
 
 ### Groupings
 
-Groupings can be used as shorthand to match often used parts of speech.
+Groupings can be used as shorthand to match often used phoneme classes.
 ```
 C -> Consonants (obstruents and sonorants)          (equiv. to [-syll])
 O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -son, -syll])
