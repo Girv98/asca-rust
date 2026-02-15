@@ -463,7 +463,7 @@ It is important to remember that this is essentially 'syntactic sugar' and that 
 
 Parts of a condensed rule must either be of the same length or contain only one item:
 
-```
+```wasm
 p,t,k > b,d,g ;; Works, each input part is mapped to an output part
 p,t,k > b     ;; Works, each input part is mapped onto /b/
 p     > b,d,g ;; Works, each output part is mapped onto /p/
@@ -474,7 +474,7 @@ p,t,k > b,d   ;; Errors, /k/ isn't paired
 
 You may often have condensed rules like above, where the same environment is being matched both before and after the input. As this can be common, there is a shorthand form of `_,` followed by the environment elements in question.
 
-``` wasm
+```wasm
 e > * / #_, _#
 ;; becomes
 e > * / _,#
@@ -573,6 +573,47 @@ c.g. = constricted glottis
 │ +voice │   voiced    │   creaky    │   breathy   │     n/a     │
 │        │             │  sonorants  │             │             │
 └────────┴─────────────┴─────────────┴─────────────┴─────────────┘
+```
+
+```
+┌───────────────────────┬─────────────┬─────────────┬─────────────┐
+│                       │   +fr -bk   │   -fr -bk   │   -fr +bk   │
+│      Vowel Space      ├──────┬──────┼──────┬──────┼──────┬──────┤
+│                       │ -rnd │ +rnd │ -rnd │ +rnd │ -rnd │ +rnd │
+├──────┬─────────┬──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ +tns │  i   │  y   │  ɨ   │  ʉ   │  ɯ   │  u   │
+│      │ +hi -lo ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ -tns │  ɪ   │  ʏ   │  ɪ̈   │  ʊ̈   │  ɯ̽   │  ʊ   │
+│      ├─────────┼──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ +tns │  e   │  ø   │  ɘ   │  ɵ   │  ɤ   │  o   │
+│ -red │ -hi -lo ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ -tns │  ɛ   │  œ   │  ɜ   │  ɞ   │  ʌ   │  ɔ   │
+│      ├─────────┼──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ +tns │  æ   │  æʷ  │  ɐ   │  ɐʷ  │  ɑ̝   │  ɒ̝   │
+│      │ -hi -lo ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ -tns │  æ̞   │  ɶ   │  a   │  ɒ̈   │  ɑ   │  ɒ   │
+├──────┼─────────┼──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ +tns │  iᵊ  │  yᵊ  │  ɨᵊ  │  ʉᵊ  │  ɯᵊ  │  uᵊ  │
+│      │ +hi -lo ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ -tns │  ɪᵊ  │  ʏᵊ  │  ɪ̈ᵊ  │  ʊ̈ᵊ  │  ɯ̽ᵊ  │  ʊᵊ  │
+│      ├─────────┼──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ +tns │  eᵊ  │  øᵊ  │  ɘᵊ  │  ɵᵊ  │  ɤᵊ  │  oᵊ  │
+│ +red │ -hi -lo ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ -tns │  ɛᵊ  │  œᵊ  │  ə   │  əʷ  │  ʌᵊ  │  ɔᵊ  │
+│      ├─────────┼──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ +tns │  æᵊ  │  æʷᵊ │  ɐᵊ  │  ɐʷᵊ │  ɑ̝ᵊ  │  ɒ̝ᵊ  │
+│      │ -hi -lo ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│      │         │ -tns │  æ̞ᵊ  │  ɶᵊ  │  aᵊ  │  ɒ̈ᵊ  │  ɑᵊ  │  ɒᵊ  │
+└──────┴─────────┴──────┴──────┴──────┴──────┴──────┴──────┴──────┘
+
+red = reduced (includes schwa)
+hi  = high
+lo  = low
+tns = tense
+
+rnd = round
+fr  = front
+bk  = back
 ```
 
 ### Using Distinctive Features
