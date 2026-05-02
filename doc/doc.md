@@ -1,6 +1,6 @@
 # ASCA Documentation and User Guide
 
-This is documentation for the core principles of defining words and sound changes with ASCA. For platform specific documentation, see:
+This is documentation regarding the core principles of defining words and sound changes with ASCA. For platform specific documentation, see:
 
 [Web](./doc-web.md) | [Cli](./doc-cli.md)
 
@@ -81,7 +81,7 @@ A word with no marked boundaries is considered one syllable. There are no rules 
 Segment length can be represented by either `ː` or `:`. A segment can be followed by multiple length markers, representing overlong segments. Alternatively, length can be represented by repetition of the segment (i.e. `si:m` can be `siim`). Identical segments that are separated by a syllable boundary are not considered one long segment. If a long segment falls at the end of a syllable, `;` can be used as shorthand to also close the syllable (i.e. `si:.tiŋ` can be `si;tiŋ`).
 
 #### Stress
-Primary stress can be represented by either `ˈ` or `'` and secondary stress by either `ˌ` or `,`. These are placed at the start of the syllable. The boundary marker can be omitted if followed by a stressed syllable (i.e. `ə'gəʊ` instead of `ə.'gəʊ`). Note that ejective consonants cannot be marked with a `'` as this will be interpreted as stress. `ʼ` or `"'` must be used instead `i.e. /pʼ/ or /p"'/`.
+Primary stress can be represented by either `ˈ` or `'` and secondary stress by either `ˌ` or `,`. These are placed at the start of the syllable. The boundary marker can be omitted if followed by a stressed syllable (i.e. `ə'gəʊ` instead of `ə.'gəʊ`). Note that ejective consonants cannot be marked with a `'` as this will be interpreted as stress. `ʼ` or `"'` must be used instead `i.e. /pʼ/ or /p"'/` (see [inbuilt aliases](#inbuilt-aliases) for more on the latter).
 
 #### Tone
 ASCA does not currently support tone diacritics or tone letters. Tone instead is represented by numbers following the syllable. As of yet, there are no rules regarding the meaning or syntax of these numbers; However, for demonstration we will follow the [Chinese convention](https://en.wikipedia.org/wiki/Tone_letter#Numerical_values), using numbers from 1 (lowest pitch) to 5 (highest pitch). As with stress, either a syllable or a segment can be matched or modified with tone.
@@ -396,10 +396,13 @@ e > * / _#      ;; Apocope: /e/ elides at the end of a word
 * > e / #_      ;; Prothesis: /e/ is inserted at the beginning of a word
 * > e / _#      ;; Paragoge: /e/ is inserted at the end of a word
 ```
-You may use the empty set character `∅` instead:
+You may use the empty set character `∅` (not to be confused with the vowel `ø`) instead:
 
 ```
 e > ∅ / #_
+e > ∅ / _#
+∅ > e / #_
+∅ > e / _#
 ```
 
 ### Metathesis Rules
@@ -437,7 +440,7 @@ arla => alra
 For more about ellipses, see [below](#ellipses).
 
 ### Condensed Rules
-Multiple rules can be condensed into one line by joining each of their parts, separated by commas:
+Multiple rules can be placed onto one line by joining each of their parts, separated by commas:
 
 ```
 a > e / #_ 
@@ -448,7 +451,7 @@ u > y / _#
 a, u > e, y / #_, _# 
 ```
 
-This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments; as these can be condensed into one item:
+This can be useful when you have two or more sequential rules that share identical inputs, outputs, or environments; as these can each be condensed into one item:
 
 For Example:
 ```
@@ -459,7 +462,7 @@ can be condensed into:
 ```
 e > * / #_, _#
 ```
-It is important to remember that this is essentially 'syntactic sugar' and that the rules are still applied sequentially and not at the same time (see [sets](#sets) and [environment sets](#environment-sets) for this).
+It is important to note that this is essentially 'syntactic sugar' and that the rules are still applied sequentially and not at the same time (see [sets](#sets) and [environment sets](#environment-sets) for this).
 
 Parts of a condensed rule must either be of the same length or contain only one item:
 
@@ -751,7 +754,7 @@ V=1 C > 1 1 / _#
 ```
 
 ### Tone
-Tone has a unique syntax within matrices. That is, `[tone: X]`, where `X` is the tone numbers.  
+Tone has a unique syntax within matrices. That is, `[tone: X]`, where `X` is a sequence of [tone numbers](#tone).
 As of yet, tone cannot be used with alpha notation; nor can it be 'negated'.
 
 ```
@@ -762,7 +765,7 @@ Rule Example: Mandarin 3rd Tone Sandhi
 ```
 
 ```
-Rule Example: Middle Chinese Tonogenesis
+Rule Example: Simplified Middle Chinese Tonogenesis
 
 % > [tone: 33]                       ;; 平 and 入
 V > [tone: 35], [tone: 51] / _ʔ, _s  ;; 上 then 去
@@ -776,7 +779,7 @@ Take these two rules:
 [+son] > [-nasal] / [-nasal]_
 [+son] > [+nasal] / [+nasal]_
 ``` 
-Both are identical, except both `nasal` features are positive in one and negative in the other. These rules will also be applied sequentially.
+Both are identical, except the `nasal` features are positive in one and negative in the other. These rules will also be applied sequentially.
 We can replace these with a single rule, which is only applied once, by replacing the +/- with a greek character `α..ω`. If greek characters are not available, ASCII capitals `A..Z` can be used instead.
 
 ```
@@ -790,7 +793,7 @@ Rule Example: Turkish Suffix Vowel Harmony
 V:[+hi] > [αbk, βfr, γrnd] / V:[αbk, βfr, γrnd] (C,0) _ (C) #
 ```
 
-Alphas are processed first in the input, then the context, and lastly the output. Alphas are done left to right within each block. 
+Alphas are processed first in the input, then the context, and lastly the output. Alphas are done left to right within these parts. 
 Any alpha in the output must be prior set in either the input or context.
 
 ### Nodes and Subnodes
@@ -813,20 +816,31 @@ P:[α DOR] > [α round]
 ```
 
 ### Inversion
-Imagine we have two debuccalisation rules, one for plosives and one for fricatives
+Imagine we have two debuccalisation rules, one for plosives and one for fricatives:
 ```wasm
 O:[-voi, -cont] > [-cons, -c.g., -place] / _#           ;; /pat/ => /paʔ/
 O:[-voi, +cont] > [-cons, +s.g., -place, -strid] / _#   ;; /pas/ => /pah/
 ```
-It would be nice if we were able to join them into one rule. To accomplish this, we can use inversion:
-```wasm
-O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid] / _#
+These two rules only have one difference. If the input is `-cont`, the output is `-c.g.`; if the input is `+cont`, the output is `+s.g.` (Plosives 
+are normally `-strid` so we don't have to worry about that). It would be nice if we could deal with this difference and express these two rules in 
+a single rule. To accomplish this, we can use inversion.
 
+A `-` can be placed in front of a binary alpha to flip its value; that is if an alpha `A` is assigned `-`, `-A` will produce `+` and vice versa. 
+For this example, we can assign an alpha value of `A` to these features, so that `[-cont] => [-sg, -cg]` and a `[+cont] => [+sg, +cg]`. We can then 
+flip the output value of `c.g.` using inversion so that `-cont` maps to `+c.g.` and `+cont` to `-c.g.`. This results in `[-cont] => [-s.g., +c.g.]` 
+and `[+cont] => [+s.g., -c.g.]` which is what we want to satisfy the two rules.
+
+```wasm
+Result:
+
+O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid] / _#
 ;; /pat/ => /paʔ/, /pas/ => /pah/
 ```
-The above means that when matching an obstruent that is `[-cont]` the output becomes `[-s.g., +c.g.]`, while when the obstruent is `[+cont]`, the output is `[+s.g., -c.g.]`
 
-This can be used with nodes for conditional clustering:
+Inversion can also be used with nodes. In this context, an inverted node means any node that does not have the same value as the non-inverted node. 
+As this is a one-to-many mapping, inverted nodes cannot be used in the output.
+
+This can be used, for example, for conditional clustering based on place of articulation:
 ```wasm
 ə$ > * / P:[αPLACE]_N:[-αPLACE]
 
@@ -854,7 +868,7 @@ Note that purely glottalic consonants such as `/h/ and /ʔ/` are considered `[-c
 
 ### Sets
 Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries (a set in the input or output
-cannot contain word boundaries). They represent a choice between their items.
+cannot contain word boundaries). They represent a choice/mapping between their items.
 Currently, set items cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
 
 If corresponding sets are used in the input and output, then the nth element in the input will be substituted by the nth element in the output. In a rule with nothing 
@@ -865,7 +879,7 @@ p, t, k > b, d, g   ;; 3 passes, equivalent to 3 consecutive rules
 {p,t,k} > {b,d,g}   ;; 1 pass
 ```
 
-A set in the output, if matched to a set in the input, must contain the same number of segments. A set also cannot be empty:
+A set in the output, if matched to a set in the input, must contain the same number of segments. A set also cannot be empty.
 ```
 {p, t, k} > {b, d}      (ERROR)
 {p, t} > {b, d, g}      (ERROR)
@@ -879,7 +893,7 @@ a similarly structured condensed rule, except applied in one pass.
 {f, x} > [+voi] / V_V   ;; 1 pass
 ```
 
-A set in the output without a corresponding set is invalid.
+A set in the output without a corresponding set in the input is invalid.
 ```
 ʔ > { p, t, k }     (ERROR)
 ```
@@ -929,7 +943,7 @@ S = the items(s) to be repeated (Boundaries, Syllables, Segments, References, Ma
 M = the minimum number of iterations
 X = the maximum number of iterations (inclusive). X must be greater than or equal to M.
 ```
-Both `M` and `X` can be omitted, with default values being `0` and `'Max'` respectfully. When `M` is omitted, an optional can be declared simply as `(S, X)`.
+Both `M` and `X` can be omitted, with default values being `0` and `'unsigned integer max'` respectfully. When `M` is omitted, an optional can be declared simply as `(S, X)`.
 
 For example, `(C,5)_` is equivalent to `(C, 0:5)` or `(C, :5)` and matches up to 5 consonants preceding the target. This will lazily target environments of `_`, `C_`, `CC_`, `CCC_`, `CCCC_`, and `CCCCC_`.
 
@@ -1133,7 +1147,7 @@ Example: Cross-Word Syllable Metathesis
 
 % ## % > &
 
-sa.lo sa.lo => sa.sa lo.lo
+sa.ta ma.lo => sa.ma ta.lo
 ```
 
 ## Propagation 
@@ -1162,7 +1176,7 @@ V > [α front, β back] / _ (..) V:[α front, β back]#
 
 ### True Right-to-left Propagation
 
-The above will work in many cases; However, to have true right-to-left harmony we can use the tilde operator `~` or `~>`. This is used in the place of the normal arrow between the input and output and denotes to asca that the rule should be inverted and applied from the end of the word to the beginning.
+The above will work in many cases; However, to have true right-to-left harmony we can use the tilde operator `~` or `~>`. This is used in the place of the normal arrow between the input and output and denotes to ASCA that the rule should be applied from the end of the word to the beginning.
 
 We can now implement the previous example more simply as just a mirror image of its left-to-right version:
 ```
