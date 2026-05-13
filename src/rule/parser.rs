@@ -87,28 +87,27 @@ impl Env {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-// pub(crate) struct ItemSet(Vec<SetElement>);
-pub(crate) struct ItemSet {
+pub(crate) struct SetChoice {
     pub(crate) items: Vec<ParseItem>,
 }
 
-impl ItemSet {
+impl SetChoice {
     pub(crate) fn reverse(&mut self) {
         self.items.reverse();
         for el in &mut self.items { el.reverse(); }
     }
 
-    pub(crate) fn contains_at(&self, element: ParseElement) -> Option<usize> {
-        for (i, item) in self.items.iter().enumerate() {
-            if item.kind == element {
-                return Some(i)
+    pub(crate) fn contains(&self, element: &ParseElement) -> bool {
+        for item in &self.items {
+            if item.kind == *element {
+                return true
             }
         }
-
-        None
+        
+        false
     }
-    
-    // TODO: This will have to change when we allow multiple 
+
+    // TODO: Should this be allowed if there are multiple items? 
     fn join_params(&mut self, matrix: &Modifiers, matrix_pos: Position) -> Result<(), RuleSyntaxError> {
         
         let node_mods: Vec<(usize, &Option<ModKind>)> = matrix.nodes.iter().enumerate().filter(|(_, nk)| nk.is_some()).collect();
@@ -157,6 +156,68 @@ impl ItemSet {
 
                 _ => unreachable!()
             }
+        }
+        
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ItemSet {
+    pub(crate) choices: Vec<SetChoice>,
+}
+
+impl ItemSet {
+    pub(crate) fn reverse(&mut self) {
+        // for choice in &mut self.choices { 
+        //     choice.items.reverse();
+        //     for el in &mut choice.items { el.reverse(); }
+        // }
+
+        for choice in &mut self.choices {
+            choice.reverse();
+        }
+    }
+
+    #[allow(unused)]
+    /// Returns choice index of first appearance of matched element
+    pub(crate) fn contains_at(&self, element: &ParseElement) -> Option<usize> {
+        for (c, choice) in self.choices.iter().enumerate() {
+            if choice.contains(element) {
+                return Some(c)
+            }
+        }
+
+        None
+    }
+
+    #[allow(unused)]
+    /// Note: matches enum values not just if same variant
+    pub(crate) fn starts_in(&self, el_kind: ParseElement, choice_index: usize) -> bool {
+        match self.choices.get(choice_index) {
+            Some(choice) => match choice.items.first() {
+                Some(item) => item.kind == el_kind,
+                None => false,
+            },
+            None => false,
+        }
+    }
+
+    /// Note: matches enum values not just if same variant
+    pub(crate) fn ends_in(&self, el_kind: ParseElement, choice_index: usize) -> bool {
+        match self.choices.get(choice_index) {
+            Some(choice) => match choice.items.last() {
+                Some(item) => item.kind == el_kind,
+                None => false,
+            },
+            None => false,
+        }
+    }
+    
+    fn join_params(&mut self, matrix: &Modifiers, matrix_pos: Position) -> Result<(), RuleSyntaxError> {
+
+        for choice in &mut self.choices {
+            choice.join_params(matrix, matrix_pos)?
         }
         
         Ok(())
@@ -287,12 +348,14 @@ impl fmt::Display for ParseElement {
             //     write!(f, ">")
             // }
             Self::Set(s) => {
-                write!(f, "{{")?;
-                for i in s.items.iter() {
-                    write!(f, "{i}")?;
+                write!(f, "{{ ")?;
+                for c in &s.choices {
+                    for i in &c.items {
+                        write!(f, "{i}")?;
+                    }
                     write!(f, ", ")?;
                 }
-                write!(f, "}}")
+                write!(f, " }}")
             },
             Self::Optional(s, min, max) => {
                 write!(f, "(")?;
@@ -1047,8 +1110,26 @@ impl Parser {
         Err(RuleSyntaxError::ExpectedRightBracket(self.curr_tkn.clone()))
     }
 
+    fn get_set_choices(&mut self) -> Result<SetChoice, RuleSyntaxError> {
+        let mut items = Vec::new();
+
+        while self.has_more_tokens() 
+          && !self.peek_expect(TokenKind::RightCurly) 
+          && !self.peek_expect(TokenKind::Comma) {
+            if let Some(x) = self.get_ref()?    { items.push(x); continue; }
+            if let Some(x) = self.get_seg()?    { items.push(x); continue; }
+            if let Some(x) = self.get_bound()   { items.push(x); continue; }
+            if let Some(x) = self.get_syll()?   { items.push(x); continue; }
+            if let Some(x) = self.get_struct()? { items.push(x); continue; }
+
+            return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
+        }
+
+        Ok(SetChoice { items })
+    }
+
     fn get_set(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        // Set ← '{' SetTerm (',' SetTerm)* ','? '}'
+        // Set ← '{' SetTerm+ (',' SetTerm+)* ','? '}'
         let start_pos = self.curr_tkn.position.start;
 
         if !self.expect(TokenKind::LeftCurly) { return Ok(None) }
@@ -1057,17 +1138,18 @@ impl Parser {
         while self.has_more_tokens() {
             if self.expect(TokenKind::RightCurly) { break; }
             if !terms.is_empty() && !self.expect(TokenKind::Comma) {
-            return Err(RuleSyntaxError::ExpectedComma(self.curr_tkn.clone()))
+                return Err(RuleSyntaxError::ExpectedComma(self.curr_tkn.clone()))
             }
 
-            if let Some(x) = self.get_ref()?    { terms.push(x); continue; }
-            if let Some(x) = self.get_seg()?    { terms.push(x); continue; }
-            if let Some(x) = self.get_bound()   { terms.push(x); continue; }
-            if let Some(x) = self.get_syll()?   { terms.push(x); continue; }
-            if let Some(x) = self.get_struct()? { terms.push(x); continue; }
-            
-            if self.expect(TokenKind::RightCurly) { break; } // To allow for trailing commas
-            return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
+            let choice = self.get_set_choices()?;
+
+            if !choice.items.is_empty() {
+                terms.push(choice);
+            } else if self.expect(TokenKind::RightCurly) { // To allow for trailing commas
+                break; 
+            } else {
+                return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
+            }
         }
 
         let end_pos = self.token_list[self.pos-1].position.end;
@@ -1078,7 +1160,7 @@ impl Parser {
         }
 
         if !self.expect(TokenKind::Colon) {
-            return Ok(Some(ParseItem::new(ParseElement::Set(ItemSet{items: terms.clone()}), pos)))
+            return Ok(Some(ParseItem::new(ParseElement::Set(ItemSet{choices: terms.clone()}), pos)))
         }
 
         if !self.expect(TokenKind::LeftSquare) {
@@ -1089,7 +1171,7 @@ impl Parser {
         let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`");
         pos.end = params.position.end;
 
-        let mut set = ItemSet { items: terms.clone() };
+        let mut set = ItemSet { choices: terms.clone() };
 
         set.join_params(matrix, params.position)?;
 
