@@ -26,14 +26,18 @@ Features:
         * `[A stress, B sec.stress]` can be replaced with just `[A anystress]`
     * Allow for the underline to be placed within an environment structure.
         * e.g. `VN > [+nas] / <(..)_>` instead of `VN > [+nas] / _$` guarantees `V` and `N` are of the same syllable and `N` is coda.
-    * Allow for sets, as a whole, to be modified by a matrix
-        * i.e. `{i, e}:[+long]` rather than `{i:[+long], e:[+long]}`
+    * Rework of Sets
+        * Allows for multiple items in set choices
+            * e.g. `{i:[+lng], u:[+lng]} > {aj, aw}`
+            * These items can be mixed type e.g. `{k<CV>, N$[-syll]}`
+        * Allows for sets, as a whole, to be modified by a matrix
+            * i.e. `{i, u}:[+long]` rather than `{i:[+long], u:[+long]}`
     * Add aliases `J` and `W` for `ʝ` and `ɯ` respectively
-    * New insertion implementation which is hopefully more stable
+    <!-- * New insertion implementation which is hopefully more stable -->
 
 Fixes:
 * Lib:
-    * Rules such as `$ < a$` no longer hang
+    * Rules such as `$ > a$` no longer hang
     * Corrected structure location error highlighting
 
 Tweaks:
