@@ -202,57 +202,64 @@ impl SubRule {
         Ok(phrase)
     }
 
+    // FIXME: If we have previously swapped syllables or boundaries then these SegPos will not be correct
+    fn metathesis_swap_segments(&self, res_phrase: &mut Phrase, left_pos: SegPos, left_long: bool, right_pos: SegPos, right_long: bool) {
+        let left_seg = res_phrase.get_seg_at(left_pos).unwrap();
+        let right_seg = res_phrase.get_seg_at(right_pos).unwrap();
+
+        let sl_length = res_phrase.seg_length_at(left_pos);
+        let sr_length = res_phrase.seg_length_at(right_pos);
+
+        // Note: insertions/deletions must be performed on the right side first!!!
+        match (left_long, right_long) {
+            (false, false) => {
+                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
+                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
+            }
+            (false, true) => {
+                // Swap initial segments
+                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
+                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
+                // Delete right
+                for _ in 0..sr_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.remove(right_pos.seg_index + 1); }
+                // Insert left
+                for _ in 0..sr_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.insert(left_pos.seg_index, right_seg); }
+            }
+            (true, false) => {
+                // Swap initial segments
+                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
+                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
+                // Insert right
+                for _ in 0..sl_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.insert(right_pos.seg_index, left_seg); }
+                // Delete left
+                for _ in 0..sl_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.remove(left_pos.seg_index + 1); }
+            }
+            (true, true)  => {
+                // Swap initial segments
+                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
+                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
+                // Remove/insert right
+                for _ in 0..sr_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.remove(right_pos.seg_index + 1); }
+                for _ in 0..sl_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.insert(right_pos.seg_index, left_seg); }
+                // Remove/insert left
+                for _ in 0..sl_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.remove(left_pos.seg_index + 1); }
+                for _ in 0..sr_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.insert(left_pos.seg_index, right_seg); }
+            }
+        }
+    }
+
     fn metathesis(&self, phrase: &Phrase, input: Vec<MatchElement>, _next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         let mut res_phrase = phrase.clone();
         for z in 0..(input.len() / 2) {
             match (&input[z], &input[input.len()-1-z]) {
-                (&MatchElement::Segment(li), &MatchElement::Segment(ri)) => {
-                    // FIXME: If we swap syllables or boundaries then do this, these SegPos may not be correct
-                    let sl = res_phrase.get_seg_at(li).unwrap();
-                    let sr = res_phrase.get_seg_at(ri).unwrap();
-                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
-                },
-                (&MatchElement::Segment(li), &MatchElement::LongSegment(ri)) => {
-                    let sl = res_phrase.get_seg_at(li).unwrap();
-                    let sr = res_phrase.get_seg_at(ri).unwrap();
-                    let sr_length = res_phrase.seg_length_at(ri);
-
-                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    for _ in 0..sr_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr); }
-                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
-                    for _ in 0..sr_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index + 1); }
-                },
-                (&MatchElement::LongSegment(li), &MatchElement::Segment(ri)) => {
-                    let sl = res_phrase.get_seg_at(li).unwrap();
-                    let sr = res_phrase.get_seg_at(ri).unwrap();
-                    let sl_length = res_phrase.seg_length_at(li);
-
-                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    for _ in 0..sl_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index + 1); }
-                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
-                    for _ in 0..sl_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl); }
-                },
-                (&MatchElement::LongSegment(li), &MatchElement::LongSegment(ri)) => {
-                    let sl = res_phrase.get_seg_at(li).unwrap();
-                    let sr = res_phrase.get_seg_at(ri).unwrap();
-                    let sl_length = res_phrase.seg_length_at(li);
-                    let sr_length = res_phrase.seg_length_at(ri);
-
-                    // Swap initial segments
-                    res_phrase[li.word_index].syllables[li.syll_index].segments[li.seg_index] = sr;
-                    res_phrase[ri.word_index].syllables[ri.syll_index].segments[ri.seg_index] = sl;
-                    // Remove long
-                    for _ in 0..sl_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.remove(li.seg_index + 1); }
-                    for _ in 0..sr_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.remove(ri.seg_index + 1); }
-                    // Add long
-                    for _ in 0..sr_length-1 { res_phrase[li.word_index].syllables[li.syll_index].segments.insert(li.seg_index, sr); }
-                    for _ in 0..sl_length-1 { res_phrase[ri.word_index].syllables[ri.syll_index].segments.insert(ri.seg_index, sl); }
-                },
-                (&MatchElement::Syllable(lw, ls), &MatchElement::Syllable(rw, rs)) => {
-                    res_phrase.swap_sylls(lw, ls, rw, rs);
-                },
+                (&MatchElement::Segment(li),     &MatchElement::Segment(ri))     => self.metathesis_swap_segments(&mut res_phrase, li, false, ri, false),
+                (&MatchElement::Segment(li),     &MatchElement::LongSegment(ri)) => self.metathesis_swap_segments(&mut res_phrase, li, false, ri, true),
+                (&MatchElement::LongSegment(li), &MatchElement::Segment(ri))     => self.metathesis_swap_segments(&mut res_phrase, li, true,  ri, false),
+                (&MatchElement::LongSegment(li), &MatchElement::LongSegment(ri)) => self.metathesis_swap_segments(&mut res_phrase, li, true,  ri, true),
+                
+                (&MatchElement::Syllable(lw, ls), &MatchElement::Syllable(rw, rs)) => res_phrase.swap_sylls(lw, ls, rw, rs),
                 (&MatchElement::SyllBound(..), &MatchElement::SyllBound(..)) => {/* Do nothing */},
+
                 (&MatchElement::Segment(si), &MatchElement::SyllBound(wp, bi)) => {
                     // FIXME(girv): this won't work for rules with `...`, it may be necessary to disallow `$` in `...` rules
                     let seg = res_phrase[si.word_index].syllables[si.syll_index].segments[si.seg_index];
