@@ -10,9 +10,11 @@
         - i.e. `N > * / <..V_>` instead of `N > * / V_$` to guarantee same syllable
         - ideal for syllable fixing e.g. `* > $ / <VC_CV>`
     - Sets
-        - [ ] Allow sequences of items
+        - [-] Allow sequences of items
         - [x] Allow entire set to be modified
             - i.e. `{i, e}:[+long]` rather than `{i:[+long], e:[+long]}`
+    - `@` instead of `&` in long-range metathesis rules to maintain group orderings
+        - i.e. `pf..s > @` means `pfas => sapf` while `pf..s > &` means `pfas => safp`
 - Web:
     - Reverse rule tracing
         - i.e. see which words have been effected by a give rule, rather than which rules have been applied to a given word
