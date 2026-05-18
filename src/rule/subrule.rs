@@ -4167,7 +4167,7 @@ impl SubRule { // Input Matching
     }
 
     fn input_check_set_syll_bound(&self, phrase: &Phrase, captures: &mut Vec<MatchElement>) -> bool {
-        match &self.input[0].kind {
+        match &self.input.last().unwrap().kind {
             ParseElement::Set(set) => {
                 match captures.last_mut() {
                     Some(MatchElement::Set(els, choice)) => {
@@ -4361,6 +4361,27 @@ impl SubRule { // Input Matching
             *self.alphas.borrow_mut() = back_alphas.clone();
             *self.references.borrow_mut() = back_refs.clone();
             captures.truncate(back_captures_len);
+        }
+
+        if states.len() <= *state_index + 1 {
+            match &states.last().unwrap().kind {
+                ParseElement::SyllBound => {
+                    if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) {
+                        captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len()));
+                        *state_index += 1;
+                        return Ok(true)
+                    }
+                }
+                ParseElement::ExtlBound => {
+                    if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) {
+                        captures.push(MatchElement::WordBound(pos.word_index));
+                        pos.word_increment(phrase);
+                        *state_index += 1;
+                        return Ok(true)
+                    }
+                }
+                _ => (),
+            }
         }
         
         *self.alphas.borrow_mut() = back_alphas;
