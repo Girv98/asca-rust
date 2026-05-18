@@ -32,11 +32,15 @@ Features:
             * These items can be mixed type e.g. `{k<CV>, N$[-syll]}`
         * Allows for sets, as a whole, to be modified by a matrix
             * i.e. `{i, u}:[+long]` rather than `{i:[+long], u:[+long]}`
+    * Rework of Metathesis
+        * Ellipses act to group elements on either side
+            * e.g. `pf..s > &` to result in `pfas => safp` whereas it currently would render `pfas => sfap`
     * Add aliases `J` and `W` for `ʝ` and `ɯ` respectively
     <!-- * New insertion implementation which is hopefully more stable -->
 
 Fixes:
 * Lib:
+    * (Metathesis) Swapping segments of different lengths in the same syllable works as expected
     * Rules such as `$ > a$` no longer hang
     * Corrected structure location error highlighting
 
