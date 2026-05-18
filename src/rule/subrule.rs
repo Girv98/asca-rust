@@ -701,7 +701,7 @@ impl SubRule {
                 &(Meta::Ins(_), Meta::Ins(_)) => unreachable!(),
 
 
-                _ => todo!("sets")
+                _ => unreachable!("sets")
             }
         }
 
@@ -801,9 +801,6 @@ impl SubRule {
                     pos: *seg_pos 
                 });
             }
-            (MatchElement::Segment(_), MatchElement::Set(..)) => {
-                todo!()
-            }
 
             (MatchElement::LongSegment(seg_pos), MatchElement::Segment(_)) |
             (MatchElement::LongSegment(seg_pos), MatchElement::LongSegment(_)) => {
@@ -873,17 +870,12 @@ impl SubRule {
                     pos: *seg_pos 
                 });
             }
-            (MatchElement::LongSegment(_), MatchElement::Set(..)) => {
-                // let len = Self::non_zero_len(phrase.seg_length_at(*seg_pos) as u8);
-                todo!()
-            }
             
             (MatchElement::Syllable(_, _), MatchElement::Segment(_)) => todo!(),
             (MatchElement::Syllable(_, _), MatchElement::LongSegment(_)) => todo!(),
             (MatchElement::Syllable(_, _), MatchElement::Syllable(..)) => todo!(),
             (MatchElement::Syllable(_, _), MatchElement::SyllBound(..)) => todo!(),
             (MatchElement::Syllable(_, _), MatchElement::WordBound(_)) => todo!(),
-            (MatchElement::Syllable(_, _), MatchElement::Set(..)) => todo!(),
 
 
             (MatchElement::SyllBound(_, _), MatchElement::Segment(_)) => todo!(),
@@ -891,40 +883,16 @@ impl SubRule {
             (MatchElement::SyllBound(_, _), MatchElement::Syllable(..)) => todo!(),
             (MatchElement::SyllBound(_, _), MatchElement::SyllBound(..)) => todo!(),
             (MatchElement::SyllBound(_, _), MatchElement::WordBound(_)) => todo!(),
-            (MatchElement::SyllBound(_, _), MatchElement::Set(..)) => todo!(),
 
             (MatchElement::WordBound(_), MatchElement::Segment(_)) => todo!(),
             (MatchElement::WordBound(_), MatchElement::LongSegment(_)) => todo!(),
             (MatchElement::WordBound(_), MatchElement::Syllable(..)) => todo!(),
             (MatchElement::WordBound(_), MatchElement::SyllBound(..)) => todo!(),
             (MatchElement::WordBound(_), MatchElement::WordBound(_)) => todo!(),
-            (MatchElement::WordBound(_), MatchElement::Set(..)) => todo!(),
 
-            (MatchElement::Set(..), MatchElement::Segment(_)) => todo!(),
-            (MatchElement::Set(..), MatchElement::LongSegment(_)) => todo!(),
-            (MatchElement::Set(..), MatchElement::Syllable(..)) => todo!(),
-            (MatchElement::Set(..), MatchElement::SyllBound(..)) => todo!(),
-            (MatchElement::Set(..), MatchElement::WordBound(_)) => todo!(),
-            (MatchElement::Set(..), MatchElement::Set(..)) => todo!(),            
+            (MatchElement::Set(..), _) |
+            (_, MatchElement::Set(..)) => unreachable!("sets"),
         }
-
-        // right_res.push(Action { 
-        //     kind: ActionKind::ReplaceSegment(
-        //         (Self::ONE, Self::ONE), 
-        //         Payload::Segment(phrase.get_seg_at(left_pos).unwrap(), None), 
-        //         Position::new(0, 0,0,0) // This should never be needed so we are ok
-        //     ), 
-        //     pos: right_pos 
-        // });
-
-        // left_res.push(Action { 
-        //     kind: ActionKind::ReplaceSegment(
-        //         (Self::ONE, Self::ONE), 
-        //         Payload::Segment(phrase.get_seg_at(right_pos).unwrap(), None), 
-        //         Position::new(0, 0,0,0)
-        //     ), 
-        //     pos: left_pos 
-        // });
 
         Ok(())
     }
@@ -985,11 +953,20 @@ impl SubRule {
             let mut el = Vec::new();
             let mut id = Vec::new();
             for _ in part.iter() {
-                el.push(&input[ind]);
-                id.push(ind);
+                match &input[ind] {
+                    MatchElement::Set(match_elements, _) => {
+                        for me in match_elements {
+                            el.push(me);
+                            id.push(ind);
+                        }
+                    },
+                    me => {
+                        el.push(me);
+                        id.push(ind);
+                    }
+                }
                 ind += 1;
             }
-            debug_assert_eq!(part.len(), el.len());
             els.push(el);
             idc.push(id);
         }
@@ -1026,11 +1003,26 @@ impl SubRule {
             return self.metathesis_ellipses(phrase, &input, next_pos)
         }
 
+        let mut expanded_els = Vec::new();
+
+        for el in &input {
+            match el {
+                MatchElement::Set(m_els, _) => {
+                    for m_el in m_els {
+                        expanded_els.push(m_el);
+                    }
+                }
+                m_el => {
+                    expanded_els.push(m_el);
+                }
+            }
+        }
+
         let mut matched_groups = Vec::new();
         let mut matched_indices = Vec::new();
-        for z in 0..(input.len()/2) {
-            matched_groups.push((Meta::Some(&input[z]), Meta::Some(&input[input.len()-1-z])));
-            matched_indices.push((z, input.len()-1-z));
+        for z in 0..(expanded_els.len()/2) {
+            matched_groups.push((Meta::Some(&expanded_els[z]), Meta::Some(&expanded_els[expanded_els.len()-1-z])));
+            matched_indices.push((z, expanded_els.len()-1-z));
         }
 
         // println!("mg: {:?}", mg);
