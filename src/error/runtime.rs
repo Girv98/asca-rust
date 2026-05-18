@@ -21,7 +21,6 @@ pub enum RuleRuntimeError {
     SubstitutionBoundMod         (Position, Position),
     MetathWordBoundary           (Position, Position),
     MetathSyllBoundary           (Position, Position),
-    MetathSyllSegment            (Position, Position),
     UnevenSet                    (Position, Position),
     GroupSuprIsInverted(&'static str, Position),
     GroupSuprIsBinary  (&'static str, Position),
@@ -81,7 +80,6 @@ impl fmt::Display for RuleRuntimeError {
             Self::SubstitutionBoundMod    (..) => write!(f, "Syllable boundaries cannot be modified by a matrix."),
             Self::MetathWordBoundary      (..) => write!(f, "Cannot swap a word boundary with a syllable boundary"),
             Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable boundary"),
-            Self::MetathSyllSegment       (..) => write!(f, "Cannot swap a syllable with a segment"),
             Self::UnevenSet               (..) => write!(f, "Two matched sets must have the same number of elements"),
             Self::GroupSuprIsInverted(supr, _) => write!(f, "Grouped Suprasegmental '{supr}' cannot be inverted"),
             Self::GroupSuprIsBinary  (supr, _) => write!(f, "Grouped Suprasegmental '{supr}' cannot be binary"),
@@ -195,7 +193,6 @@ impl RuleRuntimeError {
             Self::SubstitutionBoundMod         (a, b) |
             Self::MetathWordBoundary           (a, b) |
             Self::MetathSyllBoundary           (a, b) |
-            Self::MetathSyllSegment            (a, b) |
             Self::UnevenSet                    (a, b) => (
                    " ".repeat(a.start) + &"^".repeat(a.end - a.start) 
                 + &" ".repeat(b.start - a.end) + &"^".repeat(b.end - b.start) + "\n",
