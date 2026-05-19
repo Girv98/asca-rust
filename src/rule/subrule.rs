@@ -18,15 +18,17 @@ type WrdPos = usize;    // the index of the word in the phrase, for WordBound, t
 type SylPos = usize;    // the index of the syllable in the word.syllables array
 type BndPos = usize;    // the index of the syllable in the word.syllables array that has this boundary as it's start
 type SetInd = usize;    // the index of the matched set choice
+type ErrPos = Position; // the matching token position, used for errors
 
 #[derive(Debug, Clone)]
 pub(crate) enum MatchElement {
-    Set(Vec<MatchElement>, SetInd), 
-    Segment(SegPos),
-    LongSegment(SegPos),
-    Syllable(WrdPos, SylPos),
-    SyllBound(WrdPos, BndPos),
-    WordBound(WrdPos),
+    #[allow(unused)]
+    Set(Vec<MatchElement>, SetInd, ErrPos), 
+    Segment(SegPos, ErrPos),
+    LongSegment(SegPos, ErrPos),
+    Syllable(WrdPos, SylPos, ErrPos),
+    SyllBound(WrdPos, BndPos, ErrPos),
+    WordBound(WrdPos, ErrPos),
 }
 
 
@@ -39,9 +41,10 @@ enum Payload {
 type OldLen = NonZeroU8;
 type NewLen = NonZeroU8;
 type SegLen = NonZeroU8;
-type ErrPos = Position;
+
 
 #[derive(Debug)]
+#[allow(unused)]
 enum ActionKind {
     DeleteSyllable,
     DeleteSegment(SegLen),
@@ -68,6 +71,9 @@ enum Meta<'a> {
     Some(&'a MatchElement),
     Ins(&'a MatchElement)
 }
+
+#[derive(Debug, Clone, Copy)]
+struct MetaGroup<'l> (Meta<'l>, Meta<'l>);
 
 #[derive(Debug, Clone)]
 pub(crate) enum RefKind {
@@ -127,11 +133,11 @@ impl SubRule {
 
     fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
         match res.first().expect("res is not empty") {
-            MatchElement::Set(els, _) => self.set_start(&els, phrase),
-            MatchElement::Segment(sp) | MatchElement::LongSegment(sp)  => (*sp, true),
-            MatchElement::Syllable(wp, s)  |
-            MatchElement::SyllBound(wp, s) => (SegPos::new(*wp,* s, 0), true),
-            MatchElement::WordBound(wp) => {
+            MatchElement::Set(els, ..) => self.set_start(els, phrase),
+            MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => (*sp, true),
+            MatchElement::Syllable(wp, s, _)  |
+            MatchElement::SyllBound(wp, s, _) => (SegPos::new(*wp,* s, 0), true),
+            MatchElement::WordBound(wp, _) => {
                 let mut pos = SegPos::new(wp+1, 0, 0);
                 pos.word_decrement(phrase);
                 (pos, false)
@@ -141,8 +147,8 @@ impl SubRule {
 
     fn set_end(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
         match res.last().expect("res is not empty") {
-            MatchElement::Set(els, _) => self.set_end(&els, phrase),
-            &MatchElement::Segment(mut sp) | &MatchElement::LongSegment(mut sp)  => {
+            MatchElement::Set(els, ..) => self.set_end(els, phrase),
+            &MatchElement::Segment(mut sp, _) | &MatchElement::LongSegment(mut sp, _)  => {
                 // So that long vowels work
                 let mut seg_len = phrase.seg_length_at(sp);
                 while seg_len > 1 {
@@ -151,9 +157,9 @@ impl SubRule {
                 }
                 (sp, true)
             },
-            MatchElement::Syllable(wp, s)  => (SegPos::new(*wp, *s, phrase[*wp].syllables[*s].segments.len()-1), true),
-            MatchElement::SyllBound(wp, s) => (SegPos::new(*wp, *s, 0), false),
-            MatchElement::WordBound(wp) => (SegPos::new(wp+1, 0, 0), false),
+            MatchElement::Syllable(wp, s, _)  => (SegPos::new(*wp, *s, phrase[*wp].syllables[*s].segments.len()-1), true),
+            MatchElement::SyllBound(wp, s, _) => (SegPos::new(*wp, *s, 0), false),
+            MatchElement::WordBound(wp, _) => (SegPos::new(wp+1, 0, 0), false),
         }
     }
 
@@ -209,51 +215,6 @@ impl SubRule {
         Ok(phrase)
     }
 
-    // FIXME: If we have previously swapped syllables or boundaries then these SegPos will not be correct
-    fn metathesis_swap_segments(&self, res_phrase: &mut Phrase, left_pos: SegPos, left_long: bool, right_pos: SegPos, right_long: bool) {
-        let left_seg = res_phrase.get_seg_at(left_pos).unwrap();
-        let right_seg = res_phrase.get_seg_at(right_pos).unwrap();
-
-        let sl_length = res_phrase.seg_length_at(left_pos);
-        let sr_length = res_phrase.seg_length_at(right_pos);
-
-        // Note: insertions/deletions must be performed on the right side first!!!
-        match (left_long, right_long) {
-            (false, false) => {
-                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
-                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
-            }
-            (false, true) => {
-                // Swap initial segments
-                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
-                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
-                // Delete right
-                for _ in 0..sr_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.remove(right_pos.seg_index + 1); }
-                // Insert left
-                for _ in 0..sr_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.insert(left_pos.seg_index, right_seg); }
-            }
-            (true, false) => {
-                // Swap initial segments
-                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
-                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
-                // Insert right
-                for _ in 0..sl_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.insert(right_pos.seg_index, left_seg); }
-                // Delete left
-                for _ in 0..sl_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.remove(left_pos.seg_index + 1); }
-            }
-            (true, true)  => {
-                // Swap initial segments
-                res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments[left_pos.seg_index] = right_seg;
-                res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments[right_pos.seg_index] = left_seg;
-                // Remove/insert right
-                for _ in 0..sr_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.remove(right_pos.seg_index + 1); }
-                for _ in 0..sl_length-1 { res_phrase[right_pos.word_index].syllables[right_pos.syll_index].segments.insert(right_pos.seg_index, left_seg); }
-                // Remove/insert left
-                for _ in 0..sl_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.remove(left_pos.seg_index + 1); }
-                for _ in 0..sr_length-1 { res_phrase[left_pos.word_index].syllables[left_pos.syll_index].segments.insert(left_pos.seg_index, right_seg); }
-            }
-        }
-    }
 
     // TODO: Update Metathesis to use actions
     // 
@@ -264,18 +225,18 @@ impl SubRule {
     //      To maintain correct positioning,
     //      These need to be applied A->E, B->D, D->B, E->A  i.e. resolved right-to-left
     // 
-    fn metathesis_gen_actions(&self, phrase: &Phrase, matched_els: Vec<(Meta, Meta)>, matched_indices: Vec<(usize, usize)>) -> Result<Vec<Action>, RuleRuntimeError> {
+    fn metathesis_gen_actions(&self, phrase: &Phrase, matched_els: Vec<MetaGroup>) -> Result<Vec<Action>, RuleRuntimeError> {
         let mut right_res: Vec<Action> = Vec::new();
         let mut left_res: Vec<Action> = Vec::new();
         
-        for (index, els) in matched_els.iter().enumerate() {
-            match els {
-                &(Meta::Some(&MatchElement::Segment(left_pos)), Meta::Some(&MatchElement::Segment(right_pos))) => {
+        for els in matched_els.iter() {
+            match &(els.0, els.1) {
+                &(Meta::Some(&MatchElement::Segment(left_pos, left_err_pos)), Meta::Some(&MatchElement::Segment(right_pos, right_err_pos))) => {
                     right_res.push(Action { 
                         kind: ActionKind::ReplaceSegment(
                             (Self::ONE, Self::ONE), 
                             Payload::Segment(phrase.get_seg_at(left_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            left_err_pos
                         ), 
                         pos: right_pos 
                     });
@@ -284,17 +245,17 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::ONE, Self::ONE), 
                             Payload::Segment(phrase.get_seg_at(right_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0)
+                            right_err_pos
                         ), 
                         pos: left_pos 
                     });
                 }
-                &(Meta::Some(&MatchElement::Segment(left_pos)), Meta::Some(&MatchElement::LongSegment(right_pos))) => {
+                &(Meta::Some(&MatchElement::Segment(left_pos, left_err_pos)), Meta::Some(&MatchElement::LongSegment(right_pos, right_err_pos))) => {
                     right_res.push(Action { 
                         kind: ActionKind::ReplaceSegment(
                             (Self::non_zero_len(phrase.seg_length_at(right_pos) as u8), Self::ONE), 
                             Payload::Segment(phrase.get_seg_at(left_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            left_err_pos
                         ), 
                         pos: right_pos 
                     });
@@ -303,17 +264,17 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::ONE, Self::non_zero_len(phrase.seg_length_at(right_pos) as u8)), 
                             Payload::Segment(phrase.get_seg_at(right_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0)
+                            right_err_pos
                         ), 
                         pos: left_pos 
                     });
                 }
-                &(Meta::Some(&MatchElement::LongSegment(left_pos)), Meta::Some(&MatchElement::Segment(right_pos))) => {
+                &(Meta::Some(&MatchElement::LongSegment(left_pos, left_err_pos)), Meta::Some(&MatchElement::Segment(right_pos, right_err_pos))) => {
                     right_res.push(Action { 
                         kind: ActionKind::ReplaceSegment(
                             (Self::ONE, Self::non_zero_len(phrase.seg_length_at(left_pos) as u8)), 
                             Payload::Segment(phrase.get_seg_at(left_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            left_err_pos
                         ), 
                         pos: right_pos 
                     });
@@ -322,17 +283,17 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::non_zero_len(phrase.seg_length_at(left_pos) as u8), Self::ONE), 
                             Payload::Segment(phrase.get_seg_at(right_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0)
+                            right_err_pos
                         ), 
                         pos: left_pos 
                     });
                 }
-                &(Meta::Some(&MatchElement::LongSegment(left_pos)), Meta::Some(&MatchElement::LongSegment(right_pos))) => {
+                &(Meta::Some(&MatchElement::LongSegment(left_pos, left_err_pos)), Meta::Some(&MatchElement::LongSegment(right_pos, right_err_pos))) => {
                     right_res.push(Action { 
                         kind: ActionKind::ReplaceSegment(
                             (Self::non_zero_len(phrase.seg_length_at(right_pos) as u8), Self::non_zero_len(phrase.seg_length_at(left_pos) as u8)), 
                             Payload::Segment(phrase.get_seg_at(left_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            left_err_pos
                         ), 
                         pos: right_pos 
                     });
@@ -341,13 +302,13 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::non_zero_len(phrase.seg_length_at(left_pos) as u8), Self::non_zero_len(phrase.seg_length_at(right_pos) as u8)), 
                             Payload::Segment(phrase.get_seg_at(right_pos).unwrap(), None), 
-                            Position::new(0, 0,0,0)
+                            right_err_pos
                         ), 
                         pos: left_pos 
                     });
                 }
                 
-                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos))) => {
+                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos, _)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos, _))) => {
                     right_res.push(Action { 
                         kind: ActionKind::ReplaceSyllable(phrase[left_word_pos].syllables[left_syll_pos].clone()), 
                         pos: SegPos { word_index: right_word_pos, syll_index: right_syll_pos, seg_index: 0 }
@@ -359,9 +320,9 @@ impl SubRule {
                     });
                 }
                 &(Meta::Some(&MatchElement::SyllBound(..)), Meta::Some(&MatchElement::SyllBound(..))) |
-                &(Meta::Some(&MatchElement::WordBound(_)), Meta::Some(&MatchElement::WordBound(_))) => {/* Do nothing */},
+                &(Meta::Some(&MatchElement::WordBound(..)), Meta::Some(&MatchElement::WordBound(..))) => {/* Do nothing */},
                 // s$ > &
-                &(Meta::Some(&MatchElement::Segment(left_pos)), Meta::Some(&MatchElement::SyllBound(right_word_index, right_boundary_pos))) => {
+                &(Meta::Some(&MatchElement::Segment(left_pos, left_err_pos)), Meta::Some(&MatchElement::SyllBound(right_word_index, right_boundary_pos, _))) => {
                     let b_pos = SegPos { word_index: right_word_index, syll_index: right_boundary_pos, seg_index: 0 };
 
                     if !phrase.in_bounds(b_pos) && right_res.is_empty() {
@@ -378,7 +339,7 @@ impl SubRule {
                                 Self::ONE, 
                                 phrase.get_seg_at(left_pos).unwrap(), 
                                 None, 
-                                Position::new(0, 0,0,0) // This should never be needed so we are ok
+                                left_err_pos
                             ),
                             pos: b_pos,
                         });
@@ -390,7 +351,7 @@ impl SubRule {
                     });
                 }
                 // s:[+long]$ > &
-                &(Meta::Some(&MatchElement::LongSegment(left_pos)), Meta::Some(&MatchElement::SyllBound(right_word_index, right_boundary_pos))) => {
+                &(Meta::Some(&MatchElement::LongSegment(left_pos, left_err_pos)), Meta::Some(&MatchElement::SyllBound(right_word_index, right_boundary_pos, _))) => {
                     let seg_len = Self::non_zero_len(phrase.seg_length_at(left_pos) as u8);
                     let b_pos = SegPos { word_index: right_word_index, syll_index: right_boundary_pos, seg_index: 0 };
                     
@@ -412,7 +373,7 @@ impl SubRule {
                                 seg_len, 
                                 phrase.get_seg_at(left_pos).unwrap(), 
                                 None, 
-                                Position::new(0, 0,0,0) // This should never be needed so we are ok
+                                left_err_pos
                             ),
                             pos: SegPos { word_index: right_word_index, syll_index: right_boundary_pos, seg_index: 0 },
                         });
@@ -424,7 +385,7 @@ impl SubRule {
                     });
                 }
                 // $s > &
-                &(Meta::Some(&MatchElement::SyllBound(left_word_index, left_boundary_pos)), Meta::Some(&MatchElement::Segment(right_pos))) => {
+                &(Meta::Some(&MatchElement::SyllBound(left_word_index, left_boundary_pos, _)), Meta::Some(&MatchElement::Segment(right_pos, right_err_pos))) => {
                     right_res.push(Action { 
                         kind: ActionKind::DeleteSegment(Self::ONE), 
                         pos: right_pos 
@@ -439,13 +400,13 @@ impl SubRule {
                             Self::ONE, 
                             phrase.get_seg_at(right_pos).unwrap(), 
                             None, 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            right_err_pos
                         ),
                         pos: insert_pos,
                     });
                 }
                 // $s:[+long] > &
-                &(Meta::Some(&MatchElement::SyllBound(left_word_index, left_boundary_pos)), Meta::Some(&MatchElement::LongSegment(right_pos))) => {
+                &(Meta::Some(&MatchElement::SyllBound(left_word_index, left_boundary_pos, _)), Meta::Some(&MatchElement::LongSegment(right_pos, right_err_pos))) => {
                     let seg_len = Self::non_zero_len(phrase.seg_length_at(right_pos) as u8);
                     
                     right_res.push(Action { 
@@ -462,13 +423,13 @@ impl SubRule {
                             seg_len, 
                             phrase.get_seg_at(right_pos).unwrap(), 
                             None, 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            right_err_pos
                         ),
                         pos: insert_pos,
                     });
                 }
                 // n ## > &
-                &(Meta::Some(&MatchElement::Segment(left_pos)), Meta::Some(&MatchElement::WordBound(word_index))) => {
+                &(Meta::Some(&MatchElement::Segment(left_pos, left_err_pos)), Meta::Some(&MatchElement::WordBound(word_index, _))) => {
                     let word = Word{ syllables: vec![Syllable{ segments: VecDeque::from(vec![phrase.get_seg_at(left_pos).unwrap()]), stress: StressKind::Unstressed, tone: 0 }] };
 
                     if word_index+1 >= phrase.len() {
@@ -483,7 +444,7 @@ impl SubRule {
                                 Self::ONE, 
                                 phrase.get_seg_at(left_pos).unwrap(), 
                                 None, 
-                                Position::new(0, 0,0,0) // This should never be needed so we are ok
+                                left_err_pos
                             ),
                             pos: SegPos { word_index: word_index+1, syll_index: 0, seg_index: 0 },
                         });
@@ -495,7 +456,7 @@ impl SubRule {
                     });
                 }
                 // n:[+long] ## > &
-                &(Meta::Some(&MatchElement::LongSegment(left_pos)), Meta::Some(&MatchElement::WordBound(word_index))) => {
+                &(Meta::Some(&MatchElement::LongSegment(left_pos, left_err_pos)), Meta::Some(&MatchElement::WordBound(word_index, _))) => {
                     let seg = phrase.get_seg_at(left_pos).unwrap();
                     let seg_len = Self::non_zero_len(phrase.seg_length_at(left_pos) as u8);
                     let mut word = Word::new("").unwrap();
@@ -516,7 +477,7 @@ impl SubRule {
                                 seg_len, 
                                 phrase.get_seg_at(left_pos).unwrap(), 
                                 None, 
-                                Position::new(0, 0,0,0) // This should never be needed so we are ok
+                                left_err_pos
                             ),
                             pos: SegPos { word_index: word_index+1, syll_index: 0, seg_index: 0 },
                         });
@@ -528,7 +489,7 @@ impl SubRule {
                     });
                 }
                 // ## n > & i.e. a napron => an apron
-                &(Meta::Some(&MatchElement::WordBound(word_index)), Meta::Some(&MatchElement::Segment(right_pos))) => {
+                &(Meta::Some(&MatchElement::WordBound(word_index, _)), Meta::Some(&MatchElement::Segment(right_pos, right_err_pos))) => {
                     right_res.push(Action { 
                         kind: ActionKind::DeleteSegment(Self::ONE), 
                         pos: right_pos 
@@ -543,13 +504,13 @@ impl SubRule {
                             Self::ONE, 
                             phrase.get_seg_at(right_pos).unwrap(), 
                             None, 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            right_err_pos
                         ),
                         pos: insert_pos,
                     });
                 }
                 // ## n:[+long] > &
-                &(Meta::Some(&MatchElement::WordBound(word_index)), Meta::Some(&MatchElement::LongSegment(right_pos))) => {
+                &(Meta::Some(&MatchElement::WordBound(word_index, _)), Meta::Some(&MatchElement::LongSegment(right_pos, right_err_pos))) => {
                     let seg_len = Self::non_zero_len(phrase.seg_length_at(right_pos) as u8);
                     
                     right_res.push(Action { 
@@ -566,13 +527,13 @@ impl SubRule {
                             seg_len, 
                             phrase.get_seg_at(right_pos).unwrap(), 
                             None, 
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            right_err_pos
                         ),
                         pos: insert_pos,
                     });
                 }
                 // % ## > &
-                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos)), Meta::Some(&MatchElement::WordBound(word_index))) => {
+                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos, _)), Meta::Some(&MatchElement::WordBound(word_index, _))) => {
                     right_res.push(Action {
                         kind: ActionKind::InsertSyllable(phrase[left_word_pos].syllables[left_syll_pos].clone()),
                         pos: SegPos { word_index: word_index+1, syll_index: 0, seg_index: 0 },
@@ -584,7 +545,7 @@ impl SubRule {
                     });
                 }
                 // ## % > &
-                &(Meta::Some(&MatchElement::WordBound(word_index)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos))) => {
+                &(Meta::Some(&MatchElement::WordBound(word_index, _)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos, _))) => {
                     right_res.push(Action { 
                         kind: ActionKind::DeleteSyllable, 
                         pos: SegPos { word_index: right_word_pos, syll_index: right_syll_pos, seg_index: 0 } 
@@ -601,7 +562,7 @@ impl SubRule {
                 }
                 
                 // s% > &
-                &(Meta::Some(&MatchElement::Segment(left_pos)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos))) => {
+                &(Meta::Some(&MatchElement::Segment(left_pos, _)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos, right_err_pos))) => {
                     let mut left_syll = Syllable::new();
                     left_syll.segments.push_back(phrase.get_seg_at(left_pos).unwrap());
 
@@ -614,13 +575,13 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::ONE, Self::ONE),
                             Payload::Syllable(phrase[right_word_pos].syllables[right_syll_pos].clone()),
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            right_err_pos
                         ), 
                         pos: left_pos
                     });
                 }
                 //%s > &
-                &(Meta::Some(&MatchElement::LongSegment(left_pos)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos))) => {
+                &(Meta::Some(&MatchElement::LongSegment(left_pos, _)), Meta::Some(&MatchElement::Syllable(right_word_pos, right_syll_pos, right_err_pos))) => {
                     let mut left_syll = Syllable::new();
                     let seg_len = phrase.seg_length_at(left_pos);
                     for _ in 0..seg_len {
@@ -636,13 +597,13 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::non_zero_len(seg_len as u8), Self::ONE),
                             Payload::Syllable(phrase[right_word_pos].syllables[right_syll_pos].clone()),
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            right_err_pos
                         ), 
                         pos: left_pos
                     });
                 }
                 //
-                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos)), Meta::Some(&MatchElement::Segment(right_pos))) => {
+                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos, left_err_pos)), Meta::Some(&MatchElement::Segment(right_pos, _))) => {
                     let mut right_syll = Syllable::new();
                     right_syll.segments.push_back(phrase.get_seg_at(right_pos).unwrap());
 
@@ -650,7 +611,7 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::ONE, Self::ONE),
                             Payload::Syllable(phrase[left_word_pos].syllables[left_syll_pos].clone()),
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            left_err_pos
                         ), 
                         pos: right_pos
                     });
@@ -661,7 +622,7 @@ impl SubRule {
                     });
                 }
                 //
-                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos)), Meta::Some(&MatchElement::LongSegment(right_pos))) => {
+                &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos, left_err_pos)), Meta::Some(&MatchElement::LongSegment(right_pos, _))) => {
                     let mut right_syll = Syllable::new();
                     let seg_len = phrase.seg_length_at(right_pos);
                     for _ in 0..seg_len {
@@ -672,7 +633,7 @@ impl SubRule {
                         kind: ActionKind::ReplaceSegment(
                             (Self::non_zero_len(seg_len as u8), Self::ONE),
                             Payload::Syllable(phrase[left_word_pos].syllables[left_syll_pos].clone()),
-                            Position::new(0, 0,0,0) // This should never be needed so we are ok
+                            left_err_pos
                         ), 
                         pos: right_pos
                     });
@@ -684,16 +645,16 @@ impl SubRule {
                 }
 
 
-                &(Meta::Some(&MatchElement::SyllBound(..)), Meta::Some(&MatchElement::WordBound(_))) | 
-                &(Meta::Some(&MatchElement::WordBound(_)), Meta::Some(&MatchElement::SyllBound(..))) => {
-                    return Err(RuleRuntimeError::MetathWordBoundary(self.input[matched_indices[index].0].position, self.input[matched_indices[index].1].position))
+                &(Meta::Some(&MatchElement::SyllBound(.., pos0)), Meta::Some(&MatchElement::WordBound(.., pos1))) | 
+                &(Meta::Some(&MatchElement::WordBound(.., pos0)), Meta::Some(&MatchElement::SyllBound(.., pos1))) => {
+                    return Err(RuleRuntimeError::MetathWordBoundary(pos0, pos1))
                 }
-                &(Meta::Some(&MatchElement::Syllable(..)), Meta::Some(&MatchElement::SyllBound(..))) |
-                &(Meta::Some(&MatchElement::SyllBound(..)), Meta::Some(&MatchElement::Syllable(..))) => {
-                    return Err(RuleRuntimeError::MetathSyllBoundary(self.input[matched_indices[index].0].position, self.input[matched_indices[index].1].position))
+                &(Meta::Some(&MatchElement::Syllable(.., pos0)), Meta::Some(&MatchElement::SyllBound(.., pos1))) |
+                &(Meta::Some(&MatchElement::SyllBound(.., pos0)), Meta::Some(&MatchElement::Syllable(.., pos1))) => {
+                    return Err(RuleRuntimeError::MetathSyllBoundary(pos0, pos1))
                 }
                 
-                &(Meta::Ins(_), Meta::Some(el)) => {
+                &(Meta::Ins(_), Meta::Some(_el)) => {
                     todo!("")
                 }
                 // Insert at end
@@ -718,51 +679,51 @@ impl SubRule {
 
     fn metathesis_gen_ins_actions(&self, phrase: &Phrase, left_res: &mut Vec<Action>, right_res: &mut Vec<Action>, el: &MatchElement, last_el: &MatchElement) -> Result<(), RuleRuntimeError> {
         let ins_pos = match last_el {
-            MatchElement::Set(..) => todo!(),
-            MatchElement::Segment(seg_pos) => {
+            MatchElement::Set(..) => unreachable!(),
+            MatchElement::Segment(seg_pos, _) => {
                 let mut seg_pos = *seg_pos;
                 seg_pos.seg_index += 1;
                 seg_pos
             },
-            MatchElement::LongSegment(seg_pos) => {
+            MatchElement::LongSegment(seg_pos, _) => {
                 let mut seg_pos = *seg_pos;
                 seg_pos.seg_index += phrase.seg_length_at(seg_pos);
                 seg_pos
             },
-            &MatchElement::Syllable(word_index, syll_index) => {
+            &MatchElement::Syllable(word_index, syll_index, _) => {
                 SegPos { word_index, syll_index: syll_index + 1, seg_index: 0 }
             },
-            &MatchElement::SyllBound(word_index, syll_index) => {
+            &MatchElement::SyllBound(word_index, syll_index, _) => {
                 SegPos { word_index, syll_index, seg_index: 0 }
             },
-            MatchElement::WordBound(wp) => {
+            MatchElement::WordBound(wp, _) => {
                 SegPos { word_index: wp + 1, syll_index: 0, seg_index: 0 }
             },
         };
         
         match (el, last_el) {
-            (MatchElement::Segment(seg_pos), MatchElement::Segment(_)) |
-            (MatchElement::Segment(seg_pos), MatchElement::LongSegment(_)) => {
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::Segment(..)) |
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::LongSegment(..)) => {
                 right_res.push(Action { 
                     kind: ActionKind::InsertSegment(
                         Self::ONE, 
-                        phrase.get_seg_at(*seg_pos).unwrap(), 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
                         None, 
-                        Position { group: 0, line: 0, start: 0, end: 0 }
+                        err_pos
                     ), 
                     pos: ins_pos
                 });
 
                 left_res.push(Action { 
                     kind: ActionKind::DeleteSegment(Self::ONE), 
-                    pos: *seg_pos 
+                    pos: seg_pos 
                 });
             }
-            (MatchElement::Segment(seg_pos), MatchElement::Syllable(..)) |
-            (MatchElement::Segment(seg_pos), MatchElement::SyllBound(..)) => { 
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::Syllable(..)) |
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::SyllBound(..)) => { 
                 if phrase[ins_pos.word_index].syllables.len() <= ins_pos.syll_index {
                     let mut syll = Syllable::new();
-                    syll.segments.push_back(phrase.get_seg_at(*seg_pos).unwrap());
+                    syll.segments.push_back(phrase.get_seg_at(seg_pos).unwrap());
                     
                     right_res.push(Action { 
                         kind: ActionKind::InsertSyllable(syll), 
@@ -772,9 +733,9 @@ impl SubRule {
                     right_res.push(Action { 
                         kind: ActionKind::InsertSegment(
                             Self::ONE, 
-                            phrase.get_seg_at(*seg_pos).unwrap(), 
+                            phrase.get_seg_at(seg_pos).unwrap(), 
                             None, 
-                            Position { group: 0, line: 0, start: 0, end: 0 }
+                            err_pos
                         ), 
                         pos: ins_pos
                     });
@@ -782,51 +743,51 @@ impl SubRule {
 
                 left_res.push(Action { 
                     kind: ActionKind::DeleteSegment(Self::ONE), 
-                    pos: *seg_pos 
+                    pos: seg_pos 
                 });
             }
-            (MatchElement::Segment(seg_pos), MatchElement::WordBound(_)) => {
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::WordBound(..)) => {
                 right_res.push(Action {
                     kind: ActionKind::InsertSegment(
                         Self::ONE, 
-                        phrase.get_seg_at(*seg_pos).unwrap(), 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
                         None, 
-                        Position::new(0, 0,0,0) // This should never be needed so we are ok
+                        err_pos
                     ),
                     pos: ins_pos,
                 });
 
                 left_res.push(Action { 
                     kind: ActionKind::DeleteSegment(Self::ONE), 
-                    pos: *seg_pos 
+                    pos: seg_pos 
                 });
             }
 
-            (MatchElement::LongSegment(seg_pos), MatchElement::Segment(_)) |
-            (MatchElement::LongSegment(seg_pos), MatchElement::LongSegment(_)) => {
-                let len = Self::non_zero_len(phrase.seg_length_at(*seg_pos) as u8);
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::Segment(..)) |
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::LongSegment(..)) => {
+                let len = Self::non_zero_len(phrase.seg_length_at(seg_pos) as u8);
                 right_res.push(Action { 
                     kind: ActionKind::InsertSegment(
                         len, 
-                        phrase.get_seg_at(*seg_pos).unwrap(), 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
                         None, 
-                        Position { group: 0, line: 0, start: 0, end: 0 }
+                        err_pos
                     ), 
                     pos: ins_pos
                 });
 
                 left_res.push(Action { 
                     kind: ActionKind::DeleteSegment(len), 
-                    pos: *seg_pos 
+                    pos: seg_pos 
                 });
             }
-            (MatchElement::LongSegment(seg_pos), MatchElement::Syllable(..)) |
-            (MatchElement::LongSegment(seg_pos), MatchElement::SyllBound(..)) => {
-                let len = Self::non_zero_len(phrase.seg_length_at(*seg_pos) as u8);
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::Syllable(..)) |
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::SyllBound(..)) => {
+                let len = Self::non_zero_len(phrase.seg_length_at(seg_pos) as u8);
                 
                 if phrase[ins_pos.word_index].syllables.len() <= ins_pos.syll_index {
                     let mut syll = Syllable::new();
-                    let seg = phrase.get_seg_at(*seg_pos).unwrap();
+                    let seg = phrase.get_seg_at(seg_pos).unwrap();
 
                     for _ in 0..len.get() {
                         syll.segments.push_back(seg);
@@ -840,9 +801,9 @@ impl SubRule {
                     right_res.push(Action { 
                         kind: ActionKind::InsertSegment(
                             len, 
-                            phrase.get_seg_at(*seg_pos).unwrap(), 
+                            phrase.get_seg_at(seg_pos).unwrap(), 
                             None, 
-                            Position { group: 0, line: 0, start: 0, end: 0 }
+                            err_pos
                         ), 
                         pos: ins_pos
                     });
@@ -850,45 +811,45 @@ impl SubRule {
 
                 left_res.push(Action { 
                     kind: ActionKind::DeleteSegment(len), 
-                    pos: *seg_pos 
+                    pos: seg_pos 
                 });
             }
-            (MatchElement::LongSegment(seg_pos), MatchElement::WordBound(_)) => {
-                let len = Self::non_zero_len(phrase.seg_length_at(*seg_pos) as u8);
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::WordBound(..)) => {
+                let len = Self::non_zero_len(phrase.seg_length_at(seg_pos) as u8);
                 right_res.push(Action {
                     kind: ActionKind::InsertSegment(
                         len, 
-                        phrase.get_seg_at(*seg_pos).unwrap(), 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
                         None, 
-                        Position::new(0, 0,0,0) // This should never be needed so we are ok
+                        err_pos
                     ),
                     pos: ins_pos,
                 });
 
                 left_res.push(Action { 
                     kind: ActionKind::DeleteSegment(len), 
-                    pos: *seg_pos 
+                    pos: seg_pos 
                 });
             }
             
-            (MatchElement::Syllable(_, _), MatchElement::Segment(_)) => todo!(),
-            (MatchElement::Syllable(_, _), MatchElement::LongSegment(_)) => todo!(),
-            (MatchElement::Syllable(_, _), MatchElement::Syllable(..)) => todo!(),
-            (MatchElement::Syllable(_, _), MatchElement::SyllBound(..)) => todo!(),
-            (MatchElement::Syllable(_, _), MatchElement::WordBound(_)) => todo!(),
+            (MatchElement::Syllable(_, _, _), MatchElement::Segment(..)) => todo!(),
+            (MatchElement::Syllable(_, _, _), MatchElement::LongSegment(..)) => todo!(),
+            (MatchElement::Syllable(_, _, _), MatchElement::Syllable(..)) => todo!(),
+            (MatchElement::Syllable(_, _, _), MatchElement::SyllBound(..)) => todo!(),
+            (MatchElement::Syllable(_, _, _), MatchElement::WordBound(..)) => todo!(),
 
 
-            (MatchElement::SyllBound(_, _), MatchElement::Segment(_)) => todo!(),
-            (MatchElement::SyllBound(_, _), MatchElement::LongSegment(_)) => todo!(),
-            (MatchElement::SyllBound(_, _), MatchElement::Syllable(..)) => todo!(),
-            (MatchElement::SyllBound(_, _), MatchElement::SyllBound(..)) => todo!(),
-            (MatchElement::SyllBound(_, _), MatchElement::WordBound(_)) => todo!(),
+            (MatchElement::SyllBound(_, _, _), MatchElement::Segment(_, _)) => todo!(),
+            (MatchElement::SyllBound(_, _, _), MatchElement::LongSegment(_, _)) => todo!(),
+            (MatchElement::SyllBound(_, _, _), MatchElement::Syllable(..)) => todo!(),
+            (MatchElement::SyllBound(_, _, _), MatchElement::SyllBound(..)) => todo!(),
+            (MatchElement::SyllBound(_, _, _), MatchElement::WordBound(_, _)) => todo!(),
 
-            (MatchElement::WordBound(_), MatchElement::Segment(_)) => todo!(),
-            (MatchElement::WordBound(_), MatchElement::LongSegment(_)) => todo!(),
-            (MatchElement::WordBound(_), MatchElement::Syllable(..)) => todo!(),
-            (MatchElement::WordBound(_), MatchElement::SyllBound(..)) => todo!(),
-            (MatchElement::WordBound(_), MatchElement::WordBound(_)) => todo!(),
+            (MatchElement::WordBound(_, _), MatchElement::Segment(_, _)) => todo!(),
+            (MatchElement::WordBound(_, _), MatchElement::LongSegment(_, _)) => todo!(),
+            (MatchElement::WordBound(_, _), MatchElement::Syllable(..)) => todo!(),
+            (MatchElement::WordBound(_, _), MatchElement::SyllBound(..)) => todo!(),
+            (MatchElement::WordBound(_, _), MatchElement::WordBound(_, _)) => todo!(),
 
             (MatchElement::Set(..), _) |
             (_, MatchElement::Set(..)) => unreachable!("sets"),
@@ -897,38 +858,31 @@ impl SubRule {
         Ok(())
     }
 
-    fn metathesis_groups_ellipses_even<'a>(&self, els: Vec<Vec<&'a MatchElement>>, idc: Vec<Vec<usize>>) -> Result<(Vec<(Meta<'a>, Meta<'a>)>, Vec<(usize, usize)>), RuleRuntimeError> {
+    fn metathesis_groups_ellipses_even<'a>(&self, elements: Vec<Vec<&'a MatchElement>>) -> Result<Vec<MetaGroup<'a>>, RuleRuntimeError> {
 
         let mut match_els = Vec::new();
-        let mut match_idc = Vec::new();
 
-        for z in 0..(els.len()/2) {
-            let left_group = &els[z];
-            let right_group = &els[els.len()-1-z];
-
-            let left_ind = &idc[z];
-            let right_ind = &idc[els.len()-1-z];
+        for z in 0..(elements.len()/2) {
+            let left_group = &elements[z];
+            let right_group = &elements[elements.len()-1-z];
 
             match left_group.len().cmp(&right_group.len()) {
                 std::cmp::Ordering::Equal => {
-                    for ((ai, a), (bi, b)) in left_group.iter().enumerate().zip(right_group.iter().enumerate().rev()) {
-                        match_els.push((Meta::Some(*a), Meta::Some(*b)));
-                        match_idc.push((left_ind[ai], right_ind[bi]));
+                    for (a, b) in left_group.iter().zip(right_group.iter().rev()) {
+                        match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
                     }
                 },
                 //  L > R
                 std::cmp::Ordering::Greater => {
-                    for ((ai, a), (bi, b)) in left_group.iter().enumerate().rev().zip(right_group.iter().enumerate()) {
-                        match_els.push((Meta::Some(*a), Meta::Some(*b)));
-                        match_idc.push((left_ind[ai], right_ind[bi]));
+                    for (a , b) in left_group.iter().rev().zip(right_group.iter()) {
+                        match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
                     }
 
                     let last_el = right_group.last().unwrap();
 
                     for i in right_group.len()..left_group.len() {
-                        match_els.push((Meta::Some(left_group[left_group.len()-i-1]), Meta::Ins(last_el)));
+                        match_els.push(MetaGroup(Meta::Some(left_group[left_group.len()-i-1]), Meta::Ins(last_el)));
                     }
-
 
                     match_els.reverse();
                 },
@@ -937,49 +891,44 @@ impl SubRule {
             }
         }
 
-        return Ok((match_els, match_idc))
+        Ok(match_els)
     }
 
-    fn metathesis_ellipses(&self, phrase: &Phrase, input: &Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn metathesis_ellipses(&self, phrase: &Phrase, input: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         let mut parts = Vec::new();
         for x in self.input.split(|x| x.kind == ParseElement::Ellipsis || x.kind == ParseElement::OptEllipsis) {
             parts.push(x);
         }
 
         let mut els = Vec::new();
-        let mut idc = Vec::new();
         let mut ind = 0;
         for part in parts.iter() {
             let mut el = Vec::new();
-            let mut id = Vec::new();
             for _ in part.iter() {
                 match &input[ind] {
-                    MatchElement::Set(match_elements, _) => {
+                    MatchElement::Set(match_elements, _, _) => {
                         for me in match_elements {
                             el.push(me);
-                            id.push(ind);
                         }
                     },
                     me => {
                         el.push(me);
-                        id.push(ind);
                     }
                 }
                 ind += 1;
             }
             els.push(el);
-            idc.push(id);
         }
         debug_assert_eq!(parts.len(), els.len());
 
         // *..* , *..*..*..* , etc.
-        let (match_groups, match_indices) = if parts.len() % 2 == 0 {
-            self.metathesis_groups_ellipses_even(els, idc)?
+        let match_groups = if parts.len() % 2 == 0 {
+            self.metathesis_groups_ellipses_even(els)?
         } else { // *..*..* , *..*..*..*..* etc.
             todo!()
         };
 
-        let actions = self.metathesis_gen_actions(phrase, match_groups, match_indices)?;
+        let actions = self.metathesis_gen_actions(phrase, match_groups)?;
         let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
         
         if let Some(next) = next_pos && let Some(last_action) = actions.last() {
@@ -1007,7 +956,7 @@ impl SubRule {
 
         for el in &input {
             match el {
-                MatchElement::Set(m_els, _) => {
+                MatchElement::Set(m_els, _, _) => {
                     for m_el in m_els {
                         expanded_els.push(m_el);
                     }
@@ -1019,15 +968,11 @@ impl SubRule {
         }
 
         let mut matched_groups = Vec::new();
-        let mut matched_indices = Vec::new();
         for z in 0..(expanded_els.len()/2) {
-            matched_groups.push((Meta::Some(&expanded_els[z]), Meta::Some(&expanded_els[expanded_els.len()-1-z])));
-            matched_indices.push((z, expanded_els.len()-1-z));
+            matched_groups.push(MetaGroup(Meta::Some(expanded_els[z]), Meta::Some(expanded_els[expanded_els.len()-1-z])));
         }
 
-        // println!("mg: {:?}", mg);
-
-        let actions = self.metathesis_gen_actions(phrase, matched_groups, matched_indices)?;
+        let actions = self.metathesis_gen_actions(phrase, matched_groups)?;
         let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
         
         if let Some(next) = next_pos && let Some(last_action) = actions.last() {
@@ -1261,7 +1206,7 @@ impl SubRule {
     fn delete_elements(&self, res_phrase: &mut Phrase, phrase: &Phrase, els: Vec<MatchElement>, pos: &mut SegPos)-> Result<(), RuleRuntimeError> {
         for z in els.into_iter().rev() {
             match z {
-                MatchElement::Segment(i) => {
+                MatchElement::Segment(i, _) => {
                     *pos = i;
                     if res_phrase[i.word_index].syllables.len() <= 1 && res_phrase[i.word_index].syllables[i.syll_index].segments.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySeg)
@@ -1273,7 +1218,7 @@ impl SubRule {
                         res_phrase[i.word_index].syllables.remove(i.syll_index);
                     }
                 },
-                MatchElement::LongSegment(i) => {
+                MatchElement::LongSegment(i, _) => {
                     *pos = i;
                     if res_phrase[i.word_index].syllables.len() <= 1 && res_phrase[i.word_index].syllables[i.syll_index].segments.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySeg)
@@ -1288,21 +1233,21 @@ impl SubRule {
                         res_phrase[i.word_index].syllables.remove(i.syll_index);
                     }
                 },
-                MatchElement::Syllable(wp, i) => {
+                MatchElement::Syllable(wp, i, _) => {
                     // remove syllable
                     if ((!self.inp_x_bound && !self.env_x_bound) || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     pos.syll_index = i;
                     pos.seg_index = 0;
-                    pos.decrement(&res_phrase);
+                    pos.decrement(res_phrase);
                     res_phrase[wp].remove_syll(i);
 
                     if res_phrase[wp].syllables.is_empty() && !self.inp_x_bound {
                         res_phrase.remove(wp);
                     }
                 },
-                MatchElement::WordBound(wp) => {
+                MatchElement::WordBound(wp, _) => {
                     // wp ## wp+1 -> wp.wp+1
                     
                     pos.word_index = wp+1;
@@ -1312,7 +1257,7 @@ impl SubRule {
                     res_phrase[wp].syllables.extend(w1);
                     res_phrase.remove(wp+1);
                 },
-                MatchElement::SyllBound(wp, i) => {
+                MatchElement::SyllBound(wp, i, _) => {
                     // join the two neighbouring syllables
                     // if one has stress and/or tone, joined syll gets them
                     // if they both have stress, highest wins
@@ -1324,7 +1269,7 @@ impl SubRule {
                     }
                     pos.syll_index = i;
                     pos.seg_index = 0;
-                    pos.decrement(&res_phrase);
+                    pos.decrement(res_phrase);
 
                     let mut syll_segs = res_phrase[wp].syllables[i].segments.clone();
                     res_phrase[wp].syllables[i-1].segments.append(&mut syll_segs);
@@ -1340,7 +1285,7 @@ impl SubRule {
                     res_phrase[wp].syllables[i-1].tone = Self::concat_tone(res_phrase[wp].syllables[i-1].tone, res_phrase[wp].syllables[i].tone);
                     res_phrase[wp].syllables.remove(i);
                 },
-                MatchElement::Set(els, _) => {
+                MatchElement::Set(els, _, _) => {
                     self.delete_elements(res_phrase, phrase, els, pos)?;
                 }
             }
@@ -2188,17 +2133,17 @@ impl SubRule { // Substitution
         Ok(res_phrase)
     }
     
-    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, state: &MatchElement, in_pos: Position, out_pos: Position) -> Result<Action, RuleRuntimeError> {
+    fn sub_structure(&self, phrase: &Phrase, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, state: &MatchElement, out_pos: Position) -> Result<Action, RuleRuntimeError> {
         // X -> <CVC>
         if items.is_empty() { return Err(RuleRuntimeError::SubstitutionSyll(out_pos)) }
         match state {
-            &MatchElement::Syllable(wp, sp) => {
+            &MatchElement::Syllable(wp, sp, _) => {
                 Ok(Action {
                     kind: ActionKind::ReplaceSyllable(self.gen_syll_from_struct(items, stress, tone, refr, out_pos, false)?),
                     pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                 })
             },
-            &MatchElement::Segment(pos) => {
+            &MatchElement::Segment(pos, _) => {
                 Ok(Action {
                     kind: ActionKind::ReplaceSegment(
                         (Self::ONE, Self::ONE), 
@@ -2208,7 +2153,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            &MatchElement::LongSegment(pos) => {
+            &MatchElement::LongSegment(pos, _) => {
                 Ok(Action {
                     kind: ActionKind::ReplaceSegment(
                         (Self::non_zero_len(phrase.seg_length_at(pos) as u8), Self::ONE),
@@ -2218,18 +2163,18 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            MatchElement::Set(els, _) => {
+            MatchElement::Set(_els, _, _) => {
                 todo!()
             },
-            MatchElement::WordBound(..) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
+            MatchElement::WordBound(.., in_pos) => Err(RuleRuntimeError::SubstitutionWordBound(*in_pos, out_pos)),
             MatchElement::SyllBound(..) => unreachable!("Should be handled in gen_actions()"),
         }
     }
 
-    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, refr: &Option<usize>, state: &MatchElement, in_pos: Position, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
+    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, refr: &Option<usize>, state: &MatchElement, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
         // X -> Matrix        
         match state {
-            &MatchElement::LongSegment(pos) => {
+            &MatchElement::LongSegment(pos, _) => {
                 let old_len = phrase.seg_length_at(pos) as u8;
                 let (seg, new_len) = self.gen_seg(unsafe { phrase.get_seg_at(pos).unwrap_unchecked() }, old_len,Some(mods), refr, out_pos)?;
                 Ok(vec![Action {
@@ -2242,7 +2187,7 @@ impl SubRule { // Substitution
                     pos,
                 }])
             },
-            &MatchElement::Segment(pos) => {
+            &MatchElement::Segment(pos, _) => {
                 let (seg, new_len) = self.gen_seg(unsafe { phrase.get_seg_at(pos).unwrap_unchecked() }, 1,Some(mods), refr, out_pos)?;
                 Ok(vec![Action {
                     kind: ActionKind::ReplaceSegment(
@@ -2253,7 +2198,7 @@ impl SubRule { // Substitution
                     pos,
                 }])
             },
-            &MatchElement::Syllable(wp, sp)  => {
+            &MatchElement::Syllable(wp, sp, _)  => {
                 let mut syll = phrase[wp].syllables[sp].clone();
                 syll.apply_syll_mods(&self.alphas, &mods.suprs, out_pos)?;
                 if let Some(r) = refr {
@@ -2264,23 +2209,23 @@ impl SubRule { // Substitution
                     pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
                 }])
             },
-            MatchElement::Set(els, _) => {
+            MatchElement::Set(els, _, _) => {
                 let mut actions = vec![];
                 for el in els {
-                    actions.extend(self.sub_matrix(phrase, mods, refr, el, in_pos, out_pos)?);
+                    actions.extend(self.sub_matrix(phrase, mods, refr, el, out_pos)?);
                 }
                 Ok(actions)
             },
-            MatchElement::WordBound(..) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
+            MatchElement::WordBound(.., in_pos) => Err(RuleRuntimeError::SubstitutionWordBound(*in_pos, out_pos)),
             // This shouldn't occur
-            MatchElement::SyllBound(..)  => Err(RuleRuntimeError::SubstitutionBoundMod(in_pos, out_pos)),
+            MatchElement::SyllBound(.., in_pos)  => Err(RuleRuntimeError::SubstitutionBoundMod(*in_pos, out_pos)),
         }
     }
 
-    fn sub_ipa(&self, phrase: &Phrase, seg: &Segment, mods: &Option<Modifiers>, state: &MatchElement, in_pos: Position, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
+    fn sub_ipa(&self, phrase: &Phrase, seg: &Segment, mods: &Option<Modifiers>, state: &MatchElement, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
         // X -> IPA
         match state {
-            &MatchElement::LongSegment(pos) => {
+            &MatchElement::LongSegment(pos, _) => {
                 let suprs = mods.as_ref().map(|m| m.suprs);
                 let out_has_length = if let Some(s) = suprs { s.length.is_some() } else { false };
 
@@ -2296,7 +2241,7 @@ impl SubRule { // Substitution
                     pos,
                 }])
             },
-            &MatchElement::Segment(pos)=> {
+            &MatchElement::Segment(pos, _)=> {
                 let (seg, new_len) = self.gen_seg(*seg, 1,  mods.as_ref(), &None, out_pos)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
 
@@ -2309,25 +2254,25 @@ impl SubRule { // Substitution
                     pos,
                 }])
             },
-            MatchElement::Set(els, _) => {
+            MatchElement::Set(els, _, _) => {
                 if els.len() == 1 {
-                    return self.sub_ipa(phrase, seg, mods, &els[0], in_pos, out_pos)
+                    return self.sub_ipa(phrase, seg, mods, &els[0], out_pos)
                 }
 
                 todo!()
             },
-            MatchElement::WordBound(..) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
-            MatchElement::Syllable(..)  => Err(RuleRuntimeError::SubstitutionSylltoMatrix(in_pos, out_pos)),
+            MatchElement::WordBound(.., in_pos) => Err(RuleRuntimeError::SubstitutionWordBound(*in_pos, out_pos)),
+            MatchElement::Syllable(.., in_pos)  => Err(RuleRuntimeError::SubstitutionSylltoMatrix(*in_pos, out_pos)), // TODO: This should be ok
             MatchElement::SyllBound(..) => unreachable!("Should be handled in gen_actions()"),
         }
     }
 
-    fn sub_ref(&self, phrase: &Phrase, num: &Reference, mods: &Option<Modifiers>, state: &MatchElement, in_pos: Position, out_pos: Position) -> Result<Action, RuleRuntimeError> {
+    fn sub_ref(&self, phrase: &Phrase, num: &Reference, mods: &Option<Modifiers>, state: &MatchElement, out_pos: Position) -> Result<Action, RuleRuntimeError> {
         // X -> Reference
         let binding = self.references.borrow();
         let Some(refr) = binding.get(&num.value) else { return Err(RuleRuntimeError::UnknownReference(*num)) };
         match (state, refr) {
-            (&MatchElement::LongSegment(pos), RefKind::Segment(seg)) => {
+            (&MatchElement::LongSegment(pos, _), RefKind::Segment(seg)) => {
                 let old_len = phrase.seg_length_at(pos) as u8;
                 let (seg, new_len) = self.gen_seg(*seg, old_len, mods.as_ref(), &None, num.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
@@ -2341,7 +2286,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (&MatchElement::Segment(pos), RefKind::Segment(seg)) => {
+            (&MatchElement::Segment(pos, _), RefKind::Segment(seg)) => {
                 // TODO: Pass 1 here instead of the actual seg length may cause some issues, need to test once implemented
                 let (seg, new_len) = self.gen_seg(*seg, 1, mods.as_ref(), &None, num.position)?;
                 let suprs = mods.as_ref().map(|m| m.suprs);
@@ -2355,7 +2300,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (&MatchElement::LongSegment(pos), RefKind::Syllable(insert_syll)) => {
+            (&MatchElement::LongSegment(pos, _), RefKind::Syllable(insert_syll)) => {
                 let mut syll = insert_syll.clone();
                 let seg_len = phrase.seg_length_at(pos) as u8;
                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
@@ -2369,7 +2314,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (&MatchElement::Segment(pos), RefKind::Syllable(insert_syll)) => {
+            (&MatchElement::Segment(pos, _), RefKind::Syllable(insert_syll)) => {
                 let mut syll = insert_syll.clone();
 
                 if let Some(m) = mods { syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?; }
@@ -2383,7 +2328,7 @@ impl SubRule { // Substitution
                     pos,
                 })
             },
-            (&MatchElement::Syllable(wp, sp), RefKind::Syllable(syll)) => {
+            (&MatchElement::Syllable(wp, sp, _), RefKind::Syllable(syll)) => {
                 let mut syll = syll.clone();
                 if let Some(m) = mods {
                     syll.apply_syll_mods(&self.alphas, &m.suprs, num.position)?;
@@ -2395,17 +2340,17 @@ impl SubRule { // Substitution
                 })
             },
 
-            (MatchElement::Set(els, _), RefKind::Segment(segment)) => todo!(),
-            (MatchElement::Set(els, _), RefKind::Syllable(syllable)) => todo!(),
+            (MatchElement::Set(_els, _, _), RefKind::Segment(_segment)) => todo!(),
+            (MatchElement::Set(_els, _, _), RefKind::Syllable(_syllable)) => todo!(),
 
-            (MatchElement::Syllable(..),  RefKind::Segment(..)) => Err(RuleRuntimeError::SubstitutionSylltoSeg(in_pos, out_pos)),
-            (MatchElement::WordBound(_), _) => Err(RuleRuntimeError::SubstitutionWordBound(in_pos, out_pos)),
+            (MatchElement::Syllable(.., in_pos),  RefKind::Segment(..)) => Err(RuleRuntimeError::SubstitutionSylltoSeg(*in_pos, out_pos)),
+            (MatchElement::WordBound(_, in_pos), _) => Err(RuleRuntimeError::SubstitutionWordBound(*in_pos, out_pos)),
 
             (MatchElement::SyllBound(..), ..) => unreachable!("Should be handled in gen_actions()"),
         }
     }
 
-    fn sub_set(&self, phrase: &Phrase, set_output: &ItemSet, state: &MatchElement, in_state: &ParseItem, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
+    fn sub_set(&self, _phrase: &Phrase, set_output: &ItemSet, _state: &MatchElement, in_state: &ParseItem, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
         let ParseElement::Set(set_input) = &in_state.kind else { return Err(RuleRuntimeError::LonelySet(out_pos)) };
         // println!("{} {}", set_input.choices.len(), set_output.choices.len());
 
@@ -2843,13 +2788,13 @@ impl SubRule { // Substitution
     fn sub_bound(&self, phrase: &Phrase, state: &MatchElement) -> Result<Vec<Action>, RuleRuntimeError> {
         // X -> $
         match state {
-            MatchElement::SyllBound(wp, sp) => {
+            MatchElement::SyllBound(wp, sp, _) => {
                 Ok(vec![Action { 
                     kind: ActionKind::PassBoundary, 
                     pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 } 
                 }])
             },
-            &MatchElement::Segment(mut pos) => {
+            &MatchElement::Segment(mut pos, _) => {
                 let mut v = Vec::with_capacity(2);
                 v.push(Action {
                     kind: ActionKind::DeleteSegment(Self::ONE),
@@ -2863,7 +2808,7 @@ impl SubRule { // Substitution
 
                 Ok(v)
             },
-            &MatchElement::LongSegment(mut pos) => {
+            &MatchElement::LongSegment(mut pos, _) => {
                 let mut v = Vec::with_capacity(2);
                 v.push(Action {
                     kind: ActionKind::DeleteSegment(Self::non_zero_len(phrase.seg_length_at(pos) as u8)),
@@ -2877,13 +2822,13 @@ impl SubRule { // Substitution
 
                 Ok(v)
             },
-            MatchElement::Syllable(wp, sp) => {
+            MatchElement::Syllable(wp, sp, _) => {
                 Ok(vec![Action { 
                     kind: ActionKind::DeleteSyllable,
                     pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 },
                 }])
             },
-            MatchElement::Set(els, _) => {
+            MatchElement::Set(els, _, _) => {
                 if els.len() == 1 {
                     return self.sub_bound(phrase, &els[0])
                 }
@@ -2892,47 +2837,47 @@ impl SubRule { // Substitution
 
                 for el in els {
                     match el {
-                        MatchElement::WordBound(_) | MatchElement::Set(..) => unimplemented!(),
-                        MatchElement::SyllBound(_, _) => {},
+                        MatchElement::WordBound(_, _) | MatchElement::Set(..) => unimplemented!(),
+                        MatchElement::SyllBound(_, _, _) => {},
 
-                        &MatchElement::Segment(pos) => actions.push(Action {
+                        &MatchElement::Segment(pos, _) => actions.push(Action {
                             kind: ActionKind::DeleteSegment(Self::ONE),
                             pos,
                         }),
-                        &MatchElement::LongSegment(pos) => actions.push(Action {
+                        &MatchElement::LongSegment(pos, _) => actions.push(Action {
                             kind: ActionKind::DeleteSegment(Self::non_zero_len(phrase.seg_length_at(pos) as u8)),
                             pos,
                         }),
-                        MatchElement::Syllable(wp, sp) => actions.push(Action {
+                        MatchElement::Syllable(wp, sp, _) => actions.push(Action {
                             kind: ActionKind::DeleteSyllable,
                             pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 },
                         }),
                     }
                 }
 
+                // then insert boundary
                 // if last item is syllable, no need to insert boundary
-                match els.last() {
-                    Some(el) => match el {
-                        MatchElement::Set(..) | MatchElement::WordBound(_) | MatchElement::Syllable(..) => {},
-                        MatchElement::Segment(pos) => actions.push(Action { 
+                if let Some(el) = els.last() {
+                    match el {
+                        MatchElement::Set(..) | MatchElement::WordBound(_, _) | MatchElement::Syllable(..) => {},
+                        MatchElement::Segment(pos, _) => actions.push(Action { 
                             kind: ActionKind::InsertBoundary,
                             pos: SegPos { word_index:pos.word_index, syll_index: pos.syll_index, seg_index: pos.seg_index + 1 }
                         }),
-                        MatchElement::LongSegment(pos) => actions.push(Action { 
+                        MatchElement::LongSegment(pos, _) => actions.push(Action { 
                             kind: ActionKind::InsertBoundary,
                             pos: SegPos { word_index:pos.word_index, syll_index: pos.syll_index, seg_index: pos.seg_index + phrase.seg_length_at(*pos) }
                         }),
-                        MatchElement::SyllBound(wp, sp) => actions.push(Action { 
+                        MatchElement::SyllBound(wp, sp, _) => actions.push(Action { 
                             kind: ActionKind::PassBoundary, 
                             pos: SegPos { word_index: *wp, syll_index: *sp, seg_index: 0 } 
                         }),
-                    },
-                    None => {},
+                    }
                 }
 
                 Ok(actions)
             },
-            MatchElement::WordBound(_) => unreachable!("Should be dealt with in gen_actions()"),
+            MatchElement::WordBound(..) => unreachable!("Should be dealt with in gen_actions()"),
         }
     }
 
@@ -3064,39 +3009,39 @@ impl SubRule { // Substitution
                     }
                 },
                 (Some(_), None) => match &input[in_index] {
-                    &MatchElement::Segment(pos) | &MatchElement::LongSegment(pos) => {
+                    &MatchElement::Segment(pos, _) | &MatchElement::LongSegment(pos, _) => {
                         let seg_len = phrase.seg_length_at(pos) as u8;
                         actions.push(Action { kind: ActionKind::DeleteSegment(Self::non_zero_len(seg_len)), pos });
                         in_index += 1;
                     }
-                    &MatchElement::Syllable(wp, sp)  => {
+                    &MatchElement::Syllable(wp, sp, _)  => {
                         actions.push(Action { kind: ActionKind::DeleteSyllable, pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } });
                         in_index += 1;
                     }
-                    &MatchElement::SyllBound(wp, sp) => {
+                    &MatchElement::SyllBound(wp, sp, _) => {
                         actions.push(Action { kind: ActionKind::DeleteBoundary, pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } });
                         in_index += 1;
                     }
-                    MatchElement::Set(els, _) => {
+                    MatchElement::Set(els, _, _) => {
                         for el in els {
                             match el {
-                                &MatchElement::Segment(pos) | &MatchElement::LongSegment(pos) => {
+                                &MatchElement::Segment(pos, _) | &MatchElement::LongSegment(pos, _) => {
                                     let seg_len = phrase.seg_length_at(pos) as u8;
                                     actions.push(Action { kind: ActionKind::DeleteSegment(Self::non_zero_len(seg_len)), pos });
                                 },
-                                &MatchElement::Syllable(wp, sp)  => {
+                                &MatchElement::Syllable(wp, sp, _)  => {
                                     actions.push(Action { kind: ActionKind::DeleteSyllable, pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } });
                                 }
-                                &MatchElement::SyllBound(wp, sp) => {
+                                &MatchElement::SyllBound(wp, sp, _) => {
                                     actions.push(Action { kind: ActionKind::DeleteBoundary, pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } });
                                 }
-                                MatchElement::WordBound(_) => return Err(RuleRuntimeError::SubstitutionWordBound(input_filt[in_index].position, output_filt.last().expect("Output isn't empty").position)),
+                                MatchElement::WordBound(_, _) => return Err(RuleRuntimeError::SubstitutionWordBound(input_filt[in_index].position, output_filt.last().expect("Output isn't empty").position)),
                                 MatchElement::Set(..) => unimplemented!("Sets cannot be nested"),
                             }
                         }
                         in_index += 1;
                     }
-                    MatchElement::WordBound(_) => return Err(RuleRuntimeError::SubstitutionWordBound(input_filt[in_index].position, output_filt.last().expect("Output isn't empty").position)),
+                    MatchElement::WordBound(_, _) => return Err(RuleRuntimeError::SubstitutionWordBound(input_filt[in_index].position, output_filt.last().expect("Output isn't empty").position)),
                 },
                 (Some(_), Some(out_item)) => {
                     let in_item = &input_filt[in_index];
@@ -3119,7 +3064,7 @@ impl SubRule { // Substitution
                             in_index += 1; out_index += 1;
                         }
                         // Note: Must be placed after sub_bound and before everything else
-                        (&MatchElement::SyllBound(wp, sp), _) => {
+                        (&MatchElement::SyllBound(wp, sp, _), _) => {
                             actions.push(Action { 
                                 kind: ActionKind::DeleteBoundary, 
                                 pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 },
@@ -3127,19 +3072,19 @@ impl SubRule { // Substitution
                             in_index += 1;
                         }
                         (_, ParseElement::Structure(items, stress, tone, refr)) => {
-                            actions.push(self.sub_structure(phrase, items, stress, tone, refr, match_el, in_item.position, out_item.position)?);
+                            actions.push(self.sub_structure(phrase, items, stress, tone, refr, match_el, out_item.position)?);
                             in_index += 1; out_index += 1;
                         }
                         (_, ParseElement::Matrix(mods, refr)) => { 
-                            actions.extend(self.sub_matrix(phrase, mods, refr, match_el, in_item.position, out_item.position)?);
+                            actions.extend(self.sub_matrix(phrase, mods, refr, match_el, out_item.position)?);
                             in_index += 1; out_index += 1;
                         }
                         (_, ParseElement::Ipa(seg, mods) )=> {
-                            actions.extend(self.sub_ipa(phrase, seg, mods, match_el, in_item.position, out_item.position)?);
+                            actions.extend(self.sub_ipa(phrase, seg, mods, match_el, out_item.position)?);
                             in_index += 1; out_index += 1;
                         }
                         (_, ParseElement::Reference(num, mods)) => {
-                            actions.push(self.sub_ref(phrase, num, mods, match_el, in_item.position, out_item.position)?);
+                            actions.push(self.sub_ref(phrase, num, mods, match_el, out_item.position)?);
                             in_index += 1; out_index += 1;
                         }
                         (_, ParseElement::Set(set_output)) => {
@@ -3686,10 +3631,10 @@ impl SubRule { // Context Matching
         Ok(true)
     }
 
-    fn underline_struct_sanity_check(&self, matches: &[MatchElement], err_pos: Position) -> Result<(), RuleRuntimeError> {
+    fn underline_struct_sanity_check(&self, matches: &[MatchElement]) -> Result<(), RuleRuntimeError> {
         for (i, m) in matches.iter().enumerate() {
             match m {
-                MatchElement::Syllable (..) => {
+                &MatchElement::Syllable (.., err_pos) => {
                     if let Some(input_item) = self.input.get(i) {
                         return Err(RuleRuntimeError::SyllbleInsideUnderlineStruct(input_item.position, err_pos))
                     } else {
@@ -3697,7 +3642,7 @@ impl SubRule { // Context Matching
                     }
                 }
                 
-                MatchElement::SyllBound(..) | MatchElement::WordBound(..) => {
+                &MatchElement::SyllBound(.., err_pos) | &MatchElement::WordBound(.., err_pos) => {
                     if let Some(input_item) = self.input.get(i) {
                         return Err(RuleRuntimeError::BoundaryInsideUnderlineStruct(input_item.position, err_pos))
                     } else {
@@ -3707,7 +3652,7 @@ impl SubRule { // Context Matching
 
                 MatchElement::LongSegment(..) | MatchElement::Segment(..) => {}
 
-                MatchElement::Set(els, _) => return self.underline_struct_sanity_check(els, err_pos)
+                MatchElement::Set(els, _, _) => return self.underline_struct_sanity_check(els)
             }
         }
 
@@ -3719,7 +3664,7 @@ impl SubRule { // Context Matching
         { // Sanity Check Input
             // Check first and last input are in the same syllable
             if start_pos.word_index != end_pos.word_index || start_pos.syll_index != end_pos.syll_index { return Ok(false) }
-            self.underline_struct_sanity_check(matches, center.position)?;
+            self.underline_struct_sanity_check(matches)?;
         }
 
         // Check Suprasegmentals
@@ -4363,20 +4308,20 @@ impl SubRule { // Input Matching
 
     fn input_calc_match_begin(&self, phrase: &Phrase, el: &MatchElement) -> SegPos {
         match el {
-            MatchElement::Set(els, _) => self.input_calc_match_begin(phrase, &els[0]),
-            MatchElement::Segment(sp) => *sp,
-            MatchElement::LongSegment(sp) => SegPos { 
+            MatchElement::Set(els, _, _) => self.input_calc_match_begin(phrase, &els[0]),
+            MatchElement::Segment(sp, _) => *sp,
+            MatchElement::LongSegment(sp, _) => SegPos { 
                 word_index: sp.word_index, 
                 syll_index: sp.syll_index, 
                 seg_index: sp.seg_index + phrase.seg_length_at(*sp) - 1 
             },
-            MatchElement::SyllBound(wp, sp) |
-            MatchElement::Syllable (wp, sp) => SegPos { 
+            MatchElement::SyllBound(wp, sp, _) |
+            MatchElement::Syllable (wp, sp, _) => SegPos { 
                 word_index: *wp, 
                 syll_index: *sp, 
                 seg_index: 0 
             },
-            MatchElement::WordBound(wp) => SegPos { 
+            MatchElement::WordBound(wp, _) => SegPos { 
                 word_index: wp+1, 
                 syll_index: 0, 
                 seg_index: 0 
@@ -4446,7 +4391,7 @@ impl SubRule { // Input Matching
         // if we've got to the end of the word and we haven't began matching
         if match_begin.is_none() {
             if self.input.len() == 1 && self.input[0].kind == ParseElement::SyllBound {
-                captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len()));
+                captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), self.input[0].position));
                 return Ok(true)
             } else if self.input.len() == 1 && self.input_check_set_syll_bound(phrase, captures) {
                 return Ok(true)
@@ -4456,8 +4401,9 @@ impl SubRule { // Input Matching
         }
 
         // if we're matching and we've reached the end of the word and the last state is a syll boundary
-        if self.input.last().unwrap().kind == ParseElement::SyllBound {
-            captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len()));
+        let last_el = self.input.last().expect("input is not empty");
+        if last_el.kind == ParseElement::SyllBound {
+            captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), last_el.position));
             return Ok(true)
         }
 
@@ -4471,12 +4417,12 @@ impl SubRule { // Input Matching
     }
 
     fn input_check_set_syll_bound(&self, phrase: &Phrase, captures: &mut Vec<MatchElement>) -> bool {
-        match &self.input.last().unwrap().kind {
-            ParseElement::Set(set) => {
+        match &self.input.last().unwrap() {
+            ParseItem { kind: ParseElement::Set(set), position} => {
                 match captures.last_mut() {
-                    Some(MatchElement::Set(els, choice)) => {
+                    Some(MatchElement::Set(els, choice, _)) => {
                         if set.ends_in(ParseElement::SyllBound, *choice) {
-                            els.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len()));
+                            els.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), set.choices[*choice].items.last().unwrap().position));
                             true
                         } else {
                             false
@@ -4486,11 +4432,12 @@ impl SubRule { // Input Matching
                         for (c, choice) in set.choices.iter().enumerate() {
                             if choice.items.len() == 1 && set.ends_in(ParseElement::SyllBound, c) {
                                 captures.push(MatchElement::Set(
-                                    vec![MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len())],
-                                    c
+                                    vec![MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), choice.items.last().unwrap().position)],
+                                    c,
+                                    *position
                                 ));
+                                return true
                             }
-                            return true
                         }
 
                         false
@@ -4525,17 +4472,17 @@ impl SubRule { // Input Matching
                 *state_index += 1;
                 Ok(true) 
             } else { Ok(false) },
-            ParseElement::Set(s) => if self.input_match_set(captures, state_index, s, phrase, seg_pos)? {
+            ParseElement::Set(s) => if self.input_match_set(captures, state_index, s, phrase, seg_pos, err_pos)? {
                 *state_index += 1;
                 Ok(true)
             } else { Ok(false) },
-            ParseElement::SyllBound => if self.input_match_syll_bound(captures, *seg_pos) {
+            ParseElement::SyllBound => if self.input_match_syll_bound(captures, *seg_pos, err_pos) {
                 // NOTE(girv): Boundaries do not advance seg_index 
                 *state_index += 1;
                 Ok(true)
             } else { Ok(false) },
             ParseElement::ExtlBound => if seg_pos.at_word_end(phrase) && !seg_pos.at_phrase_end(phrase) {
-                captures.push(MatchElement::WordBound(seg_pos.word_index));
+                captures.push(MatchElement::WordBound(seg_pos.word_index, err_pos));
                 seg_pos.word_increment(phrase);
                 *state_index += 1;
                 Ok(true)
@@ -4628,7 +4575,7 @@ impl SubRule { // Input Matching
         if let Some(r) = refr {
             self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
         }
-        captures.push(MatchElement::Syllable(cur_word_index, cur_syll_index));
+        captures.push(MatchElement::Syllable(cur_word_index, cur_syll_index, err_pos));
         *state_index += 1;
         Ok(true)
     }
@@ -4668,17 +4615,17 @@ impl SubRule { // Input Matching
         }
 
         if states.len() <= *state_index + 1 {
-            match &states.last().unwrap().kind {
-                ParseElement::SyllBound => {
+            match &states.last().unwrap() {
+                ParseItem { kind: ParseElement::SyllBound, position } => {
                     if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) {
-                        captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len()));
+                        captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), *position));
                         *state_index += 1;
                         return Ok(true)
                     }
                 }
-                ParseElement::ExtlBound => {
+                ParseItem { kind: ParseElement::ExtlBound, position } => {
                     if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) {
-                        captures.push(MatchElement::WordBound(pos.word_index));
+                        captures.push(MatchElement::WordBound(pos.word_index, *position));
                         pos.word_increment(phrase);
                         *state_index += 1;
                         return Ok(true)
@@ -4713,7 +4660,7 @@ impl SubRule { // Input Matching
             if let Some(r) = refr {
                 self.references.borrow_mut().insert(*r, RefKind::Syllable(phrase[cur_word_index].syllables[cur_syll_index].clone()));
             }
-            captures.push(MatchElement::Syllable(cur_word_index, cur_syll_index));
+            captures.push(MatchElement::Syllable(cur_word_index, cur_syll_index, err_pos));
             *state_index += 1;
             pos.syll_index += 1;
             pos.seg_index = 0;
@@ -4724,16 +4671,16 @@ impl SubRule { // Input Matching
         }
     }
 
-    fn input_match_syll_bound(&self, captures: &mut Vec<MatchElement>, pos: SegPos) -> bool {
+    fn input_match_syll_bound(&self, captures: &mut Vec<MatchElement>, pos: SegPos, err_pos: Position) -> bool {
         if pos.seg_index == 0 {
-            captures.push(MatchElement::SyllBound(pos.word_index, pos.syll_index));
+            captures.push(MatchElement::SyllBound(pos.word_index, pos.syll_index, err_pos));
             true
         } else {
             false
         }
     }
 
-    fn input_match_set_choice(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, choice: &SetChoice, phrase: &Phrase, pos: &mut SegPos, choice_index: usize) -> Result<bool, RuleRuntimeError> {
+    fn input_match_set_choice(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, choice: &SetChoice, phrase: &Phrase, pos: &mut SegPos, choice_index: usize, err_pos: Position) -> Result<bool, RuleRuntimeError> {
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_refs = self.references.borrow().clone();
@@ -4753,7 +4700,7 @@ impl SubRule { // Input Matching
                 } else { Ok(false) },
                 ParseElement::Syllable(stress, tone, refr) => self.input_match_syll(&mut caps, state_index, stress, tone, refr, phrase, pos, item.position),
                 ParseElement::SyllBound => if pos.at_syll_start() {
-                    caps.push(MatchElement::SyllBound(pos.word_index, pos.syll_index));
+                    caps.push(MatchElement::SyllBound(pos.word_index, pos.syll_index, item.position));
                     Ok(true)
                 } else { Ok(false) },
                 ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(item.position)),
@@ -4769,18 +4716,18 @@ impl SubRule { // Input Matching
             } 
         }
         
-        captures.push(MatchElement::Set(caps, choice_index));
+        captures.push(MatchElement::Set(caps, choice_index, err_pos));
         Ok(true)
     }
 
 
-    fn input_match_set(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, set: &ItemSet, phrase: &Phrase, pos: &mut SegPos) -> Result<bool, RuleRuntimeError> {
+    fn input_match_set(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, set: &ItemSet, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
         let back_pos = *pos;
         let back_alphas = self.alphas.borrow().clone();
         let back_refs = self.references.borrow().clone();
 
         for (i, choice) in set.choices.iter().enumerate() {
-            if self.input_match_set_choice(captures, state_index, choice, phrase, pos, i)? {
+            if self.input_match_set_choice(captures, state_index, choice, phrase, pos, i, err_pos)? {
                 return Ok(true)
             }
             *pos = back_pos;
@@ -4830,9 +4777,9 @@ impl SubRule { // Input Matching
         if let Some(m) = mods {
             if self.match_ipa_with_modifiers(s, m, phrase, pos, err_pos)? {
                 if m.suprs.length.is_some() {
-                    captures.push(MatchElement::LongSegment(*pos));
+                    captures.push(MatchElement::LongSegment(*pos, err_pos));
                 } else {
-                    captures.push(MatchElement::Segment(*pos));
+                    captures.push(MatchElement::Segment(*pos, err_pos));
                 }
                 self.matrix_increment(phrase, pos);
                 Ok(true)
@@ -4841,7 +4788,7 @@ impl SubRule { // Input Matching
                 Ok(false)
             }
         } else if *s == seg {
-            captures.push(MatchElement::Segment(*pos));
+            captures.push(MatchElement::Segment(*pos, err_pos));
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
@@ -4871,7 +4818,7 @@ impl SubRule { // Input Matching
         } else if *cur_syll != *syll_to_match {
             return Ok(false)
         }
-        captures.push(MatchElement::Syllable(cwi, csi));
+        captures.push(MatchElement::Syllable(cwi, csi, err_pos));
 
         *state_index += 1;
         pos.syll_index += 1;
@@ -4901,7 +4848,7 @@ impl SubRule { // Input Matching
                 let Some(seg) = phrase.get_seg_at(*pos) else { return Ok(false) };
                 self.references.borrow_mut().insert(*r, RefKind::Segment(seg));
             }
-            captures.push(MatchElement::LongSegment(*pos));
+            captures.push(MatchElement::LongSegment(*pos, err_pos));
             self.matrix_increment(phrase, pos);
             Ok(true)
         } else {
