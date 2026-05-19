@@ -4380,14 +4380,14 @@ impl SubRule { // Input Matching
 
         debug_assert!(!self.input.is_empty());
 
-        if self.input_check_end_of_word_match(phrase, &mut captures, match_begin)? {
+        if self.input_check_end_of_word_match(phrase, &mut captures, match_begin, state_index)? {
             Ok((captures, None))
         } else {
             Ok((vec![], None))
         }
     }
 
-    fn input_check_end_of_word_match(&self, phrase: &Phrase, captures: &mut Vec<MatchElement>, match_begin: Option<SegPos>) -> Result<bool, RuleRuntimeError> {
+    fn input_check_end_of_word_match(&self, phrase: &Phrase, captures: &mut Vec<MatchElement>, match_begin: Option<SegPos>, state_index: usize) -> Result<bool, RuleRuntimeError> {
         // if we've got to the end of the word and we haven't began matching
         if match_begin.is_none() {
             if self.input.len() == 1 && self.input[0].kind == ParseElement::SyllBound {
@@ -4398,6 +4398,10 @@ impl SubRule { // Input Matching
             } else {
                 return Ok(false)
             }
+        }
+        
+        if state_index < self.input.len() - 1 {
+            return Ok(false)
         }
 
         // if we're matching and we've reached the end of the word and the last state is a syll boundary
