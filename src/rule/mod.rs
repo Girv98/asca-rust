@@ -28,6 +28,8 @@ use crate :: {
 pub(crate) enum RuleType {
     Substitution,
     Metathesis,
+    #[allow(unused)] // Coming 0.10.1+
+    MetaOrdered,
     Deletion,
     Insertion,
 }

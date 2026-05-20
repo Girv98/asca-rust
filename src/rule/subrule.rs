@@ -932,14 +932,21 @@ impl SubRule {
             let left_group = &elements[z];
             let right_group = &elements[elements.len()-1-z];
 
-            match left_group.len().cmp(&right_group.len()) {
-                std::cmp::Ordering::Equal => {
+            // TODO: for implementing @, the only differences should be that Greater and Less are swapped
+            // and for Equal, right_group is not reversed
+            match (left_group.len().cmp(&right_group.len()), self.rule_type) {
+                (std::cmp::Ordering::Equal, RuleType::Metathesis) => {
                     for (a, b) in left_group.iter().zip(right_group.iter().rev()) {
                         match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
                     }
                 },
+                (std::cmp::Ordering::Equal, RuleType::MetaOrdered) => {
+                    for (a, b) in left_group.iter().zip(right_group.iter()) {
+                        match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
+                    }
+                },
                 //  L > R
-                std::cmp::Ordering::Greater => {
+                (std::cmp::Ordering::Greater, RuleType::Metathesis) | (std::cmp::Ordering::Less, RuleType::MetaOrdered) => {
                     for (a , b) in left_group.iter().rev().zip(right_group.iter()) {
                         match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
                     }
@@ -953,7 +960,9 @@ impl SubRule {
                     match_els.reverse();
                 },
                 // L < R
-                std::cmp::Ordering::Less => todo!(),
+                (std::cmp::Ordering::Less, RuleType::Metathesis) | (std::cmp::Ordering::Greater, RuleType::MetaOrdered) => todo!(),
+                
+                _ => unreachable!()
             }
         }
 
@@ -1006,30 +1015,28 @@ impl SubRule {
         Ok(res_phrase)
     }
 
-    fn metathesis_new(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn metathesis_new(&self, phrase: &Phrase, matched_elements: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         
         let input_filt = self.input.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::OptEllipsis).cloned().collect::<Vec<_>>();
 
         if input_filt.is_empty() { return Ok(phrase.clone()) }
-        debug_assert_eq!(input_filt.len(), input.len());
+        debug_assert_eq!(input_filt.len(), matched_elements.len());
 
         // Split input by 
         if self.input.len() != input_filt.len() {
-            return self.metathesis_ellipses(phrase, &input, next_pos)
+            return self.metathesis_ellipses(phrase, &matched_elements, next_pos)
         }
 
         let mut expanded_els = Vec::new();
 
-        for el in &input {
-            match el {
-                MatchElement::Set(m_els, _, _) => {
-                    for m_el in m_els {
-                        expanded_els.push(m_el);
+        for matched_element in &matched_elements {
+            match matched_element {
+                MatchElement::Set(els, _, _) => {
+                    for el in els {
+                        expanded_els.push(el);
                     }
                 }
-                m_el => {
-                    expanded_els.push(m_el);
-                }
+                el => expanded_els.push(el),
             }
         }
 
@@ -1350,6 +1357,7 @@ impl SubRule {
         match self.rule_type {
             RuleType::Substitution => self.substitution(phrase, input, next_pos),
             RuleType::Metathesis   => self.metathesis_new(phrase, input, next_pos),
+            RuleType::MetaOrdered  => self.metathesis_new(phrase, input, next_pos),
             RuleType::Deletion     => self.deletion(phrase, input, next_pos),
             RuleType::Insertion    => self.insertion(phrase),
         }
