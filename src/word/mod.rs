@@ -194,7 +194,7 @@ impl SegPos {
 
 #[derive(Clone)]
 pub struct Word {
-    pub syllables: Vec<Syllable>,
+    pub syllables: VecDeque<Syllable>,
 }
 
 impl PartialEq for Word {
@@ -216,14 +216,14 @@ impl fmt::Debug for Word {
 
 impl Word { 
     pub fn new<S: AsRef<str>>(text: S) -> Result<Self, ASCAError> {
-        let mut w = Self { syllables: Vec::new() };
+        let mut w = Self { syllables: VecDeque::new() };
         w.setup(Self::normalise(text.as_ref()), &[])?;
 
         Ok(w)
     }
 
     pub fn with<S: AsRef<str>>(text: S, aliases: &[Transformation]) -> Result<Self, ASCAError> {
-        let mut w = Self { syllables: Vec::new() };
+        let mut w = Self { syllables: VecDeque::new() };
         w.setup(Self::normalise(text.as_ref()), aliases)?;
 
         Ok(w)
@@ -618,17 +618,17 @@ impl Word {
         while i < txt.len() {
             match txt[i] {
                 'ˈ' | '\'' => { // Primary Stress
-                    if !sy.segments.is_empty() { self.syllables.push(sy); }
+                    if !sy.segments.is_empty() { self.syllables.push_back(sy); }
                     sy = Syllable { segments: VecDeque::new(), stress: StressKind::Primary, tone: 0 };
                 }
                 'ˌ' | ','  => { // Secondary Stress
-                    if !sy.segments.is_empty() { self.syllables.push(sy); }
+                    if !sy.segments.is_empty() { self.syllables.push_back(sy); }
                     sy = Syllable { segments: VecDeque::new(), stress: StressKind::Secondary, tone: 0 };
                 }
                 ';' => { // Length and Close
                     if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt.as_ref().to_owned(), i).into()) }
                     sy.segments.push_back(*sy.segments.back().unwrap()); 
-                    self.syllables.push(sy);
+                    self.syllables.push_back(sy);
                     sy = Syllable::new();
                 }
                 'ː' | ':' => { // Length
@@ -636,7 +636,7 @@ impl Word {
                     sy.segments.push_back(*sy.segments.back().unwrap());
                 }
                 '.' => { // Close
-                    if !sy.segments.is_empty() { self.syllables.push(sy); }
+                    if !sy.segments.is_empty() { self.syllables.push_back(sy); }
                     sy = Syllable::new();
                 }
 
@@ -655,7 +655,7 @@ impl Word {
                     }
                     sy.tone = tone_buffer.parse().unwrap_or(0);
 
-                    self.syllables.push(sy.clone());
+                    self.syllables.push_back(sy.clone());
                     sy = Syllable::new();
                 }
                 _ => { // Get Segment
@@ -667,14 +667,14 @@ impl Word {
         }
 
         if !sy.segments.is_empty() {
-            self.syllables.push(sy);
+            self.syllables.push_back(sy);
             return Ok(())
         }
 
         // Check for dangling '
         if sy.stress == StressKind::Primary {
             // Check if previous syllable had a segment which would indicate that ' might have been meant as ejective
-            if  let Some(syll) = self.syllables.last() && !syll.segments.is_empty() { 
+            if  let Some(syll) = self.syllables.back() && !syll.segments.is_empty() { 
                 return Err(WordSyntaxError::CouldNotParseEjective(input_txt.as_ref().to_owned()).into())
             }
         }
@@ -1237,7 +1237,7 @@ impl Word {
         for syll in &mut word.syllables {
             syll.segments.make_contiguous().reverse();
         }
-        word.syllables.reverse();
+        word.syllables.make_contiguous().reverse();
 
         word
     }

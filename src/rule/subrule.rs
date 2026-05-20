@@ -457,7 +457,7 @@ impl SubRule {
                 }
                 // n ## > &
                 &(Meta::Some(&MatchElement::Segment(left_pos, left_err_pos)), Meta::Some(&MatchElement::WordBound(word_index, _))) => {
-                    let word = Word{ syllables: vec![Syllable{ segments: VecDeque::from(vec![phrase.get_seg_at(left_pos).unwrap()]), stress: StressKind::Unstressed, tone: 0 }] };
+                    let word = Word{ syllables: vec![Syllable{ segments: VecDeque::from(vec![phrase.get_seg_at(left_pos).unwrap()]), stress: StressKind::Unstressed, tone: 0 }].into() };
 
                     if word_index+1 >= phrase.len() {
                         // NOTE: This is will never happen because of line 120 in self.apply()
@@ -487,7 +487,7 @@ impl SubRule {
                     let seg = phrase.get_seg_at(left_pos).unwrap();
                     let seg_len = Self::non_zero_len(phrase.seg_length_at(left_pos) as u8);
                     let mut word = Word::new("").unwrap();
-                    word.syllables.push(Syllable::new());
+                    word.syllables.push_back(Syllable::new());
                     for _ in 0..seg_len.get() {
                         word.syllables[0].segments.push_back(seg);
                     }
@@ -3212,7 +3212,7 @@ impl SubRule { // Substitution
                             syll.apply_syll_mods(&self.alphas, m, *err_pos)?;
                         }
                     } else {
-                        let syll = res_phrase[action.pos.word_index].syllables.last_mut().expect("Not empty");
+                        let syll = res_phrase[action.pos.word_index].syllables.back_mut().expect("Not empty");
                         for _ in 0..seg_len.get() {
                             syll.segments.push_back(*segment);
                         }
@@ -3244,7 +3244,7 @@ impl SubRule { // Substitution
                             res_phrase[action.pos.word_index].syllables.insert(action.pos.syll_index+1, insert_syll.clone());
                             word_len_change[action.pos.word_index] += 1;
                         } else {
-                            res_phrase[action.pos.word_index].syllables.push(insert_syll.clone());
+                            res_phrase[action.pos.word_index].syllables.push_back(insert_syll.clone());
                             word_len_change[action.pos.word_index] += 1;
                         }
                         continue;
