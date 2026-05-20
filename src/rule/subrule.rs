@@ -57,6 +57,8 @@ enum ActionKind {
     PassBoundary,
     InsertBoundary,
     DeleteBoundary,
+    InsertWordBound,
+    DeleteWordBound,
 }
 
 
@@ -875,7 +877,17 @@ impl SubRule {
             (MatchElement::SyllBound(_, _, _), MatchElement::SyllBound(..)) => todo!(),
             (MatchElement::SyllBound(_, _, _), MatchElement::WordBound(_, _)) => todo!(),
 
-            (MatchElement::WordBound(_, _), MatchElement::Segment(_, _)) => todo!(),
+            (&MatchElement::WordBound(wp, _), MatchElement::Segment(..)) => {
+                right_res.push(Action { 
+                    kind: ActionKind::InsertWordBound, 
+                    pos: ins_pos
+                });
+
+                left_res.push(Action { 
+                    kind: ActionKind::DeleteWordBound, 
+                    pos: SegPos { word_index: wp, syll_index: 0, seg_index: 0 } 
+                });
+            },
             (MatchElement::WordBound(_, _), MatchElement::LongSegment(_, _)) => todo!(),
             (MatchElement::WordBound(_, _), MatchElement::Syllable(..)) => todo!(),
             (MatchElement::WordBound(_, _), MatchElement::SyllBound(..)) => todo!(),
@@ -2943,6 +2955,8 @@ impl SubRule { // Substitution
                 ActionKind::DeleteBoundary => last_action.pos,
 
                 ActionKind::InsertBoundary => last_action.pos,
+                ActionKind::DeleteWordBound |
+                ActionKind::InsertWordBound |
                 ActionKind::InsertSyllable(..) |
                 ActionKind::InsertWord(..) | // NOTE: This is will never happen because of line 120 in self.apply()
                 ActionKind::InsertSegment(..) => last_action.pos,
@@ -3345,7 +3359,58 @@ impl SubRule { // Substitution
 
                     unimplemented!()
                 }
+                ActionKind::InsertWordBound => {
+                    let mut new_word = Word::new("").unwrap();
+
+                    if action.pos.seg_index == 0 && action.pos.syll_index > 0 {
+                        // push all syllables > action.pos.syll_index
+                        let Some(word) = res_phrase.get_mut(action.pos.word_index) else { unreachable!() };
+                        while word.syllables.len() > action.pos.seg_index - 1 {
+                            new_word.syllables.push_front(word.syllables.pop_back().unwrap());
+                        }
+                    } else {
+                        // push all syllables > action.pos.syll_index+1
+                        // then split syllable and push that
+                        let Some(word) = res_phrase.get_mut(action.pos.word_index) else { unreachable!() };
+                        while word.syllables.len() > action.pos.syll_index + 1 {
+                            new_word.syllables.push_front(word.syllables.pop_back().unwrap());
+                        }
+
+                        let mut new_syll = Syllable::new();
+                        let syll = res_phrase[action.pos.word_index].syllables.get_mut(action.pos.syll_index).unwrap();
+                        while !syll.segments.is_empty() && syll.segments.len() > action.pos.seg_index {
+                            new_syll.segments.push_front(syll.segments.pop_back().unwrap());
+                        }
+
+                        new_word.syllables.push_front(new_syll);
+                    }
+
+                    let new_word = Word { syllables: new_word.syllables.into_iter().filter(|s| !s.segments.is_empty()).collect()};
+
+                    if !new_word.syllables.is_empty() {
+                        res_phrase.insert(action.pos.word_index+1, new_word);
+                        word_len_change.insert(action.pos.word_index+1, 0);
+                    }
+                    println!("{}", res_phrase.render());
+
+                    continue;
+                }
+                ActionKind::DeleteWordBound => {
+                    if res_phrase.len() <= action.pos.word_index {
+                        continue;
+                    }
+
+                    let x = res_phrase[action.pos.word_index+1].syllables.clone();
+                    res_phrase[action.pos.word_index].syllables.extend(x);
+
+                    res_phrase.remove(action.pos.word_index+1);
+                    word_len_change.remove(action.pos.word_index+1);
+
+                    println!("{}", res_phrase.render());
+                    continue
+                }
             }
+            println!("{}", res_phrase.render())
         }
 
         for word in res_phrase.iter_mut() { word.syllables.retain(|s| !s.segments.is_empty()); }
@@ -3394,7 +3459,8 @@ impl SubRule { // Substitution
                         // Find next syllable in result, making sure that we don't accidentally match a previous syllable
                         match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
                             Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),
-                            None => unimplemented!("Word Boundary change"),
+                            // None => unimplemented!("Word Boundary change"),
+                            None => return None,
                         }
                     }
 
@@ -3414,7 +3480,8 @@ impl SubRule { // Substitution
                         }
                         
                     }
-                    unimplemented!("Word Boundary change")
+                    // TODO: Reason this
+                    None
                 },
                 Payload::Syllable(_) => {
                     Some(SegPos{
@@ -3497,6 +3564,20 @@ impl SubRule { // Substitution
                     word_index: last_action.pos.word_index+1,
                     syll_index: 0,
                     seg_index: 0
+                })
+            }
+            ActionKind::InsertWordBound => {
+                Some(SegPos{
+                    word_index: last_action.pos.word_index+1,
+                    syll_index: 0,
+                    seg_index: 0
+                })
+            }
+            ActionKind::DeleteWordBound => {
+                Some(SegPos{
+                    word_index: last_action.pos.word_index,
+                    syll_index: last_action.pos.word_index,
+                    seg_index: last_action.pos.word_index
                 })
             }
             ActionKind::DeleteSyllable => {
@@ -4903,7 +4984,7 @@ impl SubRule { // Insertion
                             pos.seg_index += lc.unsigned_abs() as usize + 1;
                         }
                     } else {
-                        res_phrase[pos.word_index].syllables.last_mut().unwrap().segments.push_back(*seg);
+                        res_phrase[pos.word_index].syllables.back_mut().unwrap().segments.push_back(*seg);
                         // If out of bounds, move to added segment
                         pos.syll_index = res_phrase[pos.word_index].syllables.len() - 1;
                         pos.seg_index = res_phrase[pos.word_index].syllables[pos.syll_index].segments.len() - 1;
@@ -5021,7 +5102,7 @@ impl SubRule { // Insertion
                                         pos.seg_index += lc.unsigned_abs() as usize;
                                     }
                                 } else {
-                                    res_phrase[pos.word_index].syllables.last_mut().unwrap().segments.push_back(*seg);
+                                    res_phrase[pos.word_index].syllables.back_mut().unwrap().segments.push_back(*seg);
                                     // If out of bounds, move to added segment
                                     pos.syll_index = res_phrase[pos.word_index].syllables.len() - 1;
                                     pos.seg_index = res_phrase[pos.word_index].syllables[pos.syll_index].segments.len() - 1;
