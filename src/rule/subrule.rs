@@ -386,27 +386,40 @@ impl SubRule {
                 }
                 // $s > &
                 &(Meta::Some(&MatchElement::SyllBound(left_word_index, left_boundary_pos, _)), Meta::Some(&MatchElement::Segment(right_pos, right_err_pos))) => {
+                    let seg = phrase.get_seg_at(right_pos).expect("segment has not been moved");
+
                     right_res.push(Action { 
                         kind: ActionKind::DeleteSegment(Self::ONE), 
                         pos: right_pos 
                     });
+                    
+                    if left_boundary_pos == 0 {
+                        let mut syll = Syllable::new();
+                        syll.segments.push_back(seg);
 
-                    let mut insert_pos = SegPos { word_index: left_word_index, syll_index: left_boundary_pos, seg_index: 0 };
-                    insert_pos.decrement(phrase);
-                    insert_pos.seg_index += 1;
-
-                    left_res.push(Action {
-                        kind: ActionKind::InsertSegment(
-                            Self::ONE, 
-                            phrase.get_seg_at(right_pos).unwrap(), 
-                            None, 
-                            right_err_pos
-                        ),
-                        pos: insert_pos,
-                    });
+                        left_res.push(Action { 
+                            kind: ActionKind::InsertSyllable(syll), 
+                            pos: SegPos { word_index: left_word_index, syll_index: 0, seg_index: 0 } 
+                        });
+                    } else {
+                        let mut insert_pos = SegPos { word_index: left_word_index, syll_index: left_boundary_pos, seg_index: 0 };
+                        insert_pos.decrement(phrase);
+                        insert_pos.seg_index += 1;
+    
+                        left_res.push(Action {
+                            kind: ActionKind::InsertSegment(
+                                Self::ONE, 
+                                seg, 
+                                None, 
+                                right_err_pos
+                            ),
+                            pos: insert_pos,
+                        });
+                    }
                 }
                 // $s:[+long] > &
                 &(Meta::Some(&MatchElement::SyllBound(left_word_index, left_boundary_pos, _)), Meta::Some(&MatchElement::LongSegment(right_pos, right_err_pos))) => {
+                    let seg = phrase.get_seg_at(right_pos).expect("segment has not been moved");
                     let seg_len = Self::non_zero_len(phrase.seg_length_at(right_pos) as u8);
                     
                     right_res.push(Action { 
@@ -414,19 +427,31 @@ impl SubRule {
                         pos: right_pos 
                     });
 
-                    let mut insert_pos = SegPos { word_index: left_word_index, syll_index: left_boundary_pos, seg_index: 0 };
-                    insert_pos.decrement(phrase);
-                    insert_pos.seg_index += 1;
+                    if left_boundary_pos == 0 {
+                        let mut syll = Syllable::new();
+                        for _ in 0..seg_len.get() {
+                            syll.segments.push_back(seg);
+                        }
 
-                    left_res.push(Action {
-                        kind: ActionKind::InsertSegment(
-                            seg_len, 
-                            phrase.get_seg_at(right_pos).unwrap(), 
-                            None, 
-                            right_err_pos
-                        ),
-                        pos: insert_pos,
-                    });
+                        left_res.push(Action { 
+                            kind: ActionKind::InsertSyllable(syll), 
+                            pos: SegPos { word_index: left_word_index, syll_index: 0, seg_index: 0 } 
+                        });
+                    } else {
+                        let mut insert_pos = SegPos { word_index: left_word_index, syll_index: left_boundary_pos, seg_index: 0 };
+                        insert_pos.decrement(phrase);
+                        insert_pos.seg_index += 1;
+
+                        left_res.push(Action {
+                            kind: ActionKind::InsertSegment(
+                                seg_len, 
+                                seg, 
+                                None, 
+                                right_err_pos
+                            ),
+                            pos: insert_pos,
+                        });
+                    }
                 }
                 // n ## > &
                 &(Meta::Some(&MatchElement::Segment(left_pos, left_err_pos)), Meta::Some(&MatchElement::WordBound(word_index, _))) => {
