@@ -902,8 +902,25 @@ mod rule_tests {
         fn met_pfas() {
             let test_rule = setup_rule("pf..s > &");
             assert_eq!(test_rule.apply_word(setup_word("pfas")).unwrap().render(), "safp");
-            // let test_rule = setup_rule("{pf}..s > &");
-            // assert_eq!(test_rule.apply_word(setup_word("pfas")).unwrap().render(), "sapf");
+            let test_rule = setup_rule("{pf}..s > &");
+            assert_eq!(test_rule.apply_word(setup_word("pfas")).unwrap().render(), "safp");
+        }
+
+        // TODO
+        // #[test]
+        // fn ord_met_pfas() {
+        //     let test_rule = setup_rule("pf..s > @");
+        //     assert_eq!(test_rule.apply_word(setup_word("pfas")).unwrap().render(), "sapf");
+        //     let test_rule = setup_rule("{pf}..s > @");
+        //     assert_eq!(test_rule.apply_word(setup_word("pfas")).unwrap().render(), "sapf");
+        // }
+
+        #[test]
+        fn met_pfs() {
+            let test_rule = setup_rule("pfs > &");
+            assert_eq!(test_rule.apply_word(setup_word("pfs")).unwrap().render(), "sfp");
+            let test_rule = setup_rule("{pf}s > &");
+            assert_eq!(test_rule.apply_word(setup_word("pfs")).unwrap().render(), "sfp");
         }
 
         #[test]
@@ -950,7 +967,15 @@ mod rule_tests {
 
             let test_rule = setup_rule("$s:[+long] > & / V_{p,t,k}");
             let test_word = setup_word("e.sːpa.ɲa");
-            assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "esː.pa.ɲa");            
+            assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "esː.pa.ɲa");
+
+            let test_rule = setup_rule("$e > &");
+            let test_word = setup_word("es.pa.ɲa");
+            assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "e.s.pa.ɲa");
+
+            let test_rule = setup_rule("e$ > &");
+            let test_word = setup_word("es.pa.ɲe");
+            assert_eq!(test_rule.apply_word(test_word).unwrap().render(), "es.pa.ɲ.e");
         }
         
         #[test]
@@ -1084,6 +1109,9 @@ mod rule_tests {
             let test_rule = setup_rule("r..$ > &");
             assert_eq!(test_rule.apply_word(setup_word("bra")).unwrap().render(), "ba.r");
             assert_eq!(test_rule.apply_word(setup_word("bra.ca")).unwrap().render(), "ba.rca");
+
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "so.a.rca");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "so.ba.rca");
         }
 
         #[test]
@@ -1097,18 +1125,22 @@ mod rule_tests {
             assert_eq!(test_rule.apply_word(setup_word("bːra")).unwrap().render(), "a.rbː");
             assert_eq!(test_rule.apply_word(setup_word("bːra.ca")).unwrap().render(), "a.rbːca");
             assert_eq!(test_rule.apply_word(setup_word("bːra.ca.ta")).unwrap().render(), "a.rbːca.ta");
+
+            let test_rule = setup_rule("obr..$ > &");
+            assert_eq!(test_rule.apply_word(setup_word("o.bra")).unwrap().render(), "a.rbo");
+            assert_eq!(test_rule.apply_word(setup_word("obra")).unwrap().render(), "a.rbo");
         }
 
         #[test]
         fn ellipsis_even_segment_word_bound() {
             let test_rule = setup_rule("b..## > &");
-            // assert_eq!(test_rule.apply(setup_phrase("bra")).unwrap().render(), "ra b"); // NOTE: This is will never happen because of line 120 in subrule.apply()
+            assert_eq!(test_rule.apply(setup_phrase("bra")).unwrap().render(), "bra");
             assert_eq!(test_rule.apply(setup_phrase("bra ca")).unwrap().render(), "ra bca");
             assert_eq!(test_rule.apply(setup_phrase("bra ca.ta")).unwrap().render(), "ra bca.ta");
             assert_eq!(test_rule.apply(setup_phrase("bra ca ta")).unwrap().render(), "ra bca ta");
             
             let test_rule = setup_rule("[+long]..## > &");
-            // assert_eq!(test_rule.apply(setup_phrase("bːra")).unwrap().render(), "ra bː");
+            assert_eq!(test_rule.apply(setup_phrase("bːra")).unwrap().render(), "bːra");
             assert_eq!(test_rule.apply(setup_phrase("bːra ca")).unwrap().render(), "ra bːca");
             assert_eq!(test_rule.apply(setup_phrase("bːra ca.ta")).unwrap().render(), "ra bːca.ta");
             assert_eq!(test_rule.apply(setup_phrase("bːra ca ta")).unwrap().render(), "ra bːca ta");
@@ -1129,8 +1161,144 @@ mod rule_tests {
             assert_eq!(test_rule.apply(setup_phrase("bːra ca")).unwrap().render(), "a rbːca");
             assert_eq!(test_rule.apply(setup_phrase("bːra ca.ta")).unwrap().render(), "a rbːca.ta");
             assert_eq!(test_rule.apply(setup_phrase("bːra ca ta")).unwrap().render(), "a rbːca ta");
-
         }
+
+        #[test]
+        fn ellipsis_even_syll_segment() {
+            let test_rule = setup_rule("r..a > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "so.aː.cr");
+            let test_rule = setup_rule("r(..)a > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "so.ar.ca");
+            assert_eq!(test_rule.apply_word(setup_word("so.ran.ca")).unwrap().render(), "so.arn.ca");
+        }
+
+        #[test]
+        fn ellipsis_uneven_syllable_segment() {
+            let test_rule = setup_rule("%r..a > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "aː.cr.so");
+            
+            let test_rule = setup_rule("%r(..)a > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "ar.so.ca");
+            assert_eq!(test_rule.apply_word(setup_word("so.ran.ca")).unwrap().render(), "ar.so.n.ca");
+
+
+            let test_rule = setup_rule("%r..a:[+long] > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca:")).unwrap().render(), "aːː.cr.so");
+            
+            let test_rule = setup_rule("%r(..)a:[+long] > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra:.ca")).unwrap().render(), "aːr.so.ca");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra:n.ca")).unwrap().render(), "aːr.so.n.ca");
+        }
+
+        #[test]
+        fn ellipsis_even_syllable_syllable() {
+            let test_rule = setup_rule("%..% > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "ca.ra.so");
+
+            let test_rule = setup_rule("r..% > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "so.ca.a.r");
+        }
+
+        #[test]
+        fn ellipsis_uneven_syllable_syllable() {
+            let test_rule = setup_rule("%r..% > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "ca.a.r.so");
+        }
+
+        #[test]
+        fn ellipsis_even_syllable_syll_bound() {
+            let test_rule = setup_rule("<so>..$ > &");
+            assert!(test_rule.apply_word(setup_word("so.ra.ca")).is_err());
+        }
+
+        #[test]
+        fn ellipsis_uneven_syllable_syll_bound() {
+            let test_rule = setup_rule("%r..$ > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.ra.ca")).unwrap().render(), "a.rso.ca");
+            assert_eq!(test_rule.apply_word(setup_word("so.rba.ca")).unwrap().render(), "ba.rso.ca");
+            
+            
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "so.bra.ca");
+        }
+
+        #[test]
+        fn ellipsis_even_syll_word_bound() {
+            let test_rule = setup_rule("<so>..## > &");
+            assert_eq!(test_rule.apply(setup_phrase("so.ra.ca")).unwrap().render(), "so.ra.ca");
+            assert_eq!(test_rule.apply(setup_phrase("so.ra.ca na")).unwrap().render(), "ra.ca so.na");
+        }
+
+        #[test]
+        fn ellipsis_uneven_syll_word_bound() {
+            let test_rule = setup_rule("<so>r..## > &");
+            assert_eq!(test_rule.apply(setup_phrase("so.ra.ca")).unwrap().render(), "so.ra.ca");
+            assert_eq!(test_rule.apply(setup_phrase("so.ra.ca na")).unwrap().render(), "a.ca rso.na");
+            let test_rule = setup_rule("<so><ra>..## > &");
+            assert_eq!(test_rule.apply(setup_phrase("so.ra.ca na")).unwrap().render(), "ca ra.so.na");
+        }
+
+        #[test]
+        fn ellipsis_even_syll_bound_segment() {
+            let test_rule = setup_rule("$..c > &");
+            assert_eq!(test_rule.apply_word(setup_word("bra.ca")).unwrap().render(), "c.bra.a");
+            let test_rule = setup_rule("$..c:[+long] > &");
+            assert_eq!(test_rule.apply_word(setup_word("bra.cːa")).unwrap().render(), "cː.bra.a");
+        }
+
+        #[test]
+        fn ellipsis_uneven_syll_bound_segment() {
+            let test_rule = setup_rule("$b..c > &");
+            assert_eq!(test_rule.apply_word(setup_word("bra.ca")).unwrap().render(), "cra.b.a");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "socra.b.a");
+            
+            let test_rule = setup_rule("$b..c:[+long] > &");
+            assert_eq!(test_rule.apply_word(setup_word("bra.cːa")).unwrap().render(), "cːra.b.a");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.cːa")).unwrap().render(), "socːra.b.a");
+        }
+
+        #[test]
+        fn ellipsis_uneven_syll_bound_syll() {
+            let test_rule = setup_rule("b..<ca> > &");
+            assert_eq!(test_rule.apply_word(setup_word("bra.ca")).unwrap().render(), "ca.ra.b");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "so.ca.ra.b");
+            
+            let test_rule = setup_rule("$b..<ca> > &");
+            assert_eq!(test_rule.apply_word(setup_word("bra.ca")).unwrap().render(), "ca.ra.b");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "so.ca.ra.b");
+            
+            let test_rule = setup_rule("o$b..<ca> > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "s.ca.ra.b.o");
+            
+            let test_rule = setup_rule("ob..<ca> > &");
+            assert_eq!(test_rule.apply_word(setup_word("so.bra.ca")).unwrap().render(), "s.ca.ra.b.o");
+        }
+
+        #[test]
+        fn ellipsis_uneven_word_bound_segment() {
+            let test_rule = setup_rule("##b..c > &");
+            assert_eq!(test_rule.apply(setup_phrase("so bra.ca")).unwrap().render(), "so.cra.b a");
+            assert_eq!(test_rule.apply(setup_phrase("so bra.can")).unwrap().render(), "so.cra.b an");
+            assert_eq!(test_rule.apply(setup_phrase("so bra.cant")).unwrap().render(), "so.cra.b ant");
+            assert_eq!(test_rule.apply(setup_phrase("so bra.cran")).unwrap().render(), "so.cra.b ran");
+            assert_eq!(test_rule.apply(setup_phrase("so bra.scran")).unwrap().render(), "so.cra.sb ran");
+            assert_eq!(test_rule.apply(setup_phrase("so bra.scran.tan")).unwrap().render(), "so.cra.sb ran.tan");
+
+            assert_eq!(test_rule.apply(setup_phrase("so bac.ta")).unwrap().render(), "so.cab ta");
+            assert_eq!(test_rule.apply(setup_phrase("so bac ta")).unwrap().render(), "so.cab ta");
+
+            let test_rule = setup_rule("o##b..c > &");
+            assert_eq!(test_rule.apply(setup_phrase("so bac.ta")).unwrap().render(), "s.cab o.ta");
+
+
+            
+        }
+
+        // fn asdf() {
+        //     let test_rule = setup_rule("c..b$ > &");
+        //     assert_eq!(test_rule.apply_word(setup_word("cab.sa")).unwrap().render(), "bac.csa");
+        //     assert_eq!(test_rule.apply_word(setup_word("cab.sa")).unwrap().render(), "bac.sa");
+
+        // }
     }
 
 
