@@ -115,7 +115,7 @@ pub(super) fn as_file(path: &Path) -> io::Result<&Path> {
     if path.is_file() {
         Ok(path)
     } else {
-        Err(util_err(format!("Given path {} is not a file", format!("{path:?}").yellow())))
+        Err(util_err(format!("Given path {} is not a file or doesn't exist", format!("{path:?}").yellow())))
     }
 }
 
@@ -137,7 +137,6 @@ pub(super) fn validate_file(path: &Path, valid_extensions: &[&str]) -> io::Resul
 
 pub(super) fn validate_or_get_path(maybe_path: Option<&Path>, valid_extensions: &[&str], kind: &str) -> io::Result<PathBuf> {
     match maybe_path {
-        // Probably don't have to check if path exists as checking if it has an extension should be enough
         Some(path) => validate_file(path, valid_extensions),
         None => {
             let files = get_dir_files(".", valid_extensions)?;
@@ -168,7 +167,38 @@ pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: Str
         eprintln!("{} error occurred writing to file {}:", "asca:".bright_red(), format!("{path:?}").yellow());
         return Err(map_io_error(e))
     }
-    eprintln!(":: Wrote to file {path:?}");
+    eprintln!(":: Wrote to file {}", format!("{path:?}").yellow());
+    Ok(())
+}
+
+/// Append a file name with an arbitrary string
+/// 
+/// I.e. ```"example.rsca" + "_old" -> "example_old.rsca" ```
+pub(super) fn file_name_append<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: &str) -> io::Result<()> {
+    let path = path.as_ref();
+
+    if !path.is_file() { 
+        return Err(io::Error::other(format!("{} Given path {} does not exist or is not a file", "asca:".bright_red(), format!("{path:?}").yellow()))) 
+    }
+    
+    let new_path = {
+        let mut p = path.to_path_buf();
+        p.set_extension("");
+        p.set_file_name(p.file_name().unwrap().to_str().unwrap().to_owned() + content);
+
+        if let Some(ext) = path.extension() {
+            p.set_extension(ext);
+        }
+
+        p
+    };
+    
+    if let Err(e) = fs::rename(path, &new_path) {
+        eprintln!("{} error occurred trying to rename file {}:", "asca:".bright_red(), format!("{path:?}").yellow());
+        return Err(map_io_error(e))
+    }
+
+    eprintln!(":: Renamed file {} to {}", format!("{path:?}").yellow(), format!("{new_path:?}").yellow());
     Ok(())
 }
 
