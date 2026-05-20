@@ -99,11 +99,12 @@ impl SegPos {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn ins_inc(&mut self, phrase: &Phrase) {
         if self.syll_index >= phrase[self.word_index].syllables.len() { return }
         
         self.seg_index += 1;
-        if self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() + 1 {
+        if self.seg_index > phrase[self.word_index].syllables[self.syll_index].segments.len() {
             self.seg_index = 0;
             self.syll_index += 1;
         }
@@ -397,7 +398,7 @@ impl Word {
                 },
                 _ => unreachable!()
             },
-            SpecMod::Joined(_) => return Err(AliasRuntimeError::GroupedSupras(err_pos)),
+            SpecMod::Joined(_) => Err(AliasRuntimeError::GroupedSupras(err_pos)),
         }
     }
 

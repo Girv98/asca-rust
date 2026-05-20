@@ -4650,21 +4650,19 @@ impl SubRule { // Input Matching
 
         if states.len() <= *state_index + 1 {
             match &states.last().unwrap() {
-                ParseItem { kind: ParseElement::SyllBound, position } => {
-                    if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) {
+                ParseItem { kind: ParseElement::SyllBound, position }
+                    if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) => {
                         captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), *position));
                         *state_index += 1;
                         return Ok(true)
                     }
-                }
-                ParseItem { kind: ParseElement::ExtlBound, position } => {
-                    if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) {
+                ParseItem { kind: ParseElement::ExtlBound, position } 
+                    if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) => {
                         captures.push(MatchElement::WordBound(pos.word_index, *position));
                         pos.word_increment(phrase);
                         *state_index += 1;
                         return Ok(true)
                     }
-                }
                 _ => (),
             }
         }

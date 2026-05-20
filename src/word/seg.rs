@@ -55,7 +55,7 @@ impl Segment {
         debug_assert!(candidates.len() > 1);     
         let mut candidates = candidates;
         
-        candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
+        candidates.sort_by_key(|(.., a)| *a);
 
         candidates[0].1.to_string()
 
@@ -128,7 +128,7 @@ impl Segment {
         // if let Some(m) = self.try_edge_cases() { return Some(m) }
 
         let mut candidates = self.create_candidates();
-        candidates.sort_by(|(.., a), (.., b) | a.cmp(b));
+        candidates.sort_by_key(|(.., a)| *a);
 
         // let x = candidates[0].2;
         // for (a,_, b) in &candidates {
