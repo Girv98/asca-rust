@@ -68,8 +68,10 @@ struct Action {
 
 #[derive(Debug, Clone, Copy)]
 enum Meta<'a> {
-    Some(&'a MatchElement),
-    Ins(&'a MatchElement)
+    /// An element to be swapped
+    Some(&'a MatchElement), 
+    /// An element only used as a reference, i.e. to insert/delete another element after/before this element
+    Ref(&'a MatchElement)   
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -679,15 +681,14 @@ impl SubRule {
                     return Err(RuleRuntimeError::MetathSyllBoundary(pos0, pos1))
                 }
                 
-                &(Meta::Ins(_), Meta::Some(_el)) => {
-                    todo!("")
-                }
+                // Delete at Start
+                &(Meta::Ref(first_el), Meta::Some(el)) => self.metathesis_gen_del_actions(phrase, &mut left_res, &mut right_res, el, first_el)?,
                 // Insert at end
-                &(Meta::Some(el), Meta::Ins(last_el)) => self.metathesis_gen_ins_actions(phrase, &mut left_res, &mut right_res, el, last_el)?,
-                &(Meta::Ins(_), Meta::Ins(_)) => unreachable!(),
+                &(Meta::Some(el), Meta::Ref(last_el)) => self.metathesis_gen_ins_actions(phrase, &mut left_res, &mut right_res, el, last_el)?,
+                &(Meta::Ref(_), Meta::Ref(_)) => unreachable!(),
 
-
-                _ => unreachable!("sets")
+                (Meta::Some(MatchElement::Set(..)), _) |
+                (_, Meta::Some(MatchElement::Set(..))) => unreachable!(),
             }
         }
 
@@ -700,6 +701,10 @@ impl SubRule {
 
         println!("{:?}", left_res);
         Ok(left_res)
+    }
+    #[allow(unused)]
+    fn metathesis_gen_del_actions(&self, phrase: &Phrase, left_res: &mut Vec<Action>, right_res: &mut Vec<Action>, el: &MatchElement, first_el: &MatchElement) -> Result<(), RuleRuntimeError> {
+        todo!()
     }
 
     fn metathesis_gen_ins_actions(&self, phrase: &Phrase, left_res: &mut Vec<Action>, right_res: &mut Vec<Action>, el: &MatchElement, last_el: &MatchElement) -> Result<(), RuleRuntimeError> {
@@ -906,7 +911,7 @@ impl SubRule {
                     let last_el = right_group.last().unwrap();
 
                     for i in right_group.len()..left_group.len() {
-                        match_els.push(MetaGroup(Meta::Some(left_group[left_group.len()-i-1]), Meta::Ins(last_el)));
+                        match_els.push(MetaGroup(Meta::Some(left_group[left_group.len()-i-1]), Meta::Ref(last_el)));
                     }
 
                     match_els.reverse();
