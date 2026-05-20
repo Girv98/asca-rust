@@ -142,7 +142,7 @@ impl Phrase {
     }
 
     pub(crate) fn in_bounds(&self, pos: SegPos) -> bool {
-        pos.syll_index < self[pos.word_index].syllables.len() && pos.seg_index < self[pos.word_index].syllables[pos.syll_index].segments.len()
+        pos.word_index < self.len() && pos.syll_index < self[pos.word_index].syllables.len() && pos.seg_index < self[pos.word_index].syllables[pos.syll_index].segments.len()
     }
 
     pub(crate) fn swap_sylls(&mut self, lw: usize, ls: usize, rw: usize, rs: usize) {
