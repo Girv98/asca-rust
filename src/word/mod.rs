@@ -151,7 +151,8 @@ impl SegPos {
     }
 
     pub(crate) fn decrement(&mut self, phrase: &Phrase) {
-        // debug_assert!(self.syll_index < word.syllables.len(), "error decrementing");
+
+        if phrase.len() <= self.word_index { self.word_index = phrase.len() - 1 }
 
         if self.syll_index > phrase[self.word_index].syllables.len() {
             self.syll_index = phrase[self.word_index].syllables.len() - 1;
