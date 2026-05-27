@@ -932,8 +932,6 @@ impl SubRule {
             let left_group = &elements[z];
             let right_group = &elements[elements.len()-1-z];
 
-            // TODO: for implementing @, the only differences should be that Greater and Less are swapped
-            // and for Equal, right_group is not reversed
             match (left_group.len().cmp(&right_group.len()), self.rule_type) {
                 (std::cmp::Ordering::Equal, RuleType::Metathesis) => {
                     for (a, b) in left_group.iter().zip(right_group.iter().rev()) {
@@ -945,23 +943,58 @@ impl SubRule {
                         match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
                     }
                 },
-                //  L > R
-                (std::cmp::Ordering::Greater, RuleType::Metathesis) | (std::cmp::Ordering::Less, RuleType::MetaOrdered) => {
-                    for (a , b) in left_group.iter().rev().zip(right_group.iter()) {
-                        match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
-                    }
-
+                //  L > R &
+                (std::cmp::Ordering::Greater, RuleType::Metathesis) => {
                     let last_el = right_group.last().unwrap();
 
-                    for i in right_group.len()..left_group.len() {
-                        match_els.push(MetaGroup(Meta::Some(left_group[left_group.len()-i-1]), Meta::Ref(last_el)));
+                    for item in left_group.iter().take(left_group.len() - right_group.len()) {
+                        match_els.push(MetaGroup(Meta::Some(item), Meta::Ref(last_el)));
                     }
-
-                    match_els.reverse();
+                    
+                    for (a , b) in (left_group.iter().rev().zip(right_group.iter())).rev() {
+                        match_els.push(MetaGroup(Meta::Some(a), Meta::Some(b)));
+                    }
                 },
-                // L < R
-                (std::cmp::Ordering::Less, RuleType::Metathesis) | (std::cmp::Ordering::Greater, RuleType::MetaOrdered) => todo!(),
-                
+                // L > R @
+                (std::cmp::Ordering::Greater, RuleType::MetaOrdered) => {
+                    let last_el = right_group.last().unwrap();
+                    
+                    let right_len = right_group.len();
+                    
+                    for i in (0..left_group.len()).rev() {
+                        if i > right_len - 1 {
+                            match_els.push(MetaGroup(Meta::Some(left_group[i]), Meta::Ref(last_el)));
+                        } else {
+                            match_els.push(MetaGroup(Meta::Some(left_group[i]), Meta::Some(right_group[i])));
+                        }
+                    }
+                }
+                // L < R & 
+                (std::cmp::Ordering::Less, RuleType::Metathesis) => {
+                    let first_el = left_group.first().unwrap();
+                    let left_len = left_group.len();
+
+                    for i in (0..right_group.len()).rev() {
+                        if i > left_len - 1 {
+                            match_els.push(MetaGroup(Meta::Ref(first_el), Meta::Some(right_group[i])));
+                        } else {
+                            match_els.push(MetaGroup(Meta::Some(left_group[left_len-i-1]), Meta::Some(right_group[i])));
+                        }
+                    }
+                },
+                // L < R @
+                (std::cmp::Ordering::Less, RuleType::MetaOrdered) => {
+                    let first_el = left_group.first().unwrap();
+    
+                    for i in (0..right_group.len()).rev() {
+                        if i > left_group.len() - 1 {
+                            match_els.push(MetaGroup(Meta::Ref(first_el), Meta::Some(right_group[right_group.len() - i - 1])));
+                        } else {
+                            match_els.push(MetaGroup(Meta::Some(left_group[left_group.len()-i-1]), Meta::Some(right_group[right_group.len() - i - 1])));
+                        }
+                    }
+                }
+
                 _ => unreachable!()
             }
         }
