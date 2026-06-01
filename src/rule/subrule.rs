@@ -4388,9 +4388,8 @@ impl SubRule { // Input Matching
         }
 
         // if we're matching and we've reached the end of the word and the last state is a syll boundary
-        let last_el = self.input.last().expect("input is not empty");
-        if last_el.kind == ParseElement::SyllBound {
-            captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), last_el.position));
+        if let Some(last_item) = self.input.last() && last_item.kind == ParseElement::SyllBound {
+            captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), last_item.position));
             return Ok(true)
         }
 
@@ -4404,8 +4403,8 @@ impl SubRule { // Input Matching
     }
 
     fn input_check_set_syll_bound(&self, phrase: &Phrase, captures: &mut Vec<MatchElement>) -> bool {
-        match &self.input.last().unwrap() {
-            ParseItem { kind: ParseElement::Set(set), position} => {
+        match &self.input.last() {
+            Some(ParseItem { kind: ParseElement::Set(set), position}) => {
                 match captures.last_mut() {
                     Some(MatchElement::Set(els, choice, _)) => {
                         if set.ends_in(ParseElement::SyllBound, *choice) {
@@ -4602,14 +4601,14 @@ impl SubRule { // Input Matching
         }
 
         if states.len() <= *state_index + 1 {
-            match &states.last().unwrap() {
-                ParseItem { kind: ParseElement::SyllBound, position }
+            match &states.last() {
+                Some(ParseItem { kind: ParseElement::SyllBound, position })
                     if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) => {
                         captures.push(MatchElement::SyllBound(phrase.len()-1, phrase[phrase.len()-1].syllables.len(), *position));
                         *state_index += 1;
                         return Ok(true)
                     }
-                ParseItem { kind: ParseElement::ExtlBound, position } 
+                Some(ParseItem { kind: ParseElement::ExtlBound, position }) 
                     if pos.at_word_end(phrase) || !phrase.in_bounds(*pos) => {
                         captures.push(MatchElement::WordBound(pos.word_index, *position));
                         pos.word_increment(phrase);
