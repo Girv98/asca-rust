@@ -131,7 +131,7 @@ impl SubRule {
         if self.rule_type == RuleType::Insertion {
             self.transform(&phrase, vec![], &mut None)
         } else {
-            self.apply_other(phrase)
+            self.apply_other(&phrase)
         }
     }
 
@@ -167,56 +167,64 @@ impl SubRule {
         }
     }
 
-    fn apply_other(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
-        let mut phrase = phrase;
+    fn apply_other(&self, phrase: &Phrase) -> Result<Phrase, RuleRuntimeError> {
+        let mut res_phrase = phrase.clone();
         let mut cur_index = SegPos::new(0, 0, 0);
         // TODO(girv): `$ > *` or any broad deletion rule without context/exception should give a warning to the user
+        
+        // For infinite loop checking
+        let phrase_len_max = Self::phrase_len_max(&res_phrase);
+
         loop {
+            if res_phrase.seg_count() > phrase_len_max {
+                return Err(RuleRuntimeError::InfiniteLoop(self.input.first().unwrap().position, res_phrase.clone(), res_phrase.clone()))
+            }
+
             self.alphas.borrow_mut().clear();
             self.references.borrow_mut().clear();
-            let (res, mut next_index) = self.input_match_at(&phrase, cur_index, 0)?;
+            let (res, mut next_index) = self.input_match_at(&res_phrase, cur_index, 0)?;
             if res.is_empty() {
                 // No match
-                if cur_index.word_index < phrase.len() - 1 {
-                    cur_index.word_increment(&phrase);
+                if cur_index.word_index < res_phrase.len() - 1 {
+                    cur_index.word_increment(&res_phrase);
                     continue
                 } else {
                     break
                 }
             }
 
-            let (start, inc_start) = self.set_start(&res,  &phrase);
-            let (end, inc_end) = self.set_end(&res, &phrase);
+            let (start, inc_start) = self.set_start(&res,  &res_phrase);
+            let (end, inc_end) = self.set_end(&res, &res_phrase);
 
-            if !self.match_contexts_and_exceptions(&phrase, &res, start, end, inc_start, inc_end)? {
+            if !self.match_contexts_and_exceptions(&res_phrase, &res, start, end, inc_start, inc_end)? {
                 if let Some(ni) = next_index { 
                     cur_index = ni;
                     continue;
                 }
                 // end of word
-                if cur_index.word_index < phrase.len() - 1 {
-                    cur_index.word_increment(&phrase);
+                if cur_index.word_index < res_phrase.len() - 1 {
+                    cur_index.word_increment(&res_phrase);
                     continue;
                 } else {
                     break;
                 }
             }
 
-            phrase = self.transform(&phrase, res, &mut next_index)?;
+            res_phrase = self.transform(&res_phrase, res, &mut next_index)?;
             
             if let Some(ci) = next_index { 
                 cur_index = ci;
             } else {
                 // End of Word
-                if cur_index.word_index < phrase.len() - 1 {
-                    cur_index.word_increment(&phrase);
+                if cur_index.word_index < res_phrase.len() - 1 {
+                    cur_index.word_increment(&res_phrase);
                     continue
                 } else {
                     break
                 }
             }
         }
-        Ok(phrase)
+        Ok(res_phrase)
     }
 
 
@@ -1304,6 +1312,16 @@ impl SubRule {
 
         Ok(phrase)
     }
+    
+    fn phrase_len_max(phrase: &Phrase) -> usize {
+        // Arbitrary limits as a sign of potential infinite loop
+        let phrase_len = phrase.seg_count();
+        if phrase_len > 20 {
+            phrase_len * 4 // purely so the error output is not too big
+        } else {
+            phrase_len * 10
+        }
+    }
 
     fn insertion_by_segment(&self, 
         phrase: &Phrase, before_cont: &[ParseItem], after_cont: &[ParseItem],
@@ -1320,7 +1338,14 @@ impl SubRule {
         
         let is_context_after = before_cont.is_empty() && !after_cont.is_empty();
 
+        // For infinite loop checking
+        let phrase_len_max = Self::phrase_len_max(phrase);
+
         while res_phrase.in_bounds(pos) {
+            if res_phrase.seg_count() > phrase_len_max {
+                return Err(RuleRuntimeError::InfiniteLoop(self.input.first().unwrap().position, phrase.clone(), res_phrase.clone()))
+            }
+
             self.alphas.borrow_mut().clear();
             self.references.borrow_mut().clear();
             match self.insertion_match(&res_phrase, pos)? {
