@@ -56,6 +56,7 @@ pub enum RuleRuntimeError {
     DeletionOnlySeg,
     DeletionOnlySyll,
     UnevenEllipsis(Vec<Position>),
+    InfiniteLoop(Position, Phrase, Phrase),
 }
 
 impl From<RuleRuntimeError> for ASCAError {
@@ -114,14 +115,14 @@ impl fmt::Display for RuleRuntimeError {
             Self::UnknownReference(token) => write!(f, "Unknown reference '{}'", token.value),
             Self::DeletionOnlySyll => write!(f, "Can't delete a word's only syllable"),
             Self::DeletionOnlySeg  => write!(f, "Can't delete a word's only segment"),
-            Self::UnevenEllipsis      (_) => write!(f, "Uneven number of ellipses in input and output"),
+            Self::UnevenEllipsis(_) => write!(f, "Uneven number of ellipses in input and output"),
+            Self::InfiniteLoop(..) => write!(f, "Possible infinite loop detected! This is a bug, please consider reporting.")
         }
     }
 }
 
 impl RuleRuntimeError {
     pub fn format(&self, rules: &[RuleGroup]) -> String {
-        const MARG: &str = "\n    |     ";
         let mut result = format!("{} {}", "Runtime Error:".bright_red().bold(), self.to_string().bold());
         
         let (arrows, group , line) =  match self {
@@ -134,17 +135,16 @@ impl RuleRuntimeError {
                     prev_end = pos.end;
                 }
 
-                asdf += "\n";
                 (asdf, positions[0].group, positions[0].line)
             }
             Self::DeletionOnlySyll | Self::DeletionOnlySeg => return result,
             Self::UnknownReference(t) => (
-                " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start) + "\n", 
+                " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start), 
                 t.position.group,
                 t.position.line
             ),
             Self::InsertionNoEnv(pos) => (
-                " ".repeat(pos.end) + "^" + "\n", 
+                " ".repeat(pos.end) + "^", 
                 pos.group,
                 pos.line
             ),
@@ -177,7 +177,7 @@ impl RuleRuntimeError {
             Self::NodeCannotBeSome   (_, pos) |
             Self::NodeCannotBeNone   (_, pos) |
             Self::NodeCannotBeSet    (_, pos) => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n",
+                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start),
                 pos.group,
                 pos.line
             ),
@@ -195,21 +195,48 @@ impl RuleRuntimeError {
             Self::MetathSyllBoundary           (a, b) |
             Self::UnevenSet                    (a, b) => (
                    " ".repeat(a.start) + &"^".repeat(a.end - a.start) 
-                + &" ".repeat(b.start - a.end) + &"^".repeat(b.end - b.start) + "\n",
+                + &" ".repeat(b.start - a.end) + &"^".repeat(b.end - b.start),
                 a.group,
                 a.line
             ),
+
+            Self::InfiniteLoop(pos, ..) => (
+                String::new(),
+                pos.group,
+                pos.line
+            ),
         };
 
-        result.push_str(&format!("{}{}{}{}    {} Rule {}, Line {}",  
-            MARG.bright_cyan().bold(),
-            rules[group].rule[line],
-            MARG.bright_cyan().bold(),
-            arrows.bright_red().bold(),
-            "@".bright_cyan().bold(),
-            group+1,
-            line+1,
-        ));
+        const MARG: &str  = "\n    |     ";
+        const EMARG: &str = "\n    = ";
+        const AMARG: &str = "\n    @ ";
+        
+
+        match self {
+            Self::InfiniteLoop(_, phrase, res_phrase) => {
+                result.push_str(&format!("{}{}{}{}phrase before application: {}{}phrase at detection: {}{}Rule {}, Line {}",  
+                    MARG.bright_blue().bold(),
+                    rules[group].rule[line],
+                    MARG.bright_blue().bold(),
+                    EMARG.bright_blue().bold(),
+                    phrase.render().bright_blue().bold(),
+                    EMARG.bright_blue().bold(),
+                    res_phrase.render().bright_blue().bold(),
+                    AMARG.bright_blue().bold(),
+                    group+1,
+                    line+1,
+                ));
+            }
+            _ => result.push_str(&format!("{}{}{}{}\n    {} Rule {}, Line {}",  
+                MARG.bright_blue().bold(),
+                rules[group].rule[line],
+                MARG.bright_blue().bold(),
+                arrows.bright_red().bold(),
+                "@".bright_blue().bold(),
+                group+1, line+1,
+            )),
+            
+        }
 
         result
     }
