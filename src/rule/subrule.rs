@@ -5121,7 +5121,6 @@ impl SubRule { // Insertion
                 Some(mut ins_pos) => {
                     let mut pos = ins_pos;
                     let mut state_index = 0;
-                    start_pos = ins_pos;
                     while state_index < aft_states.len() {
                         if !self.context_match(aft_states, &mut state_index, phrase, &mut pos, true, false, false)? {
                             match bef_states.last().unwrap().kind {
@@ -5129,6 +5128,7 @@ impl SubRule { // Insertion
                                 ParseElement::SyllBound => start_pos.increment(phrase),
                                 _ => {}
                             }
+                            start_pos.increment(phrase);
                             continue 'outer;
                         }
                         state_index +=1;
