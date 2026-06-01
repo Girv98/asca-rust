@@ -47,6 +47,18 @@ impl Phrase {
         Self(Vec::with_capacity(cap))
     }
 
+    pub(crate) fn seg_count(&self) -> usize {
+        let mut len = 0;
+        
+        for w in self.iter() {
+            for s in &w.syllables {
+                len += s.segments.len();
+            }
+        }
+
+        len
+    }
+
     pub fn try_from_vec<S: AsRef<str>>(unparsed_phrases: &[S], aliases: &[S]) -> Result<Vec<Self>, ASCAError> {
         let alias_into = alias::parse_into(aliases)?;
 
