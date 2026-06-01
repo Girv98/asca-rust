@@ -80,9 +80,9 @@ impl WordSyntaxError {
             ),
         };
         result.push_str(&format!("{}{}{}{}",  
-            MARG.bright_cyan().bold(), 
+            MARG.bright_blue().bold(), 
             text, 
-            MARG.bright_cyan().bold(), 
+            MARG.bright_blue().bold(), 
             arrows.bright_red().bold()
         ));
 
@@ -341,11 +341,11 @@ impl RuleSyntaxError {
         };
 
         result.push_str(&format!("{}{}{}{}    {} Rule {}, Line {}",  
-            MARG.bright_cyan().bold(), 
+            MARG.bright_blue().bold(), 
             rules[group].rule[line],
-            MARG.bright_cyan().bold(), 
+            MARG.bright_blue().bold(), 
             arrows.bright_red().bold(),
-            "@".bright_cyan().bold(),
+            "@".bright_blue().bold(),
             group+1,
             line+1,
         ));
@@ -504,9 +504,9 @@ impl AliasSyntaxError {
         };
 
         result.push_str(&format!("{0}{ln}{0}{1}    {2} {knd}, line {3}",  
-            MARG.bright_cyan().bold(),
+            MARG.bright_blue().bold(),
             arrows.bright_red().bold(),
-            "@".bright_cyan().bold(),
+            "@".bright_blue().bold(),
             line+1,
         ));
 

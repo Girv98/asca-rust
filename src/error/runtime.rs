@@ -3,7 +3,8 @@ use colored::Colorize;
 
 use crate :: { 
     alias :: { AliasKind, AliasPosition }, 
-    rule  :: { Position, Reference }
+    rule  :: { Position, Reference }, 
+    word  ::   Phrase,
 };
 use super :: { ASCAError, RuleGroup };
 
@@ -302,9 +303,9 @@ impl AliasRuntimeError {
         };
 
         result.push_str(&format!("{0}{ln}{0}{1}    {2} {knd}, line {3}",  
-            MARG.bright_cyan().bold(),
+            MARG.bright_blue().bold(),
             arrows.bright_red().bold(),
-            "@".bright_cyan().bold(),
+            "@".bright_blue().bold(),
             line+1,
         ));
         
