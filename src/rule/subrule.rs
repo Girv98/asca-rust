@@ -135,6 +135,36 @@ impl SubRule {
         }
     }
 
+    fn env_is_hangable(&self) -> bool {
+        // for insertion, contexts currenly can only be be <=1
+        let conts = self.get_contexts();
+        // for (env_bef, env_cen, env_aft) in self.get_contexts() {}
+
+        if conts.is_empty() { return true }
+
+        let (env_bef, env_cen, env_aft) = conts[0];
+
+        if env_cen.is_some() { return false }
+
+        let mut left_hangable  = true;
+        for b in env_bef {
+            if !b.is_opt_and_nullable() {
+                left_hangable = false;
+                break;
+            }
+        }
+
+        let mut right_hangable  = true;
+        for a in env_aft {
+            if !a.is_opt_and_nullable() {
+                right_hangable = false;
+                break;
+            }
+        }
+
+        left_hangable && right_hangable
+    }
+
     fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
         match res.first().expect("res is not empty") {
             MatchElement::Set(els, ..) => self.set_start(els, phrase),
@@ -1364,6 +1394,10 @@ impl SubRule {
                     if let Some(np) = next_pos {
                         pos = np;
                         if !is_context_after && pos.at_syll_end(&res_phrase) {
+                            pos.increment(&res_phrase);
+                        }
+
+                        if self.env_is_hangable() {
                             pos.increment(&res_phrase);
                         }
                     } else {
