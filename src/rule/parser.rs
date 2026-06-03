@@ -266,6 +266,7 @@ pub(crate) enum ParseElement {
     WordBound  , // #
     SyllBound  , // $
     Metathesis , // &
+    MetaOrdered, // @
     Ellipsis   , // ..
     OptEllipsis, // (..)
     Set      (ItemSet),
@@ -288,10 +289,10 @@ impl ParseElement {
 
     fn reverse(&mut self) {
         match self {
-            Self::EmptySet   | Self::WordBound     | Self::SyllBound | 
-            Self::Ellipsis   | Self::Metathesis    | Self::Ipa(..)   | 
-            Self::Matrix(..) | Self::Reference(..) | Self::Syllable(..) | 
-            Self::OptEllipsis  | Self::ExtlBound => {},
+            Self::EmptySet    | Self::WordBound     | Self::SyllBound | 
+            Self::Ellipsis    | Self::Metathesis    | Self::Ipa(..)   | 
+            Self::Matrix(..)  | Self::Reference(..) | Self::Syllable(..) | 
+            Self::MetaOrdered | Self::OptEllipsis   | Self::ExtlBound => {},
             
             Self::Optional(items, ..) | Self::Structure(items, ..) => {
                 items.reverse();
@@ -319,6 +320,7 @@ impl fmt::Display for ParseElement {
             Self::Ellipsis    => write!(f, "…"),
             Self::OptEllipsis => write!(f, "(…)"),
             Self::Metathesis  => write!(f, "&"),
+            Self::MetaOrdered => write!(f, "@"),
 
             Self::Ipa(s, m) => write!(f, "{s:?} + {m:?}"),
 
@@ -383,6 +385,13 @@ impl ParseItem {
 
     pub(crate) fn reverse(&mut self) {
         self.kind.reverse();
+    }
+
+    pub(crate) fn is_opt_and_nullable(&self) -> bool {
+        match self.kind {
+            ParseElement::Optional(_, min, _) => min == 0,
+            _ => false
+        }
     }
 }
 

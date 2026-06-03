@@ -129,7 +129,7 @@ impl SubRule {
 
     fn apply_phrase(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
         if self.rule_type == RuleType::Insertion {
-            self.transform(&phrase, vec![], &mut None)
+            self.transform(&phrase, &[], &mut None)
         } else {
             self.apply_other(&phrase)
         }
@@ -244,7 +244,7 @@ impl SubRule {
                 }
             }
 
-            res_phrase = self.transform(&res_phrase, res, &mut next_index)?;
+            res_phrase = self.transform(&res_phrase,  &res, &mut next_index)?;
             
             if let Some(ci) = next_index { 
                 cur_index = ci;
@@ -729,8 +729,9 @@ impl SubRule {
                 &(Meta::Ref(first_el), Meta::Some(el)) => self.metathesis_gen_del_actions(phrase, &mut left_res, &mut right_res, el, first_el)?,
                 // Insert at end
                 &(Meta::Some(el), Meta::Ref(last_el)) => self.metathesis_gen_ins_actions(phrase, &mut left_res, &mut right_res, el, last_el)?,
-                &(Meta::Ref(_), Meta::Ref(_)) => unreachable!(),
-
+                
+                
+                (Meta::Ref(_), Meta::Ref(_)) |
                 (Meta::Some(MatchElement::Set(..)), _) |
                 (_, Meta::Some(MatchElement::Set(..))) => unreachable!(),
             }
@@ -739,6 +740,12 @@ impl SubRule {
         // right = [1R, 2R]
         // left  = [1L, 2L]
         // reslt = [1L, 2L, 2R, 1R] // self.apply_sub_actions reverses the actions list
+
+        if self.rule_type == RuleType::MetaOrdered {
+            // reslt = [2L, 1L, 2R, 1R]
+            left_res.reverse();
+        }
+
         while let Some(x) = right_res.pop() {
             left_res.push(x);
         }
@@ -966,6 +973,10 @@ impl SubRule {
         Ok(())
     }
 
+    fn metathesis_groups_ellipses_uneven<'a>(&self, _elements: Vec<Vec<&'a MatchElement>>) -> Result<Vec<MetaGroup<'a>>, RuleRuntimeError> {
+        todo!()
+    }
+
     fn metathesis_groups_ellipses_even<'a>(&self, elements: Vec<Vec<&'a MatchElement>>) -> Result<Vec<MetaGroup<'a>>, RuleRuntimeError> {
 
         let mut match_els = Vec::new();
@@ -1044,12 +1055,7 @@ impl SubRule {
         Ok(match_els)
     }
 
-    fn metathesis_ellipses(&self, phrase: &Phrase, input: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
-        let mut parts = Vec::new();
-        for x in self.input.split(|x| x.kind == ParseElement::Ellipsis || x.kind == ParseElement::OptEllipsis) {
-            parts.push(x);
-        }
-
+    fn metathesis_ellipses(&self, phrase: &Phrase, input: &[MatchElement], parts: &[&[ParseItem]], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         let mut els = Vec::new();
         let mut ind = 0;
         for part in parts.iter() {
@@ -1072,10 +1078,10 @@ impl SubRule {
         debug_assert_eq!(parts.len(), els.len());
 
         // *..* , *..*..*..* , etc.
-        let match_groups = if parts.len() % 2 == 0 {
+        let match_groups = if parts.len().is_multiple_of(2){
             self.metathesis_groups_ellipses_even(els)?
         } else { // *..*..* , *..*..*..*..* etc.
-            todo!()
+            self.metathesis_groups_ellipses_uneven(els)?
         };
 
         let actions = self.metathesis_gen_actions(phrase, match_groups)?;
@@ -1090,34 +1096,42 @@ impl SubRule {
         Ok(res_phrase)
     }
 
-    fn metathesis_new(&self, phrase: &Phrase, matched_elements: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn metathesis_new(&self, phrase: &Phrase, matched_elements: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         
-        let input_filt = self.input.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::OptEllipsis).cloned().collect::<Vec<_>>();
+        let input_parts = self.input
+            .split(|el| el.kind == ParseElement::Ellipsis || el.kind == ParseElement::OptEllipsis)
+            .filter(|part| !part.is_empty()).collect::<Vec<_>>();
+        
+        debug_assert_eq!(input_parts.clone().into_iter().flatten().collect::<Vec<_>>().len(), matched_elements.len());
 
-        if input_filt.is_empty() { return Ok(phrase.clone()) }
-        debug_assert_eq!(input_filt.len(), matched_elements.len());
-
-        // Split input by 
-        if self.input.len() != input_filt.len() {
-            return self.metathesis_ellipses(phrase, &matched_elements, next_pos)
+        match input_parts.len().cmp(&1) {
+            std::cmp::Ordering::Greater => return self.metathesis_ellipses(phrase, matched_elements, &input_parts, next_pos),
+            std::cmp::Ordering::Less    => return Ok(phrase.clone()),
+            std::cmp::Ordering::Equal   => {},
         }
 
-        let mut expanded_els = Vec::new();
+        let mut flattened_els = Vec::with_capacity(matched_elements.len());
 
-        for matched_element in &matched_elements {
+        matched_elements.iter().for_each(|matched_element| {
             match matched_element {
                 MatchElement::Set(els, _, _) => {
-                    for el in els {
-                        expanded_els.push(el);
-                    }
+                    els.iter().for_each(|el| {
+                        flattened_els.push(el);
+                    });
                 }
-                el => expanded_els.push(el),
+                el => flattened_els.push(el),
             }
-        }
+        });
+
+        // let flattened_els: Vec<&MatchElement> = matched_elements.iter().flat_map(|matched_el| match matched_el {
+        //     MatchElement::Set(els, ..) => els,
+        //     el => vec![el],
+        // }).collect::<Vec<_>>();
+
 
         let mut matched_groups = Vec::new();
-        for z in 0..(expanded_els.len()/2) {
-            matched_groups.push(MetaGroup(Meta::Some(expanded_els[z]), Meta::Some(expanded_els[expanded_els.len()-1-z])));
+        for z in 0..(flattened_els.len()/2) {
+            matched_groups.push(MetaGroup(Meta::Some(flattened_els[z]), Meta::Some(flattened_els[flattened_els.len()-1-z])));
         }
 
         let actions = self.metathesis_gen_actions(phrase, matched_groups)?;
@@ -1133,10 +1147,10 @@ impl SubRule {
         Ok(res_phrase)
     }
 
-    fn delete_elements(&self, res_phrase: &mut Phrase, phrase: &Phrase, els: Vec<MatchElement>, pos: &mut SegPos)-> Result<(), RuleRuntimeError> {
-        for z in els.into_iter().rev() {
+    fn delete_elements(&self, res_phrase: &mut Phrase, phrase: &Phrase, els: &[MatchElement], pos: &mut SegPos)-> Result<(), RuleRuntimeError> {
+        for z in els.iter().rev() {
             match z {
-                MatchElement::Segment(i, _) => {
+                &MatchElement::Segment(i, _) => {
                     *pos = i;
                     if res_phrase[i.word_index].syllables.len() <= 1 && res_phrase[i.word_index].syllables[i.syll_index].segments.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySeg)
@@ -1148,7 +1162,7 @@ impl SubRule {
                         res_phrase[i.word_index].syllables.remove(i.syll_index);
                     }
                 },
-                MatchElement::LongSegment(i, _) => {
+                &MatchElement::LongSegment(i, _) => {
                     *pos = i;
                     if res_phrase[i.word_index].syllables.len() <= 1 && res_phrase[i.word_index].syllables[i.syll_index].segments.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySeg)
@@ -1163,7 +1177,7 @@ impl SubRule {
                         res_phrase[i.word_index].syllables.remove(i.syll_index);
                     }
                 },
-                MatchElement::Syllable(wp, i, _) => {
+                &MatchElement::Syllable(wp, i, _) => {
                     // remove syllable
                     if ((!self.inp_x_bound && !self.env_x_bound) || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
@@ -1177,7 +1191,7 @@ impl SubRule {
                         res_phrase.remove(wp);
                     }
                 },
-                MatchElement::WordBound(wp, _) => {
+                &MatchElement::WordBound(wp, _) => {
                     // wp ## wp+1 -> wp.wp+1
                     
                     pos.word_index = wp+1;
@@ -1187,7 +1201,7 @@ impl SubRule {
                     res_phrase[wp].syllables.extend(w1);
                     res_phrase.remove(wp+1);
                 },
-                MatchElement::SyllBound(wp, i, _) => {
+                &MatchElement::SyllBound(wp, i, _) => {
                     // join the two neighbouring syllables
                     // if one has stress and/or tone, joined syll gets them
                     // if they both have stress, highest wins
@@ -1224,7 +1238,8 @@ impl SubRule {
         Ok(())
     }
 
-    fn deletion(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    // TODO: update deletion to the Action System
+    fn deletion(&self, phrase: &Phrase, input: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         let word_pos = if let Some(np) = next_pos { np.word_index } else { 0 };
         let mut pos = SegPos::new(word_pos, 0, 0);
         let mut res_phrase = phrase.clone();
@@ -1449,7 +1464,7 @@ impl SubRule {
         }
     }
 
-    fn transform(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn transform(&self, phrase: &Phrase, input: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         match self.rule_type {
             RuleType::Substitution => self.substitution(phrase, input, next_pos),
             RuleType::Metathesis   => self.metathesis_new(phrase, input, next_pos),
@@ -2013,7 +2028,7 @@ impl SubRule { // Substitution
     
     fn non_zero_len(seg_len: u8) -> NonZeroU8 { NonZeroU8::new(seg_len).unwrap_or(Self::ONE) }
 
-    fn substitution(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn substitution(&self, phrase: &Phrase, input: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         let input_filt = self.input.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::OptEllipsis).cloned().collect::<Vec<_>>();
         let output_filt = self.output.iter().filter(|x| x.kind != ParseElement::Ellipsis && x.kind != ParseElement::OptEllipsis).cloned().collect::<Vec<_>>();
 
@@ -2024,7 +2039,7 @@ impl SubRule { // Substitution
             return self.substitution_ellipses(phrase, input, next_pos)
         }
         
-        let actions = self.substitution_gen_actions(phrase, &input_filt, &output_filt, &input)?;
+        let actions = self.substitution_gen_actions(phrase, &input_filt, &output_filt, input)?;
         let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
         
         if let Some(next) = next_pos && let Some(last_action) = actions.last() {
@@ -2037,7 +2052,7 @@ impl SubRule { // Substitution
         Ok(res_phrase)
     }
 
-    fn substitution_ellipses(&self, phrase: &Phrase, input: Vec<MatchElement>, next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
+    fn substitution_ellipses(&self, phrase: &Phrase, input: &[MatchElement], next_pos: &mut Option<SegPos>) -> Result<Phrase, RuleRuntimeError> {
         // Ellipses change the semantics
         // E.G. p...k > pf...g  is different to p...k > p...fg
 
@@ -2063,7 +2078,7 @@ impl SubRule { // Substitution
         }
 
         let mut actions: Vec<Action> = Vec::with_capacity(input.len());
-        let mut input = input;
+        let mut input = input.to_owned();
 
         for (i, o) in in_parts.iter().zip(out_parts.iter()) {
             actions.extend(self.substitution_gen_actions(phrase, i, o, &input)?);
@@ -2894,9 +2909,9 @@ impl SubRule { // Substitution
                     self.sub_set_insertion_position(&mut insert_pos, &actions);
                 
                     match &out_item.kind {
-                        ParseElement::Ellipsis  | ParseElement::OptEllipsis | ParseElement::Metathesis |
-                        ParseElement::EmptySet  | ParseElement::WordBound | ParseElement::Optional(..) | 
-                        ParseElement::ExtlBound => unreachable!(),
+                        ParseElement::Ellipsis    | ParseElement::OptEllipsis | ParseElement::Metathesis |
+                        ParseElement::EmptySet    | ParseElement::WordBound   | ParseElement::Optional(..) | 
+                        ParseElement::MetaOrdered | ParseElement::ExtlBound => unreachable!(),
 
                         ParseElement::Syllable(..) => return Err(RuleRuntimeError::SubstitutionSyll(out_item.position)),
                         ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(out_item.position)),
@@ -2953,10 +2968,9 @@ impl SubRule { // Substitution
                             out_index += 1;
                         }
                         ParseElement::SyllBound => {
-                            let pos = insert_pos.unwrap_or(actions.last().unwrap().pos);
                             actions.push(Action {
                                 kind: ActionKind::InsertBoundary,
-                                pos,
+                                pos: insert_pos.unwrap_or(actions.last().unwrap().pos),
                             });
                             out_index += 1;
                         }
@@ -3001,8 +3015,8 @@ impl SubRule { // Substitution
                     let in_item = &input_filt[in_index];
                     let match_el = &input[in_index];
                     match (match_el, &out_item.kind) {
-                        (_, ParseElement::Ellipsis ) | (_, ParseElement::OptEllipsis)  | (_, ParseElement::Metathesis) | (_, ParseElement::ExtlBound) | 
-                        (_, ParseElement::WordBound) | (_, ParseElement::Optional(..)) | (_, ParseElement::EmptySet  ) => unreachable!(),
+                        (_, ParseElement::Ellipsis ) | (_, ParseElement::OptEllipsis)  | (_, ParseElement::Metathesis)  | (_, ParseElement::ExtlBound) | 
+                        (_, ParseElement::WordBound) | (_, ParseElement::Optional(..)) | (_, ParseElement::MetaOrdered) | (_, ParseElement::EmptySet  ) => unreachable!(),
 
                         (_, ParseElement::Syllable(..)) => return Err(RuleRuntimeError::SubstitutionSyll(out_item.position)),
                         (MatchElement::WordBound(..), _) => return Err(RuleRuntimeError::SubstitutionWordBound(in_item.position, out_item.position)),
@@ -3055,6 +3069,7 @@ impl SubRule { // Substitution
 
     fn apply_sub_actions(&self, phrase: &Phrase, actions: &[Action]) -> Result<(Phrase, isize), RuleRuntimeError> {
         let mut res_phrase = phrase.clone();
+        if actions.is_empty() { return Ok((res_phrase, 0)) }
         // this will work as long as we dont allow inserting/deleting `##` in substitution rules
         let mut word_len_change = vec![0; phrase.len()];
 
@@ -3560,7 +3575,7 @@ impl SubRule { // Context Matching
                 Ok(true)
             } else { Ok(false) },
 
-            ParseElement::EmptySet | ParseElement::Metathesis => unreachable!(),
+            ParseElement::EmptySet | ParseElement::Metathesis | ParseElement::MetaOrdered => unreachable!(),
         }
     }
 
@@ -4519,7 +4534,8 @@ impl SubRule { // Input Matching
             ParseElement::OptEllipsis => self.input_match_ellipsis(captures, phrase, seg_pos, states, state_index, false),
 
             ParseElement::Optional(..) | ParseElement::EmptySet  | 
-            ParseElement::Metathesis   | ParseElement::WordBound => unreachable!(),
+            ParseElement::Metathesis   | ParseElement::WordBound | 
+            ParseElement::MetaOrdered  => unreachable!(),
         }
     }
 
@@ -4590,7 +4606,7 @@ impl SubRule { // Input Matching
                     return Ok(false) 
                 },
                 ParseElement::WordBound  | ParseElement::SyllBound | ParseElement::EmptySet | 
-                ParseElement::Metathesis | ParseElement::ExtlBound | 
+                ParseElement::Metathesis | ParseElement::ExtlBound | ParseElement::MetaOrdered | 
                 ParseElement::Syllable(..) | ParseElement::Structure(..) => unreachable!(),
             }
         }
@@ -5057,7 +5073,7 @@ impl SubRule { // Insertion
                 ParseElement::Set(_) => return Err(RuleRuntimeError::LonelySet(state.position)),
 
                 ParseElement::WordBound  | ParseElement::EmptySet  | ParseElement::Optional(..) |
-                ParseElement::Metathesis | ParseElement::ExtlBound => unreachable!(),
+                ParseElement::Metathesis | ParseElement::MetaOrdered | ParseElement::ExtlBound => unreachable!(),
             }
         }
 

@@ -130,9 +130,11 @@ impl Rule {
                 match (&input[0].kind, &output[0].kind) {
                     (ParseElement::EmptySet, ParseElement::EmptySet) => return Err(RuleSyntaxError::InsertDelete(input[0].position.group, input[0].position.line, input[0].position.start, output[0].position.start)),
                     (ParseElement::EmptySet, ParseElement::Metathesis) => return Err(RuleSyntaxError::InsertMetath(input[0].position.group, input[0].position.line, input[0].position.start, output[0].position.start)),
+                    (ParseElement::EmptySet, ParseElement::MetaOrdered) => return Err(RuleSyntaxError::InsertMetath(input[0].position.group, input[0].position.line, input[0].position.start, output[0].position.start)),
                     (ParseElement::EmptySet, _) => RuleType::Insertion,
                     (_, ParseElement::EmptySet) => RuleType::Deletion,
                     (_, ParseElement::Metathesis) => RuleType::Metathesis,
+                    (_, ParseElement::MetaOrdered) => RuleType::MetaOrdered,
                     (..) => RuleType::Substitution  
                 }
             };
