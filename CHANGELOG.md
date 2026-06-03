@@ -35,13 +35,17 @@ Features:
     * Rework of Metathesis
         * Ellipses act to group elements on either side
             * e.g. `pf..s > &` to result in `pfas => safp` whereas it currently would render `pfas => sfap`
-    * Add aliases `J` and `W` for `ʝ` and `ɯ` respectively
+    * Add aliases `J` and `W` aliases for `ʝ` and `ɯ` respectively
     <!-- * New insertion implementation which is hopefully more stable -->
 
 Fixes:
 * Lib:
     * (Metathesis) Swapping segments of different lengths in the same syllable works as expected
-    * Rules such as `$ > a$` no longer hang
+    * Increased stability
+        * Attempt to detect hanging rules and proved error to user
+        * Rules such as `$ > a$` no longer hang
+        * Insertion rules with optionals that match zero times should no longer hang
+            * e.g. `* > i / (C)_(N)`, which is really equivalent to `* > i / _`
     * Corrected structure location error highlighting
 
 Tweaks:
