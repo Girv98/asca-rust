@@ -166,34 +166,38 @@ impl SubRule {
     }
 
     fn set_start(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
-        match res.first().expect("res is not empty") {
-            MatchElement::Set(els, ..) => self.set_start(els, phrase),
-            MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _)  => (*sp, true),
-            MatchElement::Syllable(wp, s, _)  |
-            MatchElement::SyllBound(wp, s, _) => (SegPos::new(*wp,* s, 0), true),
-            MatchElement::WordBound(wp, _) => {
+        match res {
+            [MatchElement::Set(els, ..), ..] => self.set_start(els, phrase),
+            [MatchElement::Segment(sp, _) | MatchElement::LongSegment(sp, _), ..] => (*sp, true),
+            [MatchElement::Syllable(wp, s, _) | MatchElement::SyllBound(wp, s, _), ..] => {
+                (SegPos::new(*wp,* s, 0), true)
+            }
+            [MatchElement::WordBound(wp, _), ..] => {
                 let mut pos = SegPos::new(wp+1, 0, 0);
                 pos.word_decrement(phrase);
                 (pos, false)
-            },
+            }
+            [] => unreachable!("res is not empty")
         }
     }
 
     fn set_end(&self, res: &[MatchElement], phrase: &Phrase) -> (SegPos, bool) {
-        match res.last().expect("res is not empty") {
-            MatchElement::Set(els, ..) => self.set_end(els, phrase),
-            &MatchElement::Segment(mut sp, _) | &MatchElement::LongSegment(mut sp, _)  => {
+        match res {
+            [.., MatchElement::Set(els, ..)] => self.set_end(els, phrase),
+           &[.., MatchElement::Segment(mut sp, _) | MatchElement::LongSegment(mut sp, _)] => {
                 // So that long vowels work
                 let mut seg_len = phrase.seg_length_at(sp);
+                // sp.seg_index += seg_len - 1;
                 while seg_len > 1 {
                     sp.increment(phrase);
                     seg_len -= 1;
                 }
                 (sp, true)
             },
-            MatchElement::Syllable(wp, s, _)  => (SegPos::new(*wp, *s, phrase[*wp].syllables[*s].segments.len()-1), true),
-            MatchElement::SyllBound(wp, s, _) => (SegPos::new(*wp, *s, 0), false),
-            MatchElement::WordBound(wp, _) => (SegPos::new(wp+1, 0, 0), false),
+            [.., MatchElement::Syllable(wp, s, _)] => (SegPos::new(*wp, *s, phrase[*wp].syllables[*s].segments.len()-1), true),
+            [.., MatchElement::SyllBound(wp, s, _)] => (SegPos::new(*wp, *s, 0), false),
+            [.., MatchElement::WordBound(wp, _)] => (SegPos::new(wp+1, 0, 0), false),
+            [] => unreachable!("res is not empty")
         }
     }
 
