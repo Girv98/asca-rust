@@ -33,16 +33,19 @@ Features:
         * Allows for sets, as a whole, to be modified by a matrix
             * i.e. `{i, u}:[+long]` rather than `{i:[+long], u:[+long]}`
     * Rework of Metathesis
-        * Ellipses act to group elements on either side
-            * e.g. `pf..s > &` to result in `pfas => safp` whereas it currently would render `pfas => sfap`
+        * Ellipses act to group elements
+            * e.g. `pf..s > &` to result in `pfas => safp` whereas 0.9.3 would render `pfas => sfap`
+            * In general: `abcd..ef..ghi => ihg..fe..dcba`
+        * New `@` metathesis operator which allows for maintaining grouped element orderings
+            * e.g. `pf..s > @` to result in `pfas => sapf`
+            * In general: `abcd..ef..ghi => ghi..ef..abcd`
     * Add aliases `J` and `W` aliases for `ʝ` and `ɯ` respectively
-    <!-- * New insertion implementation which is hopefully more stable -->
 
 Fixes:
 * Lib:
     * (Metathesis) Swapping segments of different lengths in the same syllable works as expected
     * Increased stability
-        * Attempt to detect hanging rules and proved error to user
+        * Attempt to detect hanging rules and provide error to user
         * Rules such as `$ > a$` no longer hang
         * Insertion rules with optionals that match zero times should no longer hang
             * e.g. `* > i / (C)_(N)`, which is really equivalent to `* > i / _`
@@ -52,7 +55,7 @@ Tweaks:
 * Cli: (Potentially Breaking) Update file string sanitation so that special characters and punctuation is now omitted rather than being replaced with `-`
 * Lib: Removed redundant error locations from error messages
 
-Perf: 20-30% average execution speed up of example configs
+Perf: 20-30% average execution speed measured with example configs
 
 0.9.3
 ==================
