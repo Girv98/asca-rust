@@ -227,15 +227,15 @@ impl Segment {
 
     fn diff_count(&self, other: &Segment) -> usize {
         let diff_option = |f: Place, s: Place| {
-            let Some(a) = *f else { return *s };
-            let Some(b) = *s else { return *f };
-            Some(a ^ b)
+            let Some(a) = *f else { return s.map_or(0, |v| v.get()) };
+            let Some(b) = *s else { return f.map_or(0, |v| v.get()) };
+            a.get() ^ b.get()
         };
 
         let rut = self.root ^ other.root;
         let man = self.manner ^ other.manner;
         let lar = self.laryngeal ^ other.laryngeal;
-        let plc = diff_option(self.place, other.place).unwrap_or(0);
+        let plc = diff_option(self.place, other.place);
 
         (rut.count_ones() + man.count_ones() + lar.count_ones() + plc.count_ones()) as usize
     }
