@@ -973,17 +973,15 @@ impl SubRule {
         Ok(())
     }
 
-    fn metathesis_groups_ellipses_uneven<'a>(&self, _elements: Vec<Vec<&'a MatchElement>>) -> Result<Vec<MetaGroup<'a>>, RuleRuntimeError> {
-        todo!()
-    }
-
-    fn metathesis_groups_ellipses_even<'a>(&self, elements: Vec<Vec<&'a MatchElement>>) -> Result<Vec<MetaGroup<'a>>, RuleRuntimeError> {
-
+    fn metathesis_ellipses_groups<'a>(&self, elements: Vec<Vec<&'a MatchElement>>) -> Result<Vec<MetaGroup<'a>>, RuleRuntimeError> {
         let mut match_els = Vec::new();
 
         for z in 0..(elements.len()/2) {
             let left_group = &elements[z];
             let right_group = &elements[elements.len()-1-z];
+
+            debug_assert!(!left_group.is_empty());
+            debug_assert!(!right_group.is_empty());
 
             match (left_group.len().cmp(&right_group.len()), self.rule_type) {
                 (std::cmp::Ordering::Equal, RuleType::Metathesis) => {
@@ -1052,6 +1050,15 @@ impl SubRule {
             }
         }
 
+
+        if !elements.len().is_power_of_two() && self.rule_type != RuleType::MetaOrdered {
+            let middle_group = &elements[elements.len()/2];
+
+            for z in 0..(middle_group.len()/2) {
+                match_els.push(MetaGroup(Meta::Some(middle_group[z]), Meta::Some(middle_group[middle_group.len()-1-z])));
+            }
+        }
+
         Ok(match_els)
     }
 
@@ -1077,12 +1084,8 @@ impl SubRule {
         }
         debug_assert_eq!(parts.len(), els.len());
 
-        // *..* , *..*..*..* , etc.
-        let match_groups = if parts.len().is_multiple_of(2){
-            self.metathesis_groups_ellipses_even(els)?
-        } else { // *..*..* , *..*..*..*..* etc.
-            self.metathesis_groups_ellipses_uneven(els)?
-        };
+
+        let match_groups = self.metathesis_ellipses_groups(els)?;
 
         let actions = self.metathesis_gen_actions(phrase, match_groups)?;
         let (res_phrase, last_syll_len_change) = self.apply_sub_actions(phrase, &actions)?;
