@@ -278,6 +278,12 @@ impl SubRule {
     fn metathesis_gen_actions(&self, phrase: &Phrase, matched_els: Vec<MetaGroup>) -> Result<Vec<Action>, RuleRuntimeError> {
         let mut right_res: Vec<Action> = Vec::new();
         let mut left_res: Vec<Action> = Vec::new();
+
+        // Bad name but
+        // Some(true) => Insert
+        // Some(false) => Delete
+        // None => Substitute
+        let mut maybe_insert: Option<bool> = None;
         
         for els in matched_els.iter() {
             match &(els.0, els.1) {
@@ -677,7 +683,7 @@ impl SubRule {
                         pos: left_pos
                     });
                 }
-                //
+                // %s > &
                 &(Meta::Some(&MatchElement::Syllable(left_word_pos, left_syll_pos, left_err_pos)), Meta::Some(&MatchElement::Segment(right_pos, _))) => {
                     let mut right_syll = Syllable::new();
                     right_syll.segments.push_back(phrase.get_seg_at(right_pos).unwrap());
@@ -730,9 +736,15 @@ impl SubRule {
                 }
                 
                 // Delete at Start
-                &(Meta::Ref(first_el), Meta::Some(el)) => self.metathesis_gen_del_actions(phrase, &mut left_res, &mut right_res, el, first_el)?,
+                &(Meta::Ref(first_el), Meta::Some(el)) => {
+                    maybe_insert = Some(false);
+                    self.metathesis_gen_del_actions(phrase, &mut left_res, &mut right_res, el, first_el)?;
+                },
                 // Insert at end
-                &(Meta::Some(el), Meta::Ref(last_el)) => self.metathesis_gen_ins_actions(phrase, &mut left_res, &mut right_res, el, last_el)?,
+                &(Meta::Some(el), Meta::Ref(last_el)) => {
+                    maybe_insert = Some(true);
+                    self.metathesis_gen_ins_actions(phrase, &mut left_res, &mut right_res, el, last_el)?;
+                },
                 
                 
                 (Meta::Ref(_), Meta::Ref(_)) |
@@ -746,20 +758,200 @@ impl SubRule {
         // reslt = [1L, 2L, 2R, 1R] // self.apply_sub_actions reverses the actions list
 
         if self.rule_type == RuleType::MetaOrdered {
-            // reslt = [2L, 1L, 2R, 1R]
-            left_res.reverse();
+            match maybe_insert {
+                Some(true) => left_res.reverse(),   // reslt = [2L, 1L, 2R, 1R]
+                Some(false) => right_res.reverse(), // reslt = [1L, 2L, 1R, 2R]
+                None => {},
+            }
         }
 
         while let Some(x) = right_res.pop() {
             left_res.push(x);
         }
 
-        println!("{:?}", left_res);
         Ok(left_res)
     }
-    #[allow(unused)]
+
     fn metathesis_gen_del_actions(&self, phrase: &Phrase, left_res: &mut Vec<Action>, right_res: &mut Vec<Action>, el: &MatchElement, first_el: &MatchElement) -> Result<(), RuleRuntimeError> {
-        todo!()
+        let ins_pos = match first_el {
+            MatchElement::Set(..) => unreachable!(),
+            &MatchElement::Segment(seg_pos, _) | &MatchElement::LongSegment(seg_pos , _) => {
+                seg_pos
+            }
+            &MatchElement::Syllable(word_index, syll_index, _) => {
+                SegPos { word_index, syll_index, seg_index: 0 }
+            },
+            &MatchElement::SyllBound(word_index, syll_index, _) => {
+                let mut insert_pos = SegPos::new(word_index, syll_index, 0);
+                if syll_index != 0 {
+                    insert_pos.decrement(phrase);
+                    insert_pos.seg_index += 1;
+                }
+                insert_pos
+            },
+            MatchElement::WordBound(word_index, _) => {
+                let mut insert_pos = SegPos::new(word_index+1, 0, 0);
+                insert_pos.word_decrement(phrase);
+                insert_pos.seg_index += 1;
+                insert_pos
+            },
+        };
+
+        match (el, first_el) {
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::Segment(..)) |
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::LongSegment(..)) => {
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSegment(Self::ONE), 
+                    pos: seg_pos 
+                });
+                
+                left_res.push(Action { 
+                    kind: ActionKind::InsertSegment(
+                        Self::ONE, 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
+                        None, 
+                        err_pos
+                    ), 
+                    pos: ins_pos
+                });
+            }
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::Syllable(..)) |
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::SyllBound(..)) => {
+                left_res.push(Action { 
+                        kind: ActionKind::InsertSegment(
+                            Self::ONE, 
+                            phrase.get_seg_at(seg_pos).unwrap(), 
+                            None, 
+                            err_pos
+                        ), 
+                        pos: ins_pos
+                    });
+                
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSegment(Self::ONE), 
+                    pos: seg_pos 
+                });
+            }
+            (&MatchElement::Segment(seg_pos, err_pos), MatchElement::WordBound(..)) => {
+                left_res.push(Action {
+                    kind: ActionKind::InsertSegment(
+                        Self::ONE, 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
+                        None, 
+                        err_pos
+                    ),
+                    pos: ins_pos,
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSegment(Self::ONE), 
+                    pos: seg_pos 
+                });
+            }
+            
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::Segment(..)) |
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::LongSegment(..)) => {
+                let len = Self::non_zero_len(phrase.seg_length_at(seg_pos) as u8);
+                left_res.push(Action { 
+                    kind: ActionKind::InsertSegment(
+                        len, 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
+                        None, 
+                        err_pos
+                    ), 
+                    pos: ins_pos
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSegment(len), 
+                    pos: seg_pos 
+                });
+            }
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::Syllable(..)) |
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::SyllBound(..)) => {
+                let len = Self::non_zero_len(phrase.seg_length_at(seg_pos) as u8);
+                
+                left_res.push(Action { 
+                    kind: ActionKind::InsertSegment(
+                        len, 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
+                        None, 
+                        err_pos
+                    ), 
+                    pos: ins_pos
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSegment(len), 
+                    pos: seg_pos 
+                });
+            }
+            (&MatchElement::LongSegment(seg_pos, err_pos), MatchElement::WordBound(..)) => {
+                let len = Self::non_zero_len(phrase.seg_length_at(seg_pos) as u8);
+                left_res.push(Action {
+                    kind: ActionKind::InsertSegment(
+                        len, 
+                        phrase.get_seg_at(seg_pos).unwrap(), 
+                        None, 
+                        err_pos
+                    ),
+                    pos: ins_pos,
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSegment(len), 
+                    pos: seg_pos 
+                });
+            }
+
+            (&MatchElement::Syllable(wp, sp, _), MatchElement::Segment(..)) |
+            (&MatchElement::Syllable(wp, sp, _), MatchElement::LongSegment(..)) |
+            (&MatchElement::Syllable(wp, sp, _), MatchElement::Syllable(..)) |
+            (&MatchElement::Syllable(wp, sp, _), MatchElement::SyllBound(..)) | 
+            (&MatchElement::Syllable(wp, sp, _), MatchElement::WordBound(..)) => {
+                left_res.push(Action { 
+                    kind: ActionKind::InsertSyllable(phrase[wp].syllables[sp].clone()), 
+                    pos: ins_pos
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteSyllable, 
+                    pos: SegPos { word_index: wp, syll_index: sp, seg_index: 0 } 
+                });
+            }
+
+            (&MatchElement::SyllBound(wp, bp, _), MatchElement::Segment(..) | MatchElement::LongSegment(..)) => {
+                left_res.push(Action { 
+                    kind: ActionKind::InsertBoundary, 
+                    pos: ins_pos
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteBoundary, 
+                    pos: SegPos { word_index: wp, syll_index: bp, seg_index: 0 } 
+                });
+            }
+            (MatchElement::SyllBound(..), MatchElement::Syllable (..)) => { /* Do Nothing */ }
+            (MatchElement::SyllBound(..), MatchElement::SyllBound(..)) => { /* Do Nothing */ }
+            (MatchElement::SyllBound(..), MatchElement::WordBound(..)) => { /* Do Nothing */ }
+            (MatchElement::WordBound(..), MatchElement::WordBound(..)) => { /* Do Nothing */ }
+
+            (&MatchElement::WordBound(wp, _), _) => {
+                left_res.push(Action { 
+                    kind: ActionKind::InsertWordBound, 
+                    pos: ins_pos
+                });
+
+                right_res.push(Action { 
+                    kind: ActionKind::DeleteWordBound, 
+                    pos: SegPos { word_index: wp, syll_index: 0, seg_index: 0 } 
+                });
+            },
+
+            (MatchElement::Set(..), _) | (_, MatchElement::Set(..)) => unreachable!("sets"),
+        }
+
+        Ok(())
     }
 
     fn metathesis_gen_ins_actions(&self, phrase: &Phrase, left_res: &mut Vec<Action>, right_res: &mut Vec<Action>, el: &MatchElement, last_el: &MatchElement) -> Result<(), RuleRuntimeError> {
@@ -938,8 +1130,7 @@ impl SubRule {
                 });
             }
 
-            (&MatchElement::SyllBound(wp, bp, _), MatchElement::Segment(..)) |
-            (&MatchElement::SyllBound(wp, bp, _), MatchElement::LongSegment(..)) => {
+            (&MatchElement::SyllBound(wp, bp, _), MatchElement::Segment(..) | MatchElement::LongSegment(..)) => {
                 right_res.push(Action { 
                     kind: ActionKind::InsertBoundary, 
                     pos: ins_pos
@@ -950,11 +1141,12 @@ impl SubRule {
                     pos: SegPos { word_index: wp, syll_index: bp, seg_index: 0 } 
                 });
             }
-            (MatchElement::SyllBound(..), MatchElement::Syllable(..))  => { /* Do Nothing */ }
+            (MatchElement::SyllBound(..), MatchElement::Syllable (..)) => { /* Do Nothing */ }
             (MatchElement::SyllBound(..), MatchElement::SyllBound(..)) => { /* Do Nothing */ }
             (MatchElement::SyllBound(..), MatchElement::WordBound(..)) => { /* Do Nothing */ }
+            (MatchElement::WordBound(..), MatchElement::WordBound(..)) => { /* Do Nothing */ }
 
-            (&MatchElement::WordBound(wp, _), MatchElement::Segment(..)) => {
+            (&MatchElement::WordBound(wp, _), _) => {
                 right_res.push(Action { 
                     kind: ActionKind::InsertWordBound, 
                     pos: ins_pos
@@ -965,13 +1157,8 @@ impl SubRule {
                     pos: SegPos { word_index: wp, syll_index: 0, seg_index: 0 } 
                 });
             },
-            (MatchElement::WordBound(_, _), MatchElement::LongSegment(_, _)) => todo!(),
-            (MatchElement::WordBound(_, _), MatchElement::Syllable(..)) => todo!(),
-            (MatchElement::WordBound(_, _), MatchElement::SyllBound(..)) => todo!(),
-            (MatchElement::WordBound(_, _), MatchElement::WordBound(_, _)) => todo!(),
 
-            (MatchElement::Set(..), _) |
-            (_, MatchElement::Set(..)) => unreachable!("sets"),
+            (MatchElement::Set(..), _) | (_, MatchElement::Set(..)) => unreachable!("Sets are flattened"),
         }
 
         Ok(())
