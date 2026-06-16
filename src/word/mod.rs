@@ -180,7 +180,9 @@ impl SegPos {
     }
 
     pub(crate) fn at_word_end(&self, phrase: &Phrase) -> bool {
-        self.syll_index == phrase[self.word_index].syllables.len() - 1 && self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() - 1
+        (self.syll_index == phrase[self.word_index].syllables.len() && self.seg_index == 0) 
+        || (self.syll_index == phrase[self.word_index].syllables.len() - 1 
+            && self.seg_index >= phrase[self.word_index].syllables[self.syll_index].segments.len() - 1)
     }
 
     pub(crate) fn at_syll_start(&self) -> bool {
