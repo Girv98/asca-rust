@@ -231,8 +231,12 @@ impl SubRule {
             let (end, inc_end) = self.set_end(&res, &res_phrase);
 
             if !self.match_contexts_and_exceptions(&res_phrase, &res, start, end, inc_start, inc_end)? {
-                if let Some(ni) = next_index { 
-                    cur_index = ni;
+                if next_index.is_some() { 
+                    let last = cur_index;
+                    cur_index.increment(&res_phrase);
+                    if last == cur_index && cur_index.word_index < res_phrase.len() - 1 {
+                        cur_index.word_increment(&res_phrase);
+                    }
                     continue;
                 }
                 // end of word
