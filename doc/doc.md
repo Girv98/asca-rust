@@ -818,10 +818,10 @@ P:[α DOR] > [α round]
 ### Inversion
 Imagine we have two debuccalisation rules, one for plosives and one for fricatives:
 ```wasm
-O:[-voi, -cont] > [-cons, -c.g., -place] / _#           ;; /pat/ => /paʔ/
+O:[-voi, -cont] > [-cons, +c.g., -place] / _#           ;; /pat/ => /paʔ/
 O:[-voi, +cont] > [-cons, +s.g., -place, -strid] / _#   ;; /pas/ => /pah/
 ```
-These two rules only have one difference. If the input is `-cont`, the output is `-c.g.`; if the input is `+cont`, the output is `+s.g.` (Plosives 
+These two rules only have one difference. If the input is `-cont`, the output is `+c.g.`; if the input is `+cont`, the output is `+s.g.` (Plosives 
 are normally `-strid` so we don't have to worry about that). It would be nice if we could deal with this difference and express these two rules in 
 a single rule. To accomplish this, we can use inversion.
 
