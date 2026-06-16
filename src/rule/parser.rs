@@ -1487,6 +1487,14 @@ impl Parser {
                 }
                 continue;
             }
+            // Ordered Metathesis
+            if let Some(el) = self.eat_expect(TokenKind::AtSign) {
+                outputs.push(vec![ParseItem::new(ParseElement::MetaOrdered, el.position)]);
+                if !self.expect(TokenKind::Comma) && (!self.peek_expect(TokenKind::Slash) && !self.peek_expect(TokenKind::Pipe) && !self.peek_expect(TokenKind::Eol)) && !self.peek_expect(TokenKind::Comment) {
+                    return Err(RuleSyntaxError::MetathErr(self.curr_tkn.clone()))
+                }
+                continue;
+            }
             // Deletion
             if let Some(empty) = self.get_empty() {
                 outputs.push(vec![empty]);

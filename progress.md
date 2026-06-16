@@ -13,7 +13,7 @@
         - [x] Allow sequences of items
         - [x] Allow entire set to be modified
             - i.e. `{i, e}:[+long]` rather than `{i:[+long], e:[+long]}`
-    - [ ] `@` instead of `&` in long-range metathesis rules to maintain group orderings
+    - [x] `@` instead of `&` in long-range metathesis rules to maintain group orderings
         - i.e. `pf..s > @` means `pfas => sapf` while `pf..s > &` means `pfas => safp`
 - Web:
     - Reverse rule tracing

@@ -1,15 +1,15 @@
 ``` peg
 RuleBlock ← Line*
 
-Line ← <Whitespace> (Comment / Rule)
-Rule ← Input Arrow Output ContBlock? ExptBlock? Terminal                        // NOTE: InpTerm cannot be Empty when corresponding OutTerm is (Ampersand / Empty) 
+Line ← <Whitespace>? (Eol / Comment / Rule)
+Rule ← Input Arrow Output ContBlock? ExptBlock? Terminal                        // NOTE: InpTerm cannot be Empty when corresponding OutTerm is (AtSign / Ampersand / Empty) 
 
 Input   ← InpTerm ( ',' InpTerm )*
 InpTerm ← Empty / InpElem+
 InpElem ← OptEllipsis / Ellipsis / CrossBound / SyllBound / Term
 
-Output  ← OutTerm  ( ',' OutTerm )*
-OutTerm ← Ampersand / Empty / OutElem+
+Output  ← OutTerm ( ',' OutTerm )*
+OutTerm ← AtSign / Ampersand / Empty / OutElem+
 OutElem ← Syll / Struct / Set / Segment / Reference / SyllBound                 // NOTE: 'Set' here only makes sense if it corresponds to a Set in INP
 
 ContBlock   ← '/' EnvExpr
@@ -28,7 +28,7 @@ Term        ← Syll / Struct / Set / Segment / Reference
 Syll        ← '%' (':' Params)? RefAssign?
 Struct      ← '<' SyllTerm* '>' (':' Params)? RefAssign?
 SyllTerm    ← Segment / OptEllipsis / Ellipsis / Reference / Set / Option       // NOTE: Boundaries and Syllables inside a struct are runtime invalid
-Set         ← '{' SetTerm (',' SetTerm)* ','? '}' (':' Params)?                 // NOTE: At the moment, we can't have multi-segment sets i.e. "{nd}" is not allowed 
+Set         ← '{' SetTerm+ (',' SetTerm+)* ','? '}' (':' Params)?
 SetTerm     ← Reference / Segment / Boundary / Syll                             // NOTE: WordBound not valid in input/output
 Option      ← '(' (OptTerm+ (',' [0-9]* (':' [1-9]+)?)?)? ')'
 OptTerm     ← CrossBound / Boundary / Syll / Set / Segment / Reference
@@ -46,6 +46,7 @@ AlphaMod    ← '-'? [α-ωA-Z]
 BinaryMod   ← '+' / '-'
 
 Empty       ← '*' / '∅'
+AtSign      ← '@'
 Ampersand   ← '&'
 CrossBound  ← WordBound WordBound
 Boundary	← WordBound / SyllBound

@@ -188,7 +188,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::UnknownIPA          (token) => write!(f, "Could not get value of IPA '{}'.", token.value),
             Self::InsertErr           (_)     => write!(f, "The input of an insertion rule must only contain `*` or `∅`"),
             Self::DeleteErr           (_)     => write!(f, "The output of a deletion rule must only contain `*` or `∅`"),
-            Self::MetathErr           (_)     => write!(f, "The output of a metathesis rule must only contain `&`"),
+            Self::MetathErr           (_)     => write!(f, "The output of a metathesis rule must only contain `&` or `@`"),
             Self::OutsideBrackets(..) => write!(f, "Features must be inside square brackets"),
             Self::NestedBrackets (..) => write!(f, "Cannot have nested brackets of the same type"),
             Self::WrongModTone   (..) => write!(f, "Tones cannot be ±; they can only be used with numeric values."),

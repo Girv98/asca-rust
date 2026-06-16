@@ -33,6 +33,7 @@ pub(crate) enum TokenKind {
     SyllBoundary,     // $
     Syllable,         // %
     Ampersand,        // &
+    AtSign,           // @
     Group,            // Primitive Category i.e. C for Cons, V for Vowel
     Number,           // Number
     Slash,            // /
@@ -84,6 +85,7 @@ impl Display for TokenKind {
             TokenKind::SyllBoundary    => write!(f, "SBound"),
             TokenKind::Syllable        => write!(f, "Syll"),
             TokenKind::Ampersand       => write!(f, "Amper"),
+            TokenKind::AtSign          => write!(f, "AtSign"),
             TokenKind::Group           => write!(f, "Prim"),
             TokenKind::Number          => write!(f, "Num"),
             TokenKind::Slash           => write!(f, "Slash"),
@@ -367,6 +369,7 @@ impl<'a> Lexer<'a> {
             '*' => { tokenkind = TokenKind::Star;         self.chop(1) },
             '∅' => { tokenkind = TokenKind::EmptySet;     self.chop(1) },
             '&' => { tokenkind = TokenKind::Ampersand;    self.chop(1) },
+            '@' => { tokenkind = TokenKind::AtSign;       self.chop(1) },
             '_' => { tokenkind = TokenKind::Underline;    self.chop_while(|c| *c == '_' ) },
             ':' => match self.next_char() { 
                 '{' => { 
