@@ -1378,6 +1378,12 @@ mod rule_tests {
             let test_rule = "c..b$ > &";
             assert!(run(test_rule, "cab.sa", "bacsa"));
         }
+
+        #[test]
+        fn kakohe() {
+            assert!(run("k..h > &",      "ka.ko.he", "ha.ko.ke"));
+            assert!(run("k..h > & | #_", "ka.ko.he", "ka.ho.ke"));
+        }
     }
 
 
