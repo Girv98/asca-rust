@@ -2,29 +2,29 @@
 Conf ← Spacing Seq+ Eof
 Seq  ← Ident Rules
 
-Ident       ← Pipe? Tag Colon
-Pipe        ← InputList Arrow
-InputList   ← Literal (" " Literal)*
-Tag         ← Literal
+Ident     ← Pipe? Tag Colon
+Pipe      ← InputList Arrow
+InputList ← Literal (" " Literal)*
+Tag       ← Literal
 
 Rules ← Entry+
 Entry ← Literal Filter? SemiColon
 
-Filter      ← FilterType FilterList
-FilterType  ← "!" / "~"
-FilterList  ← String (Comma String)* Comma?
+Filter     ← FilterType FilterList
+FilterType ← "!" / "~"
+FilterList ← String (Comma String)* Comma?
 
 String  ← "\"" !((Eol / Eof) .)+ "\"" Spacing
 Literal ← (!(Reserved / <whitespace> / Eol / Eof) .)+ Spacing
 
-Colon       ← ":" Spacing
-SemiColon   ← ";" Spacing
-Arrow       ← ">" Spacing
-Comma       ← "," Spacing
+Colon     ← ":" Spacing
+SemiColon ← ";" Spacing
+Arrow     ← ">" Spacing
+Comma     ← "," Spacing
 
-Reserved    ← ">" / "!" / "~" / "," / "#" / ":" / ";" / "\""
-Spacing     ← (<whitespace> / Comment / Eol)*
-Comment     ← '#' (! ( Eol / Eof) .)* Eol
-Eol         ← [U+000A] / [U+2028] / [U+2029]
-Eof         ← !.
+Reserved  ← ">" / "!" / "~" / "," / "#" / ":" / ";" / "\""
+Spacing   ← (<whitespace> / Comment / Eol)*
+Comment   ← '#' (!(Eol / Eof) .)* Eol
+Eol       ← [U+000A] / [U+2028] / [U+2029]
+Eof       ← !.
 ```

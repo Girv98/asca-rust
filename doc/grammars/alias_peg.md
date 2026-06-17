@@ -1,6 +1,5 @@
 ```peg
 Alias   ← Into / From
-
 Into    ← Replacement Arrow Output Eol
 From    ← Input Arrow Replacement Eol
 
@@ -8,10 +7,10 @@ Replacement ← ReplaceTerm ( ',' ReplaceTerm )* ','?
 ReplaceTerm ← Empty / Plus? ReplaceChar+
 ReplaceChar ← Escape / ValidChar
 
-Escape          ← NamedEscape / UnicodeEscape / LiteralEscape
-NamedEscape     ← '@' '{' [A-Za-z]+ '}'
-UnicodeEscape   ← '\' 'u' '{' [0-9A-F]+ '}'
-LiteralEscape   ← '\' SpecChar
+Escape        ← NamedEscape / UnicodeEscape / LiteralEscape
+NamedEscape   ← '@' '{' [A-Za-z]+ '}'
+UnicodeEscape ← '\' 'u' '{' [0-9A-F]+ '}'
+LiteralEscape ← '\' SpecChar
 
 Output  ← OutTerm ( ',' OutTerm )* ','?
 OutTerm ← Empty / SyllBound / Segment+
