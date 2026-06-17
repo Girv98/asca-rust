@@ -116,6 +116,7 @@ impl SupraSegs {
         Self { stress: None, length: None, tone: None }
     }
 
+    #[allow(unused)]
     pub(crate) fn from(stress: Option<SpecMod>, length: Option<SpecMod>, tone: Option<Tone>) -> Self {
         Self { stress, length, tone }
     }

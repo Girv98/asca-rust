@@ -174,6 +174,7 @@ pub(super) fn file_write<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: Str
 /// Append a file name with an arbitrary string
 /// 
 /// I.e. ```"example.rsca" + "_old" -> "example_old.rsca" ```
+#[allow(unused)]
 pub(super) fn file_name_append<P: AsRef<Path> + Debug + ?Sized>(path: &P, content: &str) -> io::Result<()> {
     let path = path.as_ref();
 
