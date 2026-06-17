@@ -3653,6 +3653,8 @@ impl SubRule { // Context Matching
     // TODO: more tests, I'm not sold that this is correct
     fn context_match_ellipsis_struct(&self, items: &[ParseItem], index: &mut usize, phrase: &Phrase, pos: &mut SegPos, syll_index: usize, forwards: bool, inc: bool, ins_info: &mut Option<(usize, &mut SegPos)>) -> Result<bool, RuleRuntimeError> {
         
+        if !phrase.in_bounds(*pos) { return Ok(false) }
+
         if inc { pos.increment(phrase) }
         // TODO FIXME: This sucks, bef_len does not need to be mutable
         if let Some((bef_len, ins_pos)) = ins_info && *bef_len -1  == *index {

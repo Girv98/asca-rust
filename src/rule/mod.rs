@@ -3088,6 +3088,14 @@ mod rule_tests {
         let test_rule = "* > e / <C(..)_C:[+long]C>";
         assert!(run(test_rule, "stn:t.ta", "stenːt.ta"));
     }
+
+    #[test]
+    fn saina() {
+        assert!(run("a > e / <(..)_(..)N> ", "san",  "sen"));
+        assert!(run("a > e / <(..)_(..)N> ", "sain", "sein"));
+        assert!(run("a > e / <(..)_(..)N> ", "sai.ne", "sai.ne"));
+        assert!(run("a > e / <(..)_(..)N> ", "sai.na", "sai.na"));
+    }
  
     #[test]
     fn test_tmesis() {
