@@ -49,10 +49,14 @@ Fixes:
         * Rules such as `$ > a$` no longer hang
         * Insertion rules with optionals that match zero times should no longer hang
             * e.g. `* > i / (C)_(N)`, which is really equivalent to `* > i / _`
+    * Potential matches with ellipsis input are not skipped if a previous match has the wrong environment
+        * e.g. `k..h > & | #_` results in `ka.ko.he => ka.ho.ke` rather than previous `ka.ko.he => ka.ko.he`
     * Corrected structure location error highlighting
 
 Tweaks:
-* Cli: (Potentially Breaking) Update file string sanitation so that special characters and punctuation is now omitted rather than being replaced with `-`
+* Cli: 
+    * (Potentially Breaking) Update file string sanitation so that special characters and punctuation is now omitted rather than being replaced with `-`
+    * Changed all usages of cyan to blue
 * Lib: Removed redundant error locations from error messages
 
 Perf: 20-30% average execution speed measured with example configs
