@@ -2778,7 +2778,7 @@ impl SubRule { // Substitution
                             let input_items = &set_input.choices[*set_index].items;
                             let output_items = &set_output.choices[*set_index].items;
 
-                            actions.extend(self.substitution_gen_actions(phrase, &input_items, &output_items, items)?);
+                            actions.extend(self.substitution_gen_actions(phrase, input_items, output_items, items)?);
                             in_index += 1; out_index += 1;
                         }
 
@@ -2786,7 +2786,7 @@ impl SubRule { // Substitution
                             let ParseElement::Set(ref input_set) = in_item.kind else { unreachable!() };
                             let input_items = &input_set.choices[*set_index].items;
 
-                            actions.extend(self.substitution_gen_actions(phrase, &input_items, &[out_item.clone()], items)?);
+                            actions.extend(self.substitution_gen_actions(phrase, input_items, std::slice::from_ref(out_item), items)?);
                             in_index += 1; out_index += 1;
                         }
                         (_, ParseElement::Set(_)) => unreachable!(),
