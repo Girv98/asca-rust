@@ -83,8 +83,8 @@ impl fmt::Display for RuleRuntimeError {
             Self::MetathWordBoundary      (..) => write!(f, "Cannot swap a word boundary with a syllable boundary"),
             Self::MetathSyllBoundary      (..) => write!(f, "Cannot swap a syllable with a syllable boundary"),
             Self::UnevenSet               (..) => write!(f, "Two matched sets must have the same number of elements"),
-            Self::GroupSuprIsInverted(supr, _) => write!(f, "Grouped Suprasegmental '{supr}' cannot be inverted"),
-            Self::GroupSuprIsBinary  (supr, _) => write!(f, "Grouped Suprasegmental '{supr}' cannot be binary"),
+            Self::GroupSuprIsInverted(supr, _) => write!(f, "Combined Suprasegmental '{supr}' cannot be inverted"),
+            Self::GroupSuprIsBinary  (supr, _) => write!(f, "Combined Suprasegmental '{supr}' cannot be binary"),
             Self::NodeCannotBeSome(node, _) => write!(f, "{node} node cannot arbitrarily positive"),
             Self::NodeCannotBeNone(node, _) => write!(f, "{node} node cannot be removed"),
             Self::NodeCannotBeSet (node, _) => write!(f, "{node} node cannot be assigned using PLACE alpha"),
@@ -267,12 +267,12 @@ impl fmt::Display for AliasRuntimeError {
         match self {
             Self::NodeCannotBeSome(node, _) => write!(f, "{node} node cannot arbitrarily positive"),
             Self::NodeCannotBeNone(node, _) => write!(f, "{node} node cannot be removed"),
-            Self::IndefiniteFeatures(_) => write!(f, "Cannot create a segment from a limited list of features. If you would like to assign to the previous segment, use '+'."),
+            Self::IndefiniteFeatures(_) => write!(f, "Cannot create a segment from a limited list of features. If you would like to assign to the previous segment, use '+'"),
             Self::OverlongPosLongNeg(_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
             Self::SecStrPosStrNeg   (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),
-            Self::LengthNoSegment   (_) => write!(f, "Cannot apply length. If you would like to assign to the previous segment, use '+'."),
+            Self::LengthNoSegment   (_) => write!(f, "Cannot apply length. If you would like to assign to the previous segment, use '+'"),
             Self::EmptySyllable     (_) => write!(f, "Cannot add at the start of a syllable"),
-            Self::GroupedSupras     (_) => write!(f, "Grouped Suprasegmentals cannot be used with aliases"),
+            Self::GroupedSupras     (_) => write!(f, "Combined Suprasegmentals cannot be used within an alias rule"),
         }
     }
 }
