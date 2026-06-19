@@ -59,7 +59,7 @@ impl ASCAError {
     }
 }
 
-const FEAT_VARIANTS: [&str; 171] = [ 
+const FEAT_VARIANTS: [&str; 184] = [ 
     "root", "rut", "rt", 
     "consonantal", "consonant", "cons" , "cns",          
     "sonorant", "sonor", "son" , "snrt", "sn",
@@ -103,9 +103,13 @@ const FEAT_VARIANTS: [&str; 171] = [
     "retractedtongueroot", "r.t.r.", "r.t.r", "r.tr", "rt.r", "rtr",
     // Suprasegmental Features
     "long", "lng",
-    "overlong", "overlng", "ovrlng", "vlng",
+    "overlong", "overlng", "ovrlng", "olong", "vlong", "olng", "vlng",
     "stress", "str",
-    "secondarystress", "sec.stress", "secstress", "sec.str.", "sec.str", "secstr", "sec"
+    "secondarystress", "sec.stress", "secstress", "sec.str.", "sec.str", "secstr", "sec",
+    // Grouped Suprasegmental Features
+    "length", "len",
+    "anystress", "anystr", "stressany", "strany",
+    "allstress", "allstr", "stressall", "strall"  
 ];
 
 fn get_feat_closest(s: &str) -> &'static str {
