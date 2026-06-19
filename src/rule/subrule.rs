@@ -3470,16 +3470,27 @@ impl SubRule { // Context Matching
         if let Some(tone) = center.tone && !self.match_tone(&tone, syll) { return Ok(false) }
         if !self.match_stress(&center.stress, syll, center.position)? { return Ok(false) }
 
+        // Check boundaries
+        if center.before.is_empty() && start_pos.seg_index != 0 {
+            return Ok(false)
+        }
+        if center.after.is_empty() && !start_pos.at_syll_end(phrase) {
+            return Ok(false)
+        }
+
         // Increment start_pos and end_pos before matching
         let cur_syll_index = start_pos.syll_index;
-        let mut start_pos = start_pos.reversed(phrase);
-        let cur_syll_index_rev = start_pos.syll_index;
+        let mut start_pos_rev = start_pos.reversed(phrase);
+        let cur_syll_index_rev = start_pos_rev.syll_index;
         let mut end_pos = end_pos;
-        start_pos.increment(phrase_rev);
+        // patch for matching syllable initial TODO: why
+        if !center.before.is_empty() {
+            start_pos_rev.increment(phrase_rev);
+        }
         end_pos.increment(phrase);
 
         // Check we are not outside syllable (for an invalid reason)
-        if start_pos.syll_index != cur_syll_index_rev && let Some(x) = center.before.first() {
+        if start_pos_rev.syll_index != cur_syll_index_rev && let Some(x) = center.before.first() {
             if let ParseElement::OptEllipsis | ParseElement::Optional(_,0,_) = x.kind {} else {
                 return Ok(false)
             }
@@ -3490,16 +3501,16 @@ impl SubRule { // Context Matching
             }
         }
 
-        if center.before.is_empty() && start_pos.syll_index == cur_syll_index {
+        if phrase[start_pos.word_index].syllables.len() > 1 && center.before.is_empty() && start_pos_rev.syll_index == cur_syll_index {
             return Ok(false)
         }
 
-        if center.after.is_empty() && end_pos.syll_index == cur_syll_index {
+        if phrase[start_pos.word_index].syllables.len() > 1 && center.after.is_empty() && end_pos.syll_index == cur_syll_index {
             return Ok(false)
         }
-        
+
         Ok(
-            self.match_underline_struct_items(phrase_rev, &center.before, start_pos, false, &mut None)? 
+            self.match_underline_struct_items(phrase_rev, &center.before, start_pos_rev, false, &mut None)? 
          && self.match_underline_struct_items(phrase, &center.after, end_pos, true, &mut None)?
         )
     }

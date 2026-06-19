@@ -3096,6 +3096,21 @@ mod rule_tests {
         assert!(run("a > e / <(..)_(..)N> ", "sai.ne", "sai.ne"));
         assert!(run("a > e / <(..)_(..)N> ", "sai.na", "sai.na"));
     }
+
+    #[test]
+    fn varta() {
+        assert!(run("P:[-voi] > [+sg] / <_..> ",   "var.ta",  "var.tʰa"));
+        assert!(run("P:[-voi] > [+sg] / <_..> ",   "var.sta", "var.sta"));
+        assert!(run("P:[-voi] > [+sg] / <_(..)> ", "va.t",    "va.tʰ"));
+        assert!(run("P:[-voi] > [+sg] / <.._> ",   "vat",     "vatʰ"));
+        assert!(run("P:[-voi] > [+sg] / <.._> ",   "vats",    "vats"));
+        
+        assert!(run("P:[-voi] ~ [+sg] / <_..> ",   "var.ta",  "var.tʰa"));
+        assert!(run("P:[-voi] ~ [+sg] / <_..> ",   "var.sta", "var.sta"));
+        assert!(run("P:[-voi] ~ [+sg] / <_(..)> ", "va.t",    "va.tʰ"));
+        assert!(run("P:[-voi] ~ [+sg] / <.._> ",   "vat",     "vatʰ"));
+        assert!(run("P:[-voi] ~ [+sg] / <.._> ",   "vats",    "vats"));
+    }
  
     #[test]
     fn test_tmesis() {
