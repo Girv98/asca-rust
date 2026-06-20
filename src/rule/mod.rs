@@ -2168,14 +2168,14 @@ mod rule_tests {
         let test_rule = "V:[+lng] => [+str] / _%#";
         assert!(run(test_rule, "peː.diː.kaː.boː", "peː.diːˈkaː.boː"));
         // let test_rule = "V => [+str] / _C%#";
-        let test_rule = "C => [+str] / _%#";
+        let test_rule = "{C,G} => [+str] / _%#";
         assert!(run(test_rule, "kae̯.sar", "ˈkae̯.sar"));
         assert!(run(test_rule, "de.kem.ber", "deˈkem.ber"));
         let test_rule = "% => [+str] / _%:[-str]%#";
         assert!(run(test_rule, "juː.li.us", "ˈjuː.li.us"));
         assert!(run(test_rule, "a.ba.ki.noː", "aˈba.ki.noː")); 
 
-        let test_rule = "%, V:[+lng], C, % => [+str] / #_#, _%#, _%#, _%:[-str]%#";
+        let test_rule = "%, V:[+lng], {C,G}, % => [+str] / #_#, _%#, _%#, _%:[-str]%#";
         assert!(run(test_rule, "sar", "ˈsar"));
         assert!(run(test_rule, "peː.diː.kaː.boː", "peː.diːˈkaː.boː"));
         assert!(run(test_rule, "kae̯.sar", "ˈkae̯.sar"));
@@ -2186,7 +2186,7 @@ mod rule_tests {
         assert!(run(test_rule, "sep.tem.ber", "sepˈtem.ber"));
 
 
-        let test_rule = "%, {⟨(..)V:[+long]⟩, ⟨(..)VC⟩}, % ~> [+str] / #_#, _%#, _%:[-str]%#";
+        let test_rule = "%, {⟨(..)V:[+long]⟩, ⟨(..)V{C,G}⟩}, % ~> [+str] / #_#, _%#, _%:[-str]%#";
         assert!(run(test_rule, "sar", "ˈsar"));
         assert!(run(test_rule, "peː.diː.kaː.boː", "peː.diːˈkaː.boː"));
         assert!(run(test_rule, "kae̯.sar", "ˈkae̯.sar"));
@@ -2197,7 +2197,7 @@ mod rule_tests {
         assert!(run(test_rule, "sep.tem.ber", "sepˈtem.ber"));
         
 
-        let test_rule = "%, ⟨(..){V:[+long], C}⟩, % ~> [+str] / #_#, _%#, _%:[-str]%#";
+        let test_rule = "%, ⟨(..){V:[+long], C, G}⟩, % ~> [+str] / #_#, _%#, _%:[-str]%#";
         assert!(run(test_rule, "sar", "ˈsar"));
         assert!(run(test_rule, "peː.diː.kaː.boː", "peː.diːˈkaː.boː"));
         assert!(run(test_rule, "kae̯.sar", "ˈkae̯.sar"));

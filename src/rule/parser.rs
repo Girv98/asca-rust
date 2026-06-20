@@ -745,7 +745,7 @@ impl Parser {
         let mut args = Modifiers::new(); 
 
         (match chr.value.as_ref() {
-            "C" => vec![SYLL_M],                                 // -syll                             // Consonant
+            "C" => vec![CONS_P, SYLL_M],                         // +cons, -syll                      // Consonant
             "O" => vec![CONS_P, SONR_M, SYLL_M],                 // +cons, -son, -syll                // Obstruent
             "S" => vec![CONS_P, SONR_P, SYLL_M],                 // +cons, +son, -syll                // Sonorant
             "P" => vec![CONS_P, SONR_M, SYLL_M, DLRL_M, CONT_M], // +cons, +son, -syll, -dlrl, -cont  // Plosive
