@@ -20,11 +20,11 @@
     z:[+rho] > * / _#
     ɑ:[-long, -str, Anasal] > * / _#
 
-    j > V:[+tens] / C_#
-    w > V:[+tens] / C_# | Vj_
+    j > V:[+tens] / [-syll]_#
+    w > V:[+tens] / [-syll]_# | Vj_
     ij > i:[+long] / _#
-    C$ > & / _V:[+hi]#
-    $C > & / _#
+    [-syll]$ > & / _V:[+hi]#
+    $[-syll] > & / _#
     $ > * / V_CC#
 #
 
@@ -57,7 +57,3 @@
 #
 
 
-@ Germanic A-Mutation
-    ;; This doesn't go here
-    V:[+hi] > [-hi] / _ C (C) V:[+lo] | _{j, NC}
-#

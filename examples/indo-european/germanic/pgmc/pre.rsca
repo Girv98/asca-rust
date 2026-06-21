@@ -42,7 +42,7 @@
     {h, x, ɣʷ} > * / #_                         ;; Lost word initial
     V:[+long], V:[-long] > [+overlong], [+long] / _{h, x, ɣʷ} | _$  
     {h, x, ɣʷ} > * / V_                         ;; Lost after vowels with comp. lenghtening above
-    V:[+hi] > G:[-tense] / V_$                  ;; u, i > w, j after vowels in the same syll.
+    V:[+hi, -lng] > G:[-tense] / V_$            ;; u, i > w, j after vowels in the same syll.
     $G > & / _$
 # Lost of laryngeals word-initially and after vowels, with compensatory lengthening
 

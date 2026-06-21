@@ -4,7 +4,7 @@
 
     G ~ * / _V:[-hi, -str, -long]# ;; Any preceding glide deletes
     V:[-hi, -str, -long] ~ * / _#  ;; The vowel itself deletes
-    $C ~ & / _# ;; Syllable repair
+    $[-syll] ~ & / _# ;; Syllable repair
 #
 
 @ Grimm's Law 

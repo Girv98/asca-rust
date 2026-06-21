@@ -15,8 +15,8 @@
     ə:[-str] > *      ;; unstressed schwa deletes
     ə > ɑ             ;; stressed schwa becomes /ɑ/
     ;; Syllable Fixing
-    $C > & / _$O, _#
-    C$ > & / $_{V, G}
+    $[-syll] > & / _$O, _#
+    [-syll]$ > & / $_{V, G}
 # Unstressed schwa deletes
 # Stressed schwa becomes ɑ
 
