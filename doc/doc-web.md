@@ -47,28 +47,28 @@ Blocks can be globally toggled on and off with the `Disable/Enable All` button.
 
 ## Debugging
 ### Word Tracing
-The evolution of a given input phrase can be shown using the trace dropdown above the input box. This will output each rule that is applied to 
-the phrase and how the phrase changes due to it. The applied rule blocks are also highlighted for easier discernment.
+The evolution of a given input phrase can be shown using the trace dropdown above the input box. This will output each rule that is applied
+to the phrase and how the phrase changes due to it. The applied rule blocks are also highlighted for easier discernment.
 
 ### Unknown Segments
-When ASCA is unable to represent a given segment, `�` will be printed in its place. If this occurs, a table of each unique unknown segment and its 
-value will be shown at the end of the output. You can use this to cross reference with the values spreadsheet to diagnose the issue. Each unique 
-unknown is color-coded (and hoverable) so that you can easily discern each value.
+When ASCA is unable to represent a given segment, `�` will be printed in its place. If this occurs, a table of each unique unknown segment 
+and its value will be shown at the end of the output. You can use this to cross reference with the values spreadsheet to diagnose the issue. 
+Each unique unknown is color-coded (and hoverable) so that you can easily discern each value.
 
 ## Aliasing/Romanisation
-Aliases can be defined through the `aliases` button, which will bring up a modal containing the input fields,see [Custom aliasing](./doc.md#custom-aliasing--deromanisation) 
+Aliases can be defined through the `aliases` button, which will bring up a modal containing the input fields, see [Custom aliasing](./doc.md#custom-aliasing--deromanisation) 
 for more. Output Romanisation can be turned on and off using the toggle switch widget within the aliases dialog. When turned off, the aliases button 
 will become red - indicating its state without the need to open the dialog.
 
 Note that aliases, like the input, are not cleared with the `Clear All` button.
 
 ## Save System
-With ASCA's save system, multiple files can be loaded at once. This allows you to work on several projects at the same time while 
-also affording you the ability to quit out and not any lose progess. On each run, the current state of the active file is 
-saved to local storage. 
+With ASCA's save system, multiple files can be loaded at once. This allows you to work on several projects at the same time while also 
+affording you the ability to quit out and not any lose progess. On each run, the current state of the active file is saved to local 
+storage. 
 
-When a new save is generated, it is given a random 12 character ID which can be renamed by the user. When 
-a file is imported, its name will become its ID. Similarly, when a save is exported, its ID will be used as its default filename.
+When a new save is generated, it is given a random 12 character ID which can be renamed by the user. When a file is imported, its name 
+will become its ID. Similarly, when a save is exported, its ID will be used as its default filename.
 
 ### Importing and Exporting
 

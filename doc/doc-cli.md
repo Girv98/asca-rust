@@ -134,6 +134,27 @@ foo.wsca bar.wsca > beta:
 # - Then, apply ONLY 'Cluster Simplification' and 'Hap(lo)logy', in that order, from './rules2.wsca'.
 ```
 
+The following rule filters can be used to include parts of a file in reference to the ***first occurrence*** of a given rule:
+
+`<`  means to include all rules from a file *before* the specified rule. 
+
+`<=` means to include all rules from a file *before and including* the specified rule. 
+
+`>`  means to include all rules from a file *after* the specified rule. 
+
+`>=` means to include all rules from a file *after and including* the specified rule. 
+
+``` diff
+gamma:
+    rules1.rsca <= "Glottal Deletion";
+    rules1.rsca  > "Glottal Deletion";
+
+# The above sequence tagged 'gamma' means:
+# - Apply all of ./rules1.wsca UP TO AND INCLUDING 'Glottal Deletion'.
+# - Apply all of ./rules1.wsca AFTER 'Glottal Deletion'.
+# This is outcome-equivalent to just applying all of rules1.rsca, but splits it into two steps so that with the -a flag you can see an intermediate output
+```
+
 #### Pipelines
 
 Instead of word files, another defined sequence can be referenced with its tag. This will run the referenced sequence and use the resulting words as input. 

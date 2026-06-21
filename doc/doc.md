@@ -16,19 +16,21 @@ This is documentation regarding the core principles of defining words and sound 
         * [Special Characters](#special-characters)
         * [Insertion and Deletion](#insertion-and-deletion-rules)
         * [Metathesis](#metathesis-rules)
+            * [Hyperthesis](#hyperthesis)
         * [Condensed Rules](#condensed-rules)
         * [Environment Shorthand](#environment-shorthand)
         * [Syllable Structure](#syllable-structure)
     * [Segment Features](#segment-features)
         * [Using Distinctive Features](#using-distinctive-features)
         * [Nodes and Subnodes](#node-and-subnode-features)
-        * [Inversion](#inversion)
     * [Suprasegmental Features](#suprasegmental-features)
         * [Stress](#stress-1)
         * [Length](#length-1)
         * [Tone](#tone-1)
     * [Alpha Notation](#alpha-notation)
         * [Nodes and Subnodes](#nodes-and-subnodes)
+        * [Combined Suprasegmentals](#combined-suprasegmentals)
+        * [Inversion](#inversion)
     * [Advanced Operators and Constructs](#advanced-operators-and-constructs)
         * [Groupings](#groupings)
         * [Sets](#sets)
@@ -37,6 +39,7 @@ This is documentation regarding the core principles of defining words and sound 
         * [References](#references)
         * [Ellipses](#ellipses)
         * [Syllable Structure Matching](#syllable-structure-matching)
+            * [Underline Structures](#underline-structures)
     * [Gemination](#gemination)
     * [Cross Word-Boundary Operations](#cross-word-boundary-operations)
     * [Propagation](#propagation)
@@ -67,7 +70,7 @@ Doubly articulated stops, such as `ɡ͡b`, are not supported (I am up for ideas 
 
 In the event that ASCA is unable to render a segment in IPA, `�` will be used in its place.
 
-Unless the diacritic is inherent to the base phoneme (e.g. `𝼆̬`) then diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
+Unless the diacritic is inherent to the base phoneme (e.g. `𝼆̬`), diacritic order does not matter. When generating the output word list, ASCA tries to adhere to [PHOIBLE conventions](https://phoible.org/conventions#ordering-of-diacritics-and-modifier-letters) where possible. Meaning that the diacritics in the output may be in a different order than was input. Additionally, if a base phoneme with a combination of diacritics is equal in value to another base phoneme (or can be composed with less diacritics), then it shall be generated as such (i.e. `ɢ̃` will become `ᶰɢ`). 
 
 ***A full table of supported base phonemes, a vowel space diagram, and diacritics (each with their feature values) can be found [here](https://bit.ly/3sHjqvA).***
 
@@ -142,6 +145,7 @@ The following cannot be used inside a rule (as they clash with [rule specific sy
 S => ʃ  (voiceless postalveolar fricative)
 Z => ʒ  (voiced postalveolar fricative)
 C => ɕ  (voiceless alveolo-palatal fricative)
+J => ʝ  (voiced palatal fricative)
 G => ɢ  (voiced uvular plosive)
 N => ɴ  (voiced uvular nasal)
 B => ʙ  (voiced bilabial trill)
@@ -155,6 +159,7 @@ I => ɪ  (near-high near-front unrounded vowel)
 O => ɔ  (low-mid back rounded vowel)
 U => ʊ  (near-high near-back rounded vowel)
 Y => ʏ  (near-high near-front rounded vowel)
+W => ɯ  (high back unrounded vowel)
 ```
 Aliases are rendered as their target IPA characters in the output.
 
@@ -331,13 +336,12 @@ context   -> the specificity of the surrounding environment
 exception -> the exclusivity of the surrounding environment
 ```
 These blocks are divided by specific separators so that a given rule looks like this:
+```wasm
+input ARROW output / context PIPE exception
+;; e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
 ```
-input (=/-)> output / context (| or //) exception
-
-e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
-```
-
-The 'arrow' can be `=>`, `->`, or just `>`. The exception block can be introduced by either `|` or `//`.
+`ARROW` can be `=>`, `->` or just `>` (or `~`, `~>` for right-to-left execution, [see below](#true-right-to-left-propagation)). 
+`PIPE` can be either `|` or `//`
 
 An environment can only contain one underline `_` or a series of joined underlines. An empty context environment can be omitted:
 ```wasm
@@ -407,7 +411,7 @@ e > ∅ / _#
 
 ### Metathesis Rules
 The ampersand operator `&` states that the order of the matched input is reversed; Such that, for example, a sequence of matched segments `ABC` becomes `CBA`. The operator can be used to flip an arbitrary number of segments or syllables.
-Like deletion, the output of a metathesis rule must contain *only* `&` and nothing else. 
+Like deletion, the output of a metathesis rule must contain *only* the `&` operator and nothing else. 
 
 ```
 Example: Old English R Metathesis
@@ -416,6 +420,8 @@ Example: Old English R Metathesis
 
 /hros/ => /hors/
 ```
+
+#### Hyperthesis
 
 An ellipsis `…` or double `..` or triple dot `...` can be used to implement long-range metathesis:
 
@@ -436,6 +442,43 @@ r (..) l > &
 parabla => palabra
 arla => alra
 ```
+
+When multiple items are present between ellipses, these items are grouped such that the ellipses become the pivot points:
+```
+Example: Uneven sides
+
+pf..s > &
+
+pfas => safp
+```
+```
+Example: Uneven sides with multiple ellipses
+
+pf..ts..k > &
+
+pfa.tsa.ka => ka.sta.fpa
+```
+
+In general, `abcd..ef..ghi` becomes `ihg..fe..dcba`.
+
+
+The `@` operator can be used in place of `&` to preserve the relative orderings of grouped items.
+```
+Example: Uneven sides
+
+pf..s > @
+
+pfas => sapf
+```
+```
+Example: Uneven sides with multiple ellipses
+
+pf..ts..k > @
+
+pfa.tsa.ka => ka.tsa.pfa
+```
+
+In general, `abcd..ef..ghi => ghi..ef..abcd`
 
 For more about ellipses, see [below](#ellipses).
 
@@ -520,14 +563,14 @@ ASCA defines the features it uses as follows:
 ┌────────┬─────────┬─────────┬─────────────────────────────┬────────────────────────────┐
 │  Node  │ Subnode │ Feature │              +              │             -              │
 ├────────┼─────────┴─────────┼─────────────────────────────┼────────────────────────────┤
-│        │    consonantal    │ obstruents, nasals, liquids │ vowels, glides, laryngeals │
+│        │    consonantal    │ obstruents, nasals, liquids │       vowels, glides       │
 │  ROOT  │      sonorant     │      vowels, sonorants      │         obstruents         │
 │        │      syllabic     │ vowels, syllabic consonants │     glides, consonants     │
 ├────────┼───────────────────┼─────────────────────────────┼────────────────────────────┤
 │        │    continuant     │  fricatives, approximants,  │    plosives, affricates,   │
 │        │                   │       vowels, trills        │        nasals, flaps       │
 │        │    approximant    │   vowels, glides, liquids   │     nasals, obstruents     │
-│        │      lateral      │ l-like and lateralised segs │             -              │
+│        │      lateral      │ l-like and lateralised segs │            ...             │
 │        │       nasal       │  nasals, nasalised vowels,  │ oral consonants and vowels │
 │ MANNER │                   │      prenasalised stops     │                            │
 │        │  delayed release  │     affricate consonants    │       Plosives, etc.       │
@@ -537,9 +580,9 @@ ASCA defines the features it uses as follows:
 │        │       click       │       click consonants      │     non click segments     │
 ├────────┼───────────────────┼─────────────────────────────┼────────────────────────────┤
 │        │       voice       │       voiced segments       │     voiceless segments     │
-│ LARYNG │   spread glottis  │   aspirates, breathy voice  │             -              │
-│        │   const. glottis  │    ejectives, implosives    │             -              │
-│        │                   │         creaky voice        │             -              │
+│ LARYNG │   spread glottis  │   aspirates, breathy voice  │            ...             │
+│        │   const. glottis  │    ejectives, implosives    │            ...             │
+│        │                   │         creaky voice        │            ...             │
 ├────────┼─────────┬─────────┼─────────────────────────────┼────────────────────────────┤
 │        │ LABIAL  │ labdent │       ɱ, ʋ, f, v, etc.      │      ɸ, β, p, b, etc.      │
 │        │         │  round  │       rounded segments      │      p, b, f, v, etc.      │
@@ -547,14 +590,14 @@ ASCA defines the features it uses as follows:
 │        │ CORONAL │ anterior│      dentals, alveolars     │ post-palatals, retroflexes │
 │        │         │ distrib │    palatals, post-palatals  │   alveolars, retroflexes   │
 │        ├─────────┼─────────┼─────────────────────────────┼────────────────────────────┤
-│        │         │  front  │    palatals, front vowels   │             -              │
-│ PLACE  │         │  back   │ velars/uluvars, back vowels │             -              │
-│        │ DORSAL  │  high   │     velars, high vowels     │             -              │
-│        │         │   low   │   pharyngeals, low vowels   │             -              │
+│        │         │  front  │    palatals, front vowels   │            ...             │
+│ PLACE  │         │  back   │ velars/uluvars, back vowels │            ...             │
+│        │ DORSAL  │  high   │     velars, high vowels     │            ...             │
+│        │         │   low   │   pharyngeals, low vowels   │            ...             │
 │        │         │  tense  │     tense vowels & cons.    │         lax vowels         │
-│        │         │ reduced │    schwa, reduced vowels    │             -              │
+│        │         │ reduced │    schwa, reduced vowels    │            ...             │
 │        ├─────────┼─────────┼─────────────────────────────┼────────────────────────────┤
-│        │ PHARYNG │   atr   │    advanced root segments   │             -              │
+│        │ PHARYNG │   atr   │    advanced root segments   │            ...             │
 │        │         │   rtr   │         pharyngeals         │        epiglottals         │
 └────────┴─────────┴─────────┴─────────────────────────────┴────────────────────────────┘
 ```
@@ -672,7 +715,7 @@ In the output block, these features can be used to add or remove a place of arti
 ```wasm
 Rule Example: Plosive Debuccalisation
 
-[+cons, -son, -voi] > [-cons, +c.g., -place]    ;; p, t, k > ʔ
+[+cons, -son, -voi] > [+c.g., -place]    ;; p, t, k > ʔ
 ```
 When adding a node, all features within the node are set to `-`. 
 
@@ -710,13 +753,13 @@ Rule Example: Latin Stress
 
 % > [+str] / #_#            ;; If there is only one syllable, it is stressed
 V:[+long] > [+str] / _%#    ;; A penult syll ending with a long vowel becomes stressed
-V > [+str] / _C%#           ;; A penult syll ending with a consonant or glide becomes stressed
+V > [+str] / _{C,G}%#       ;; A penult syll ending with a consonant or glide becomes stressed
 % > [+str] / _%:[-str]%#    ;; If the penult is unstressed, the antepenult becomes stressed
 
 ;; Rules 2 and 3 could be condensed into one by matching to the consonant instead of the vowel in rule 3
-V > [+str] / _C%# (becomes) C > [+str] / _%#
+V > [+str] / _{C,G}%# (becomes) C > [+str] / _%#
 ;; therefore
-V:[+long], C > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed
+V:[+long], {C,G} > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed
 ```
 
 ```wasm
@@ -815,11 +858,25 @@ P:[α DOR] > [α round]
 ;; Any dorsal plosive becomes +round, any non-dorsal plosive becomes -round
 ```
 
+### Combined Suprasegmentals
+
+As stress and length are bivariate, fully covering these features would require using two alphas.
+
+```
+V ~ [α long, β overlong] / _ .. V:[α long, β overlong]
+```
+
+Instead, the special features `anystress` and `length` can be used to cover these features using just one alpha.
+
+```
+V ~ [α len]  / _ .. V:[α len]
+```
+
 ### Inversion
 Imagine we have two debuccalisation rules, one for plosives and one for fricatives:
 ```wasm
-O:[-voi, -cont] > [-cons, +c.g., -place] / _#           ;; /pat/ => /paʔ/
-O:[-voi, +cont] > [-cons, +s.g., -place, -strid] / _#   ;; /pas/ => /pah/
+O:[-voi, -cont] > [+c.g., -place] / _#           ;; /pat/ => /paʔ/
+O:[-voi, +cont] > [+s.g., -place, -strid] / _#   ;; /pas/ => /pah/
 ```
 These two rules only have one difference. If the input is `-cont`, the output is `+c.g.`; if the input is `+cont`, the output is `+s.g.` (Plosives 
 are normally `-strid` so we don't have to worry about that). It would be nice if we could deal with this difference and express these two rules in 
@@ -833,7 +890,7 @@ and `[+cont] => [+s.g., -c.g.]` which is what we want to satisfy the two rules.
 ```wasm
 Result:
 
-O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid] / _#
+O:[-voi, Acont] > [As.g., -Ac.g., -place, -strid] / _#
 ;; /pat/ => /paʔ/, /pas/ => /pah/
 ```
 
@@ -853,23 +910,24 @@ In the rule above, plosives and nasals cluster only if they are of a different p
 ### Groupings
 
 Groupings can be used as shorthand to match often used phoneme classes.
+<!-- Y -> Nonsyllabics (consonants and glides)           (equiv. to [-syll]) -->
 ```
-C -> Consonants (obstruents and sonorants)          (equiv. to [-syll])
-O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -son, -syll])
-S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, +son, -syll])
-P -> Plosives                                       (equiv, to [+cons, -son, -syll, -delrel, -cont])
-F -> Fricatives                                     (equiv, to [+cons, -son, -syll, -approx, +cont])
-L -> Liquids                                        (equiv. to [+cons, +son, -syll, +approx])
-N -> Nasals                                         (equiv. to [+cons, +son, -syll, -approx, +nasal])
-G -> Glides                                         (equiv. to [-cons, +son, -syll])
-V -> Vowels                                         (equiv. to [-cons, +son, +syll])
+C -> Consonants (obstruents and sonorants)          (equiv. to [+cons, -syll])
+O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -syll, -son])
+S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, -syll, +son])
+P -> Plosives                                       (equiv, to [+cons, -syll, -son, -delrel, -cont])
+F -> Fricatives                                     (equiv, to [+cons, -syll, -son, -approx, +cont])
+L -> Liquids                                        (equiv. to [+cons, -syll, +son, +approx])
+N -> Nasals                                         (equiv. to [+cons, -syll, +son, -approx, +nasal])
+G -> Glides                                         (equiv. to [-cons, -syll, +son])
+V -> Vowels                                         (equiv. to [-cons, +syll, +son])
 ```
-Note that purely glottalic consonants such as `/h/ and /ʔ/` are considered `[-cons, -son, -syll]` and are therefore not captured by any grouping other than `C`. 
+Note that glides are considered `[-cons]` and are therefore not captured by `C`
 
 ### Sets
 Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries (a set in the input or output
 cannot contain word boundaries). They represent a choice/mapping between their items.
-Currently, set items cannot contain sequences (i.e. cannot have `{nd, NC, %%}`).
+Sets can contain sequences of items (i.e. `{nd, N<C..>, 1$s}`).
 
 If corresponding sets are used in the input and output, then the nth element in the input will be substituted by the nth element in the output. In a rule with nothing 
 but sets, this is analogous to a condensed rule, however a set is applied in just one pass.
@@ -889,8 +947,8 @@ A set in the output, if matched to a set in the input, must contain the same num
 If used in the input without a corresponding set in the output, the corresponding output element will be applied to any of the set items. Again, analogous to 
 a similarly structured condensed rule, except applied in one pass.
 ```wasm
- f, x  > [+voi] / V_V   ;; 2 passes, equivalent to 2 consecutive rules
-{f, x} > [+voi] / V_V   ;; 1 pass
+ sf, x  > [+voi] / V_V   ;; 2 passes, equivalent to 2 consecutive rules
+{sf, x} > [+voi] / V_V   ;; 1 pass
 ```
 
 A set in the output without a corresponding set in the input is invalid.
@@ -908,6 +966,20 @@ V:[+hi] > [-voice] / [-voi]_{[-voi], #}
 /de.sɨ/    => /de.sɨ̥/
 /de.sɨ.ka/ => /de.sɨ̥.ka/
 ```
+
+Sets can be modified by a matrix:
+```
+{e, o}:[+long] > {i, u}:[+long]
+
+/de:.se/ => /di:.se/
+```
+
+Note that if the set contains an item that cannot be modified by a matrix (e.g. a boundary), then this is an error:
+```
+{ C$V, <CVC> }:[+stress] > *
+;; ^ Error! '$' cannot be modified by stress
+```
+Similarly, if the set contains a syllable and is modified by a segment value, this too shall error.
 
 ### Environment Sets
 
@@ -1043,12 +1115,12 @@ Example: Latin Stress Rule using Structures
 
 % > [+str] / #_#                ;; If there is only one syllable, it is stressed
 ⟨(..)V:[+long]⟩ > [+str] / _%#  ;; A penult syllable ending with a long vowel becomes stressed
-⟨(..)VC⟩ > [+str] / _%#         ;; A penult syllable ending with a consonant becomes stressed
+⟨(..)V{C,G}⟩ > [+str] / _%#     ;; A penult syllable ending with a consonant or glide becomes stressed
 % > [+stress] / _ %:[-str]%#    ;; If the penult is unstressed, the antepenult becomes stressed
 
 ;; Like the previous Latin stress example, rules 2 and 3 can be condensed
 
-⟨(..){V:[+long], C}⟩ => [+str] / _%#
+⟨(..){V:[+long], C, G}⟩ => [+str] / _%#
 ```
 
 Structures can also be used to insert whole syllables:
@@ -1072,9 +1144,42 @@ This is also useful for inserting copy vowels at the beginning of a word:
 ```
 Example: Word Initial Copy Vowel Insertion
 
-* > <1> / #_CV=1
+* > ⟨1⟩ / #_CV=1
 
 /'de.no/ => /e'de.no/
+```
+
+#### Underline Structures
+
+The `_` can be placed within an environment structure, allowing for more certainty regarding the immediate environment.
+
+```wasm
+Example:
+
+a > e / <(..)_(..)N> 
+;; /a/ become /e/ if the syllable it is contained within ends in a nasal consonant
+
+san => sen
+sain => sein
+
+sai.na => sai.na
+```
+
+```wasm
+V > [-long] / ⟨(..)_(..)⟩ ⟨..V:[+long]⟩
+;; A vowel becomes short if the immediately following syllable ends with a long vowel
+
+sa:.na: => sa.na:
+```
+
+``` wasm
+Example: English Plosive Allophony
+
+P:[-voi] > [+sg] / <_..>
+;; A syllable onset voiceless plosive becomes aspirated
+
+tʊn  => tʰʊn (tonne)
+stʊn => stʊn (stun)
 ```
 
 ## Gemination
@@ -1238,34 +1343,6 @@ To fix this, we can insert with a [structure](#syllable-structure-matching)
 
 /e'de.no/ as expected
 ```
-### Substituting Long IPA
-
-When doing IPA substitution, you may come across behaviour such as this
-```
-a > e
-
-hat  > het  ;; expected, current behaviour
-ha:t > het  ;; unexpected, current behaviour
-```
-This doesn't happen with matrices.
-```
-a > [+fr, -lo, +tns]
-
-hat  > het  ;; expected, current behaviour
-ha:t > he:t ;; expected, current behaviour
-```
-This is a consequence of how we currently iterate through a word, and what we consider a single segment in certain situations. 
-Whether/How this behaviour will change in future releases is being debated as it could effect the ergonomics of other rules. 
-For now, it is best to think of any ipa character in the output as being inherently `[-long]`. 
-
-The 'fix' for this is to use alpha notation:
-
-```
-a:[Along] > e:[Along]   ;; [Along, Boverlong] if you have overlong vowels
-hat  > het
-ha:t > he:t
-```
-
 
 # Feature Shorthands
 
@@ -1288,7 +1365,7 @@ Segment Features:
     * Click: `click` `clik` `clk` `clck`
 * Laryngeal Node: `laryngeal` `laryng` `laryn` `lar`
     * Voice: `voice` `voi` `vce` `vc`
-    * Spread Glottis:`spreadglottis` `spreadglot` `spread` `s.g.` `s.g` `sg.` `sg`
+    * Spread Glottis:`spreadglottis` `spreadglot` `spread` `spr` `s.g.` `s.g` `sg.` `sg`
     * Constricted Glottis:`constrictedglottis` `constricted` `constglot` `constr` `c.g.` `c.g` `cg.` `cg`
 * Place Node: `place` `plce` `plc`
     * Labial Subnode: `labial` `lbl` `lab`
@@ -1314,3 +1391,7 @@ Suprasegmental Features:
 * Stress: `stress` `strs` `str`
 * Secondary Stress: `secondarystress` `sec.stress` `secstress` `sec.str.` `sec.str` `secstr` `sec`
 * Tone: `tone` `ton` `tne` `tn`
+
+Combined Suprasegmentals:
+* Length: `length` `len`
+* Stress: `anystress` `anystr` `stressany` `strany` `allstress` `allstr` `stressall` `strall`

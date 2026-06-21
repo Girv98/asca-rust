@@ -1,9 +1,13 @@
-NEXT RELEASE
+0.10.0
 ==================
-[0.9.3...latest](https://github.com/Girv98/asca-rust/compare/0.9.3...master)
+[0.9.3...0.10.0](https://github.com/Girv98/asca-rust/compare/0.9.3...0.10.0)
 
 Breaking:
-* Lib: 
+* Lib:
+    * Group `C` now stands for `[+cons, -syll]`, no longer just `[-syll]`
+        * This is motivated in part so that `C:[+syll]` has the expected behaviour.
+        * Note that as glides are `[-cons]`, they are no longer covered under `C`, use `{C,G}` or `[-syll]` to capture both consonants and glides.
+    * Glottalic consonants (e.g. `/h/`, `/ʔ/`) are now `[+cons]`
     * Rules such as `a > e` now preserve length
         * Previously, this rule would cause a word such as `ha:t` to become `het`. 
         * This change now brings the behaviour of IPA Literals in line with Groupings and Matrices.
@@ -17,7 +21,7 @@ Breaking:
 Features:
 * Cli:
     * Add `<`, `>`, `<=`, `>=` rule filter operators
-        * Allows inclusion of only rules before or after a given rule in a file
+        * Allows for the inclusion of only rules before or after a given rule in a file
         * e.g. `setup > pg-spirant: pgmc/pre.rsca; pgmc/early.rsca <= "Germanic Spirant's Law";`
 * Lib:
     * Combined Alpha Suprasegmentals
@@ -32,7 +36,7 @@ Features:
             * These items can be mixed type e.g. `{k<CV>, N$[-syll]}`
         * Allows for sets, as a whole, to be modified by a matrix
             * i.e. `{i, u}:[+long]` rather than `{i:[+long], u:[+long]}`
-    * Rework of Metathesis
+    * Rework of Metathesis (Potentially Breaking)
         * Ellipses act to group elements
             * e.g. `pf..s > &` to result in `pfas => safp` whereas 0.9.3 would render `pfas => sfap`
             * In general: `abcd..ef..ghi => ihg..fe..dcba`
@@ -52,6 +56,7 @@ Fixes:
     * Potential matches with ellipsis input are not skipped if a previous match has the wrong environment
         * e.g. `k..h > & | #_` results in `ka.ko.he => ka.ho.ke` rather than previous `ka.ko.he => ka.ko.he`
     * Corrected structure location error highlighting
+    * `ʁ̞` is correctly encoded as `[+cons]`
 
 Tweaks:
 * Cli: 
@@ -59,7 +64,7 @@ Tweaks:
     * Changed all usages of cyan to blue
 * Lib: Removed redundant error locations from error messages
 
-Perf: 20-30% average execution speed measured with example configs
+Perf: 20-30% average execution speedup measured with example configs
 
 0.9.3
 ==================
