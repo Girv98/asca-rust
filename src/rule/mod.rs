@@ -2209,6 +2209,26 @@ mod rule_tests {
     }
 
     #[test]
+    fn adasdasdnk() {
+        assert!(run("N$ > & / _GV", "am.jel", "a.mjel"));
+        assert!(run("N$ > & / _GV", "m.jel", "mjel"));
+        assert!(run("C$ > & / $_", "m.jel", "mjel"));
+        
+        assert!(run("$ > * / _,<[]>", "m.jel", "mjel"));
+
+        assert!(run("$C > & / _$ ", "m.jel", "m.jel"));
+    }
+
+    #[test]
+    fn mela() {
+        assert!(run("$ > * / _<([-syll], 1:)>", "meːˈla", "meːˈla"));
+        assert!(run("$ > * / _<([-syll], 1:)>", "uˈe.rːi", "uˈe.rːi"));
+        assert!(run("$ > * / _<([-syll], 1:)>", "oˈe.r.də", "oˈer.də"));
+        assert!(run("$ > * / _<([-syll], 1:3)>", "uˈe.rd", "uˈerd"));
+        assert!(run("$ > * / _<([-syll], 1:)>", "uˈe.rd", "uˈerd"));
+    }
+
+    #[test]
     fn test_haplology() {
         let test_rule = "%=1 > * / 1_";
         assert!(run(test_rule, "hap.lo.lo.ɡi", "hap.lo.ɡi"));
