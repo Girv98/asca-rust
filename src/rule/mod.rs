@@ -372,9 +372,9 @@ mod rule_tests {
 
     #[test]
     fn test_debuccalisation() {
-        assert!(run("O:[-voi] > [-cons, +c.g., -place]", "p", "ʔ"));
+        assert!(run("O:[-voi] > [+c.g., -place]", "p", "ʔ"));
 
-        let test_rule = "O:[-voi, Acont] > [-cons, As.g., -Ac.g., -place, -strid]";
+        let test_rule = "O:[-voi, Acont] > [As.g., -Ac.g., -place, -strid]";
         assert!(run(test_rule, "pa.sa.ta.fa", "ʔa.ha.ʔa.ha"));
         assert!(run(test_rule, "sa.pa.fa.pa", "ha.ʔa.ha.ʔa"));
     }
