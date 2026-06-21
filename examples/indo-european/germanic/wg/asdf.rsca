@@ -55,3 +55,9 @@
 @
     [+overlong] > [-overlong]
 #
+
+
+@ Germanic A-Mutation
+    ;; This doesn't go here
+    V:[+hi] > [-hi] / _ C (C) V:[+lo] | _{j, NC}
+#
