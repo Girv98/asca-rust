@@ -2229,6 +2229,25 @@ mod rule_tests {
     }
 
     #[test]
+    fn reddit_uncomfortably_crumbled() {
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #(C)_", "me.daˈra.ni",    "meˈdra.ni"));
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #(C)_", "kaˈra.sa",       "kaˈra.sa"));
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #(C)_", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
+        
+        assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #(C)_", "me.daˈra.ni",    "meˈdra.ni"));
+        assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #(C)_", "kaˈra.sa",       "kaˈra.sa"));
+        assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #(C)_", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
+
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_(..)>", "me.daˈra.ni",    "meˈdra.ni"));
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_(..)>", "kaˈra.sa",       "kaˈra.sa"));
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_(..)>", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
+        
+        assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_(..)>", "me.daˈra.ni",    "meˈdra.ni"));
+        assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_(..)>", "kaˈra.sa",       "kaˈra.sa"));
+        assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_(..)>", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
+    }
+
+    #[test]
     fn test_haplology() {
         let test_rule = "%=1 > * / 1_";
         assert!(run(test_rule, "hap.lo.lo.ɡi", "hap.lo.ɡi"));

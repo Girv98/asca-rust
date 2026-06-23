@@ -191,6 +191,16 @@ impl ItemSet {
         None
     }
 
+    pub(crate) fn contains_only(&self, element: &ParseElement) -> Option<usize> {
+        for (c, choice) in self.choices.iter().enumerate() {
+            if choice.items.len() == 1 && choice.contains(element) {
+                return Some(c)
+            }
+        }
+
+        None
+    }
+
     #[allow(unused)]
     /// Note: matches enum values not just if same variant
     pub(crate) fn starts_in(&self, el_kind: ParseElement, choice_index: usize) -> bool {
@@ -1455,9 +1465,9 @@ impl Parser {
 
             if inp_term.is_empty() {
                 match self.curr_tkn.kind {
-                    TokenKind::Comma if inputs.is_empty() => return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.pos)),
+                    TokenKind::Comma if inputs.is_empty() => return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.curr_tkn.position.start)),
                     TokenKind::Diacritic(_) => return Err(RuleSyntaxError::FloatingDiacritic(self.curr_tkn.position)),
-                    _ if inputs.is_empty()  => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.pos)),
+                    _ if inputs.is_empty()  => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.curr_tkn.position.start)),
                     _ => break
                 }
             }
@@ -1508,12 +1518,12 @@ impl Parser {
             
             if out_term.is_empty() {
                 match self.curr_tkn.kind {
-                    TokenKind::Comma if outputs.is_empty() => return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.pos)),
+                    TokenKind::Comma if outputs.is_empty() => return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.curr_tkn.position.start)),
                     TokenKind::Diacritic(_) => return Err(RuleSyntaxError::FloatingDiacritic(self.curr_tkn.position)),
                     TokenKind::Eol | TokenKind::Comment | TokenKind::Pipe | TokenKind::Slash if outputs.is_empty() => {
-                        return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.pos))
+                        return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.curr_tkn.position.start))
                     },
-                    _ if outputs.is_empty() => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.pos)),
+                    _ if outputs.is_empty() => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.curr_tkn.position.start)),
                     _ => break
                 }
             }

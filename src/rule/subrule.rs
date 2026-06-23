@@ -3454,7 +3454,7 @@ impl SubRule { // Context Matching
         
         { // Sanity Check Input
             // Check first and last input are in the same syllable
-            if start_pos.word_index != end_pos.word_index || start_pos.syll_index != end_pos.syll_index { return Ok(false) }
+            // if start_pos.word_index != end_pos.word_index || start_pos.syll_index != end_pos.syll_index { return Ok(false) }
             self.underline_struct_sanity_check(matches)?;
         }
 
@@ -3530,8 +3530,8 @@ impl SubRule { // Context Matching
         for (bef_cont_states, center, aft_cont_states) in contexts {
             let (start_pos, end_pos) = if let Some(cent) = center {
                 if self.match_underline_struct(&phrase_rev, phrase, matches, start_pos, end_pos, cent)? {
-                    if start_pos.syll_index == 0 && !bef_cont_states.is_empty() { break }                                            // TODO: Check if this works with ##
-                    if end_pos.syll_index == phrase[end_pos.word_index].syllables.len() - 1 && !aft_cont_states.is_empty() { break } // TODO: Check if this works with ##
+                    if start_pos.syll_index == 0 && (!bef_cont_states.is_empty() && !self.is_boundary(bef_cont_states)) { break }
+                    if end_pos.syll_index == phrase[end_pos.word_index].syllables.len() - 1 && (!aft_cont_states.is_empty() && !self.is_boundary(aft_cont_states)) { break }
                     let start_pos = SegPos::new(start_pos.word_index, start_pos.syll_index, 0);
                     let mut end_pos = SegPos::new(end_pos.word_index, end_pos.syll_index + 1, 0);
                     end_pos.decrement(phrase);
@@ -3550,8 +3550,8 @@ impl SubRule { // Context Matching
         for (bef_expt_states, center, aft_expt_states) in exceptions {
             let (start_pos, end_pos) = if let Some(cent) = center {
                 if self.match_underline_struct(&phrase_rev, phrase, matches, start_pos, end_pos, cent)? {
-                    if start_pos.syll_index == 0 && !bef_expt_states.is_empty() { break }                                            // TODO: Check if this works with ##
-                    if end_pos.syll_index == phrase[end_pos.word_index].syllables.len() - 1 && !aft_expt_states.is_empty() { break } // TODO: Check if this works with ##
+                    if start_pos.syll_index == 0 && (!bef_expt_states.is_empty() && !self.is_boundary(bef_expt_states)) { break }
+                    if end_pos.syll_index == phrase[end_pos.word_index].syllables.len() - 1 && (!aft_expt_states.is_empty() && !self.is_boundary(aft_expt_states)) { break }
                     let start_pos = SegPos::new(start_pos.word_index, start_pos.syll_index, 0);
                     let mut end_pos = SegPos::new(end_pos.word_index, end_pos.syll_index + 1, 0);
                     end_pos.decrement(phrase);
@@ -3568,6 +3568,20 @@ impl SubRule { // Context Matching
             }
         }
         Ok(!is_expt_match && is_cont_match)
+    }
+
+    fn is_boundary(&self, items: &[ParseItem]) -> bool {
+        if items.len() > 1 { return false }
+
+        match &items[0].kind {
+            ParseElement::WordBound | ParseElement::SyllBound | ParseElement::ExtlBound => true,
+
+            ParseElement::Set(choices) if choices.contains_only(&ParseElement::WordBound).is_some() => true,
+            ParseElement::Set(choices) if choices.contains_only(&ParseElement::SyllBound).is_some() => true,
+            ParseElement::Set(choices) if choices.contains_only(&ParseElement::ExtlBound).is_some() => true,
+
+            _ => false
+        }
     }
 
     fn context_match_structure(&self, items: &[ParseItem], stress: &Option<SpecMod>, tone: &Option<Tone>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position) -> Result<bool, RuleRuntimeError> {
