@@ -46,6 +46,7 @@ pub(crate) enum TokenKind {
     WrappedEllipsis,  // (...) or (..) or (…) or (⋯)
     Comment,          // Delimited by ';;'
     Feature(FeatureCategory),
+    Negation,         // ¬ or -
     Eol,              // End of Line 
 }
 
@@ -98,6 +99,7 @@ impl Display for TokenKind {
             TokenKind::WrappedEllipsis => write!(f, "WrappedEllipsis"),
             TokenKind::Comment         => write!(f, "Comment"),
             TokenKind::Feature(x)      => write!(f, "{x}"),
+            TokenKind::Negation        => write!(f, "Not"),
             TokenKind::Eol             => write!(f, "End of Line"),
         }
     }
@@ -364,6 +366,7 @@ impl<'a> Lexer<'a> {
                 '#' => { tokenkind = TokenKind::ExternBoundary; self.chop(2) },
                  _  => { tokenkind = TokenKind::WordBoundary;   self.chop(1) },
             },
+            '¬' => { tokenkind = TokenKind::Negation;     self.chop(1) },
             '$' => { tokenkind = TokenKind::SyllBoundary; self.chop(1) },
             '%' => { tokenkind = TokenKind::Syllable;     self.chop(1) },
             '*' => { tokenkind = TokenKind::Star;         self.chop(1) },
@@ -409,7 +412,7 @@ impl<'a> Lexer<'a> {
              },
             '-' => match self.next_char() {
                 '>' => { tokenkind = TokenKind::Arrow;    self.chop(2) },
-                 _  => return Err(RuleSyntaxError::ExpectedCharArrow(self.next_char(), self.group, self.line, self.pos))
+                 _  => { tokenkind = TokenKind::Negation; self.chop(1) },
             },
             '~' => match self.next_char() { 
                 '>' => { tokenkind = TokenKind::Reverse;  self.chop(2) },
@@ -962,7 +965,30 @@ mod lexer_tests {
 
         for i in 0..result.len() {
             assert_eq!(result[i], expected_result[i]);
+        }
+    }
 
+    #[test]
+    fn test_negation() {
+        use FeatureCategory::*;
+        use SupraKind::*;
+        let test_input= String::from("-V[-str] ->");
+        let expected_result = vec![
+            Token::new(TokenKind::Negation,              "-", 0, 0,  0,  1),
+            Token::new(TokenKind::Group,                 "V", 0, 0,  1,  2),
+            Token::new(TokenKind::LeftSquare,            "[", 0, 0,  2,  3),
+            Token::new(TokenKind::Feature(Supr(Stress)), "-", 0, 0,  3,  7),
+            Token::new(TokenKind::RightSquare,           "]", 0, 0,  7,  8),
+            Token::new(TokenKind::Arrow,                "->", 0, 0,  9, 11),
+            Token::new(TokenKind::Eol,                    "", 0, 0, 11, 12),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
         }
     }
 
