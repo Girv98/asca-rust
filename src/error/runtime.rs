@@ -10,24 +10,21 @@ use super :: { ASCAError, RuleGroup };
 
 #[derive(Debug, Clone)]
 pub enum RuleRuntimeError { 
-    BoundaryInsideUnderlineStruct(Position, Position),
-    SyllbleInsideUnderlineStruct (Position, Position),
-    SyllRefInsideUnderlineStruct (Position, Position),
-    StructInsideUnderlineStruct  (Position, Position),
-    SubstitutionSylltoMatrix     (Position, Position),
-    SubstitutionSylltoBound      (Position, Position),
-    SubstitutionWordBound        (Position, Position),
-    SubstitutionBoundtoSyll      (Position, Position),
-    SubstitutionSylltoSeg        (Position, Position),
-    SubstitutionBoundMod         (Position, Position),
-    MetathWordBoundary           (Position, Position),
-    MetathSyllBoundary           (Position, Position),
-    UnevenSet                    (Position, Position),
+    SubstitutionSylltoMatrix(Position, Position),
+    SubstitutionSylltoBound (Position, Position),
+    SubstitutionWordBound   (Position, Position),
+    SubstitutionBoundtoSyll (Position, Position),
+    SubstitutionSylltoSeg   (Position, Position),
+    SubstitutionBoundMod    (Position, Position),
+    MetathWordBoundary      (Position, Position),
+    MetathSyllBoundary      (Position, Position),
+    UnevenSet               (Position, Position),
     GroupSuprIsInverted(&'static str, Position),
     GroupSuprIsBinary  (&'static str, Position),
     NodeCannotBeSome(String, Position),
     NodeCannotBeNone(String, Position),
     NodeCannotBeSet (String, Position),
+    StructInsideUnderlineStruct (Position),
     WordBoundSetLocError(Position),
     SubstitutionEllipsis(Position),
     BoundaryInsideStruct(Position),
@@ -69,9 +66,6 @@ impl From<RuleRuntimeError> for ASCAError {
 impl fmt::Display for RuleRuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::BoundaryInsideUnderlineStruct(..) => write!(f, "A boundary cannot be used inside a structure"),
-            Self::SyllbleInsideUnderlineStruct (..) => write!(f, "A syllable cannot be used inside a structure"),
-            Self::SyllRefInsideUnderlineStruct (..) => write!(f, "A reference assigned to a syllable cannot be used inside a structure"),
             Self::StructInsideUnderlineStruct  (..) => write!(f, "A structure cannot be used inside a structure"),
             Self::SubstitutionSylltoMatrix(..) => write!(f, "Syllables and boundaries cannot be substituted by a segment"),
             Self::SubstitutionSylltoBound (..) => write!(f, "Syllables cannot be substituted by a boundary"),
@@ -149,43 +143,40 @@ impl RuleRuntimeError {
                 pos.group,
                 pos.line
             ),
-            Self::WordBoundSetLocError  (pos) |
-            Self::SubstitutionEllipsis  (pos) |
-            Self::BoundaryInsideStruct  (pos) |
-            Self::SyllRefInsideStruct   (pos) |
-            Self::SyllbleInsideStruct   (pos) |
-            Self::AlphaIsNotSuprGroup   (pos) |
-            Self::StructInsideStruct    (pos) |
-            Self::InsertionGroupedEnv   (pos) |
-            Self::AlphaNodeAssignInv    (pos) |
-            Self::OverlongPosLongNeg    (pos) |
-            Self::AlphaIsNotSameNode    (pos) |
-            Self::SubstitutionMatrix    (pos) |
-            Self::InsertionEllipsis     (pos) |
-            Self::SubstitutionSyll      (pos) |
-            Self::SubstitutionSet       (pos) |
-            Self::SubstitutionOpt       (pos) |
-            Self::SecStrPosStrNeg       (pos) |
-            Self::AlphaUnknownInv       (pos) |
-            Self::InsertionMatrix       (pos) |
-            Self::AlphaIsNotNode        (pos) |
-            Self::InsertionSet          (pos) |
-            Self::InsertionOpt          (pos) |
-            Self::AlphaUnknown          (pos) |
-            Self::LonelySet             (pos) | 
-            Self::GroupSuprIsInverted(_, pos) |
-            Self::GroupSuprIsBinary  (_, pos) |
-            Self::NodeCannotBeSome   (_, pos) |
-            Self::NodeCannotBeNone   (_, pos) |
-            Self::NodeCannotBeSet    (_, pos) => (
+            Self::StructInsideUnderlineStruct(pos) | 
+            Self::WordBoundSetLocError       (pos) |
+            Self::SubstitutionEllipsis       (pos) |
+            Self::BoundaryInsideStruct       (pos) |
+            Self::SyllRefInsideStruct        (pos) |
+            Self::SyllbleInsideStruct        (pos) |
+            Self::AlphaIsNotSuprGroup        (pos) |
+            Self::StructInsideStruct         (pos) |
+            Self::InsertionGroupedEnv        (pos) |
+            Self::AlphaNodeAssignInv         (pos) |
+            Self::OverlongPosLongNeg         (pos) |
+            Self::AlphaIsNotSameNode         (pos) |
+            Self::SubstitutionMatrix         (pos) |
+            Self::InsertionEllipsis          (pos) |
+            Self::SubstitutionSyll           (pos) |
+            Self::SubstitutionSet            (pos) |
+            Self::SubstitutionOpt            (pos) |
+            Self::SecStrPosStrNeg            (pos) |
+            Self::AlphaUnknownInv            (pos) |
+            Self::InsertionMatrix            (pos) |
+            Self::AlphaIsNotNode             (pos) |
+            Self::InsertionSet               (pos) |
+            Self::InsertionOpt               (pos) |
+            Self::AlphaUnknown               (pos) |
+            Self::LonelySet                  (pos) | 
+            Self::GroupSuprIsInverted     (_, pos) |
+            Self::GroupSuprIsBinary       (_, pos) |
+            Self::NodeCannotBeSome        (_, pos) |
+            Self::NodeCannotBeNone        (_, pos) |
+            Self::NodeCannotBeSet         (_, pos) => (
                 " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start),
                 pos.group,
                 pos.line
             ),
-            Self::BoundaryInsideUnderlineStruct(a, b) | 
-            Self::SyllbleInsideUnderlineStruct (a, b) | 
-            Self::SyllRefInsideUnderlineStruct (a, b) | 
-            Self::StructInsideUnderlineStruct  (a, b) | 
             Self::SubstitutionSylltoMatrix     (a, b) |
             Self::SubstitutionSylltoBound      (a, b) |
             Self::SubstitutionSylltoSeg        (a, b) |

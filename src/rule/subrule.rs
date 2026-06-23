@@ -3432,17 +3432,11 @@ impl SubRule { // Context Matching
         for (i, m) in matches.iter().enumerate() {
             match m {
                 &MatchElement::Syllable (.., err_pos) => {
-                    if let Some(input_item) = self.input.get(i) {
-                        return Err(RuleRuntimeError::SyllbleInsideUnderlineStruct(input_item.position, err_pos))
-                    } else {
-                        return Err(RuleRuntimeError::SyllbleInsideStruct(err_pos))
-                    }
+                    return Err(RuleRuntimeError::BoundaryInsideStruct(err_pos))
                 }
                 
                 &MatchElement::SyllBound(.., err_pos) | &MatchElement::WordBound(.., err_pos) => {
-                    if let Some(input_item) = self.input.get(i) {
-                        return Err(RuleRuntimeError::BoundaryInsideUnderlineStruct(input_item.position, err_pos))
-                    } else {
+                    if i != 0 && matches.len() != i + 1  {
                         return Err(RuleRuntimeError::BoundaryInsideStruct(err_pos))
                     }
                 }
