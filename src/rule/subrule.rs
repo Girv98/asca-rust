@@ -1678,7 +1678,7 @@ impl SubRule {
                 ParseElement::Matrix(..)   => return Err(if is_inserting {RuleRuntimeError::InsertionMatrix(item.position)} else {RuleRuntimeError::SubstitutionMatrix(item.position)}),
                 ParseElement::Optional(..) => return Err(if is_inserting {RuleRuntimeError::InsertionOpt(item.position)} else {RuleRuntimeError::SubstitutionOpt(item.position)}),
                 ParseElement::Set(_)       => return Err(if is_inserting {RuleRuntimeError::InsertionSet(item.position)} else {RuleRuntimeError::SubstitutionSet(item.position)}),
-                ParseElement::Negation(_)  => return Err(RuleRuntimeError::BadNegationOutput({let mut x = item.position; x.start-=1; x.end-=1;  x})),
+                ParseElement::Negation(_)  => return Err(RuleRuntimeError::BadNegationOutput(item.position)),
                 &ParseElement::Ipa(mut segment, ref modifiers) => {
                     let mut len = 1;
                     if let Some(mods) = modifiers {
@@ -3774,7 +3774,9 @@ impl SubRule { // Context Matching
                         return Ok(true)
                     } else {m = false; break; },
                     
-                    ParseElement::Negation(item) => todo!(),
+                    ParseElement::Negation(item) => if !self.context_match(&[*item.clone()], &mut 0, phrase, pos, forwards, false, Some(syll_index), true)? {
+                        m = false; break;
+                    },
 
                     ParseElement::SyllBound | ParseElement::WordBound | ParseElement::ExtlBound => unreachable!(),
 
@@ -4062,7 +4064,7 @@ impl SubRule { // Context Matching
                     Ok(true)
                 } else { Ok(false) },
                 RefKind::Syllable(_) if within_struct.is_some() => Err(RuleRuntimeError::SyllRefInsideStruct(refr.position)),
-                RefKind::Syllable(_) if negate => todo!("Err"),
+                RefKind::Syllable(_) if negate => todo!("Err?"),
                 RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos),
             }            
         } else {
@@ -4430,7 +4432,9 @@ impl SubRule { // Input Matching
                     return Ok(false) 
                 },
 
-                ParseElement::Negation(item) => todo!(),
+                ParseElement::Negation(item) => if !self.context_match(&[*item.clone()], &mut 0, phrase, pos, true, false, Some(cur_syll_index), true)? {
+                    return Ok(false)
+                },
 
                 ParseElement::WordBound  | ParseElement::SyllBound | ParseElement::EmptySet | 
                 ParseElement::Metathesis | ParseElement::ExtlBound | ParseElement::MetaOrdered | 
@@ -4571,7 +4575,7 @@ impl SubRule { // Input Matching
                 ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(item.position)),
                 ParseElement::Structure(items, stress, tone, refr) => self.input_match_structure(&mut caps, state_index, items, stress, tone, refr, phrase, pos, item.position),
                 
-                ParseElement::Negation(item) => todo!(),
+                ParseElement::Negation(item) => self.input_match_item(&mut caps, pos, state_index, phrase, &[*item.clone()], true),
 
                 ParseElement::Optional(..) | ParseElement::EmptySet | ParseElement::ExtlBound | ParseElement::OptEllipsis | 
                 ParseElement::MetaOrdered  | ParseElement::Ellipsis | ParseElement::Set(..)   | ParseElement::Metathesis  => unreachable!(),
@@ -4903,9 +4907,9 @@ impl SubRule { // Insertion
                 },
                 ParseElement::Ellipsis | ParseElement::OptEllipsis => {/* Do Nothing */},
 
+                ParseElement::Negation(..) => return Err(RuleRuntimeError::BadNegationOutput(state.position)),
                 ParseElement::Matrix(..) => return Err(RuleRuntimeError::InsertionMatrix(state.position)),
                 ParseElement::Set(..) => return Err(RuleRuntimeError::LonelySet(state.position)),
-                ParseElement::Negation(..) => todo!("Error"),
 
                 ParseElement::WordBound  | ParseElement::EmptySet  | ParseElement::Optional(..) |
                 ParseElement::Metathesis | ParseElement::MetaOrdered | ParseElement::ExtlBound => unreachable!(),
