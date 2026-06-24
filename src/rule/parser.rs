@@ -1145,11 +1145,12 @@ impl Parser {
         while self.has_more_tokens() 
           && !self.peek_expect(TokenKind::RightCurly) 
           && !self.peek_expect(TokenKind::Comma) {
-            if let Some(x) = self.get_ref()?    { items.push(x); continue; }
-            if let Some(x) = self.get_seg()?    { items.push(x); continue; }
-            if let Some(x) = self.get_bound()   { items.push(x); continue; }
-            if let Some(x) = self.get_syll()?   { items.push(x); continue; }
-            if let Some(x) = self.get_struct()? { items.push(x); continue; }
+            if let Some(x) = self.get_ref()?      { items.push(x); continue; }
+            if let Some(x) = self.get_seg()?      { items.push(x); continue; }
+            if let Some(x) = self.get_bound()     { items.push(x); continue; }
+            if let Some(x) = self.get_syll()?     { items.push(x); continue; }
+            if let Some(x) = self.get_struct()?   { items.push(x); continue; }
+            if let Some(x) = self.get_neg_term()? { items.push(x); continue; }
 
             return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
         }
@@ -1246,13 +1247,17 @@ impl Parser {
         if let Some(item) = self.get_seg()? { 
             Ok(Some(item))
         }
+        // -V -C -[]
+        else if let Some(item) = self.get_neg_term()? {
+            Ok(Some(item))
+        }
         // (...)
-        else if let Some(el) = self.eat_expect(TokenKind::WrappedEllipsis) {
-            Ok(Some(ParseItem::new(ParseElement::OptEllipsis, el.position)))
+        else if let Some(tkn) = self.eat_expect(TokenKind::WrappedEllipsis) {
+            Ok(Some(ParseItem::new(ParseElement::OptEllipsis, tkn.position)))
         }
         // ...
-        else if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
-            Ok(Some(ParseItem::new(ParseElement::Ellipsis, el.position)))
+        else if let Some(tkn) = self.eat_expect(TokenKind::Ellipsis) {
+            Ok(Some(ParseItem::new(ParseElement::Ellipsis, tkn.position)))
         }
         // 1 2 3
         else if let Some(item) = self.get_ref()? {
