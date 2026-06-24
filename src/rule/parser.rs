@@ -286,6 +286,7 @@ pub(crate) enum ParseElement {
     Structure(Vec<ParseItem>, StressMod, Option<Tone>, RefAssign),
     Optional (Vec<ParseItem>, OptMin, OptMax),
     Reference(Reference, Option<Modifiers>),
+    Negation (Box<ParseItem>)
 }
 
 impl ParseElement {
@@ -307,8 +308,9 @@ impl ParseElement {
             Self::Optional(items, ..) | Self::Structure(items, ..) => {
                 items.reverse();
                 for i in items { i.reverse(); }
-            },
-            Self::Set(set) => { set.reverse(); }
+            }
+            Self::Set(set) => set.reverse(),
+            Self::Negation(item) => item.reverse(),
         }
     }
 }
@@ -377,6 +379,10 @@ impl fmt::Display for ParseElement {
                 }
                 write!(f, " {min}:{max})")
             },
+            Self::Negation(item) => {
+                write!(f, "¬")?;
+                write!(f, "{}", **item)
+            }
         }
     }
 }
@@ -552,6 +558,10 @@ impl Parser {
             }
             if let Some(x) = self.get_opt()? {
                 // NOTE: This must go above self.get_term() as that func returns an error for options
+                els.push(x);
+                continue;
+            }
+            if let Some(x) = self.get_neg_term()? {
                 els.push(x);
                 continue;
             }
@@ -1375,6 +1385,24 @@ impl Parser {
         Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
     }
 
+    fn get_neg_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
+        if !self.expect(TokenKind::Negation) { return Ok(None) }
+
+        if let Some(x) = self.get_seg()?    { 
+            let pos = x.position;
+            let y = ParseItem::new(ParseElement::Negation(Box::new(x)), pos);
+            return Ok(Some(y))
+        }
+
+        if let Some(x) = self.get_ref()?    { 
+            let pos = x.position;
+            let y = ParseItem::new(ParseElement::Negation(Box::new(x)), pos);
+            return Ok(Some(y))
+        }
+
+        Ok(None)
+    }
+
     fn get_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // Term ← Syll / Struct / Set / Segment / Reference
         if let Some(x) = self.get_syll()?   { return Ok(Some(x)) }
@@ -1400,6 +1428,8 @@ impl Parser {
                 self.contains_external_in_input = true;
             } else if let Some(s_bound) = self.get_syll_bound() {
                 els.push(s_bound);
+            } else if let Some(trm) = self.get_neg_term()? {
+                els.push(trm)
             } else if let Some(trm) = self.get_term()? {
                 els.push(trm)
             } else if let Some(w_bound) = self.get_word_bound() {
@@ -1427,6 +1457,11 @@ impl Parser {
         if let Some(el) = self.eat_expect(TokenKind::Ellipsis) {
                 return Ok(Some(ParseItem::new(ParseElement::Ellipsis, el.position)))
         }
+
+        if let Some(el) = self.eat_expect(TokenKind::Negation) {
+            return Err(RuleSyntaxError::BadNegationOutput(el))
+        }
+
         Ok(None)
     }
 

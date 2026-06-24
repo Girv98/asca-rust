@@ -2248,6 +2248,22 @@ mod rule_tests {
     }
 
     #[test]
+    fn negation() {
+        assert!(run("-C > [+hi]", "fa.na", "faʲ.naʲ"));
+        assert!(run("[] > [+hi] / ¬V_", "fa.na", "faʲ.naʲ"));
+        assert!(run("[] > [+hi] / _¬C", "fa.na", "fʲa.nʲa"));
+
+
+        assert!(run("V=1 > [+hi] / _C-1", "fa.na", "fa.na"));
+        assert!(run("V=1 > [+hi] / _C-1", "fa.ne", "faʲ.ne"));
+
+        // assert!(run("%=1 > [+str] / _-1", "fa.ne", "ˈfa.ne"));
+        
+        
+        // assert!(run("C > -V", "fa.ne", "Error"));
+    }
+
+    #[test]
     fn test_haplology() {
         let test_rule = "%=1 > * / 1_";
         assert!(run(test_rule, "hap.lo.lo.ɡi", "hap.lo.ɡi"));

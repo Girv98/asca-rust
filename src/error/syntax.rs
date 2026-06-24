@@ -104,6 +104,7 @@ pub enum RuleSyntaxError {
     ExpectedRightBracket(Token),
     ExpectedStructElem  (Token),
     StructCannotBeRefd  (Token),
+    BadNegationOutput   (Token),
     TooManyUnderlines   (Token),
     BadSyllableMatrix   (Token),
     ExpectedUnderline   (Token),
@@ -172,6 +173,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::ExpectedRightBracket(token) => write!(f, "Expected ')', but received '{}'", token.value),
             Self::ExpectedStructElem  (token) => write!(f, "Expected a Segment, Set, Option, or Ellipsis, but received '{}'", token.value),
             Self::StructCannotBeRefd  (_)     => write!(f, "Structs with an underline cannot be assigned to a reference"),
+            Self::BadNegationOutput   (_)     => write!(f, "Negation cannot be used in the output"),
             Self::TooManyUnderlines   (_)     => write!(f, "Cannot have multiple underlines in an environment"),
             Self::BadSyllableMatrix   (_)     => write!(f, "A syllable can only have parameters stress and tone"),
             Self::ExpectedUnderline   (token) => write!(f, "Expected '_', but received '{}'", token.value),
@@ -235,6 +237,7 @@ impl RuleSyntaxError {
             Self::ExpectedRightBracket(t) |
             Self::ExpectedStructElem  (t) | 
             Self::StructCannotBeRefd  (t) | 
+            Self::BadNegationOutput   (t) | 
             Self::TooManyUnderlines   (t) | 
             Self::ExpectedUnderline   (t) | 
             Self::ExpectedReference   (t) | 
