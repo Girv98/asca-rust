@@ -2245,6 +2245,10 @@ mod rule_tests {
         assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_(..)>", "me.daˈra.ni",    "meˈdra.ni"));
         assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_(..)>", "kaˈra.sa",       "kaˈra.sa"));
         assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_(..)>", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
+
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_>", "me.daˈra.ni",    "meˈdra.ni"));
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_>", "kaˈra.sa",       "kaˈra.sa"));
+        assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_>", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
     }
 
     #[test]
@@ -2261,6 +2265,36 @@ mod rule_tests {
         
         
         // assert!(run("C > -V", "fa.ne", "Error"));
+    }
+
+    #[test]
+    fn negation_struct_item() {
+        assert!(run("V > [+str] / <-V_>",   "fa.ne", "ˈfaˈne"));
+        assert!(run("V > [+str] / _<-V-C>", "fa.ne", "ˈfa.ne"));
+
+        assert!(run("V > [+str] / _<..-C>", "fa.ne", "ˈfa.ne"));
+    }
+
+    #[test]
+    fn negation_output() {
+        // assert!(run("C > -V", "fa.ne", "Error"));
+        assert!(run("% > <-V-C>", "fa.ne", "Error"));
+    }
+
+    #[test]
+    fn negation_set() {
+        assert!(run("{-C, -V} > [+hi] / <-V_>",   "fa.ne.tn", "faʲ.ni.tnʲ"));
+    }
+
+    #[test]
+    fn negation_opt() {
+        assert!(run("[] > [+hi] / (-V, 1:)_",   "fa.ne", "faʲ.ni"));
+    }
+
+    #[test]
+    fn negation_struct() {
+        assert!(run("<-V-C> > [+str] ", "fa.ne.tn", "ˈfaˈne.tn"));
+        assert!(run("<-V-C> > [+str] ", "fa.tn.ne", "ˈfa.tnˈne"));
     }
 
     #[test]
