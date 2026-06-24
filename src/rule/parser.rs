@@ -1098,12 +1098,13 @@ impl Parser {
         let mut second_bound: usize = 0;
         while self.has_more_tokens() {
             if self.peek_expect(TokenKind::RightBracket) { break; }
-            if let Some(x) = self.get_x_bound() { segs.push(x); continue; }
-            if let Some(x) = self.get_bound()   { segs.push(x); continue; }
-            if let Some(x) = self.get_syll()?   { segs.push(x); continue; }
-            if let Some(x) = self.get_set()?    { segs.push(x); continue; }
-            if let Some(x) = self.get_seg()?    { segs.push(x); continue; }
-            if let Some(x) = self.get_ref()?    { segs.push(x); continue; }
+            if let Some(x) = self.get_x_bound()   { segs.push(x); continue; }
+            if let Some(x) = self.get_bound()     { segs.push(x); continue; }
+            if let Some(x) = self.get_syll()?     { segs.push(x); continue; }
+            if let Some(x) = self.get_set()?      { segs.push(x); continue; }
+            if let Some(x) = self.get_seg()?      { segs.push(x); continue; }
+            if let Some(x) = self.get_ref()?      { segs.push(x); continue; }
+            if let Some(x) = self.get_neg_term()? { segs.push(x); continue; }
             if self.peek_expect(TokenKind::Comma) { break; }
 
             return Err(RuleSyntaxError::ExpectedSegment(self.curr_tkn.clone()))
@@ -1394,13 +1395,15 @@ impl Parser {
         if !self.expect(TokenKind::Negation) { return Ok(None) }
 
         if let Some(x) = self.get_seg()?    { 
-            let pos = x.position;
+            let mut pos = x.position;
+            pos.start -= 1;
             let y = ParseItem::new(ParseElement::Negation(Box::new(x)), pos);
             return Ok(Some(y))
         }
-
+        
         if let Some(x) = self.get_ref()?    { 
-            let pos = x.position;
+            let mut pos = x.position;
+            pos.start -= 1;
             let y = ParseItem::new(ParseElement::Negation(Box::new(x)), pos);
             return Ok(Some(y))
         }

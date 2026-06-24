@@ -37,6 +37,7 @@ pub enum RuleRuntimeError {
     OverlongPosLongNeg  (Position),
     AlphaIsNotSameNode  (Position),
     SubstitutionMatrix  (Position),
+    BadNegationOutput   (Position),
     InsertionEllipsis   (Position),
     SubstitutionSyll    (Position),
     SubstitutionSet     (Position),
@@ -94,6 +95,7 @@ impl fmt::Display for RuleRuntimeError {
             Self::OverlongPosLongNeg  (_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
             Self::AlphaIsNotSameNode  (_) => write!(f, "Node alphas must only be used on the same node."),
             Self::SubstitutionMatrix  (_) => write!(f, "A matrix cannot be used inside a structure when substituting"),
+            Self::BadNegationOutput   (_) => write!(f, "Negation cannot be used in the output"),
             Self::InsertionEllipsis   (_) => write!(f, "An ellipsis cannot be inserted"),
             Self::SubstitutionSyll    (_) => write!(f, "Blank syllables cannot be used in substitution output."),
             Self::SubstitutionSet     (_) => write!(f, "Sets cannot be used in structures the in output"),
@@ -156,6 +158,7 @@ impl RuleRuntimeError {
             Self::OverlongPosLongNeg         (pos) |
             Self::AlphaIsNotSameNode         (pos) |
             Self::SubstitutionMatrix         (pos) |
+            Self::BadNegationOutput          (pos) |
             Self::InsertionEllipsis          (pos) |
             Self::SubstitutionSyll           (pos) |
             Self::SubstitutionSet            (pos) |
