@@ -5,7 +5,7 @@
     - [ ] Syllable boundary insertion
 - Cli
     - [ ] Better rule file `.rsca` syntax
-- Web:
+        - [ ] Rule toggling in rule files with `!`
     - Reverse rule tracing
         - i.e. see which words have been effected by a give rule, rather than which rules have been applied to a given word
 - Internal Changes:
