@@ -144,8 +144,9 @@ pub enum RuleSyntaxError {
     DiacriticDoesNotMeetPreReqsNode(Position, Position, NodeString, IsPlus),
     UnexpectedDiacritic(Position, Position),
     SupraConflict      (Position, Position),
-    SetSyllWrongMods   (Position, Position, &'static str),
     SetSyllBoundMods   (Position, Position),
+    SetSyllWrongMods   (Position, Position, &'static str),
+    BadNegation        (Position, Position),
     UnbalancedRuleEnv(Vec<EnvItem>),
     UnbalancedRuleIO (Vec<Vec<ParseItem>>),
     UnexpectedEol(Token, char),
@@ -216,6 +217,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only be used to modify IPA Segments"),
             Self::SupraConflict      (..) => write!(f, "Cannot use conflicting suprasegmental types in the same matrix"),
             Self::SetSyllBoundMods   (..) => write!(f, "Boundaries cannot be modified by a matrix"),
+            Self::BadNegation        (..) => write!(f, "Only a segment, matrix, group, or reference can be negated"),
             Self::SetSyllWrongMods   (.., feat) => write!(f, "Syllables cannot be modified with '{feat}'"),
             Self::UnbalancedRuleEnv(_) => write!(f, "Environment has too few elements"),
             Self::UnbalancedRuleIO (_) => write!(f, "Input or Output has too few elements"),
@@ -331,6 +333,7 @@ impl RuleSyntaxError {
             Self::UnexpectedDiacritic(x_pos, y_pos) | 
             Self::SetSyllBoundMods   (x_pos, y_pos) | 
             Self::SetSyllWrongMods   (x_pos, y_pos, ..) | 
+            Self::BadNegation        (x_pos, y_pos) | 
             Self::DiacriticDoesNotMeetPreReqsFeat(x_pos, y_pos, ..) | 
             Self::DiacriticDoesNotMeetPreReqsNode(x_pos, y_pos, ..) => (
                 " ".repeat(x_pos.start) 

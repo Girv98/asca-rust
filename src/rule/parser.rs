@@ -1392,7 +1392,7 @@ impl Parser {
     }
 
     fn get_neg_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
-        if !self.expect(TokenKind::Negation) { return Ok(None) }
+        let Some(neg) = self.eat_expect(TokenKind::Negation) else { return Ok(None) };
 
         if let Some(x) = self.get_seg()?    { 
             let mut pos = x.position;
@@ -1408,7 +1408,7 @@ impl Parser {
             return Ok(Some(y))
         }
 
-        Ok(None)
+        Err(RuleSyntaxError::BadNegation(neg.position, self.curr_tkn.position))
     }
 
     fn get_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
