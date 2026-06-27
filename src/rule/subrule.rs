@@ -4065,16 +4065,14 @@ impl SubRule { // Context Matching
                     Ok(true)
                 } else { Ok(false) },
                 RefKind::Syllable(_) if within_struct.is_some() => Err(RuleRuntimeError::SyllRefInsideStruct(refr.position)),
-                // TODO: This will match when there is no syllable
-                RefKind::Syllable(s) if negate => Ok(!self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos)?),
-                RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos),
+                RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos, negate),
             }            
         } else {
             Err(RuleRuntimeError::UnknownReference(*refr))
         }
     }
 
-    fn context_match_syll_ref(&self, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+    fn context_match_syll_ref(&self, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, forwards: bool, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {
         if !pos.at_syll_start()  {
             return Ok(false)
         }
@@ -4091,16 +4089,16 @@ impl SubRule { // Context Matching
         };
         
         if let Some(Modifiers { nodes: _, feats: _, suprs }) = mods {
-            if !self.match_stress(&suprs.stress, cur_syll, err_pos)? {
+            if !self.match_stress(&suprs.stress, cur_syll, err_pos)? && !negate {
                 return Ok(false)
             }
-            if let Some(t) = suprs.tone.as_ref() && !self.match_tone(t, cur_syll) {
+            if let Some(t) = suprs.tone.as_ref() && !self.match_tone(t, cur_syll) && !negate {
                 return Ok(false)
             }
-            if cur_syll.segments != syll_to_match.segments {
+            if cur_syll.segments != syll_to_match.segments && !negate {
                 return Ok(false)
             }
-        } else if cur_syll.segments != segs_to_match || cur_syll.stress != syll_to_match.stress || cur_syll.tone != syll_to_match.tone {
+        } else if (cur_syll.segments != segs_to_match || cur_syll.stress != syll_to_match.stress || cur_syll.tone != syll_to_match.tone) && !negate {
             return Ok(false)
         }
         pos.syll_index += 1;
@@ -4149,7 +4147,6 @@ impl SubRule { // Context Matching
     fn context_match_matrix(&self, mods: &Modifiers, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {        
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         
-        // TODO: Will have to deal with Alphas
         let mod_match = self.match_modifiers(mods, phrase, pos, err_pos)?;
         if (!negate && mod_match) || (negate && !mod_match) {
             if let Some(r) = refr {

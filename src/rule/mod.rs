@@ -268,6 +268,8 @@ mod rule_tests {
     fn run(test_rule: &str, test_input: &str, expt_output: &str) -> bool {
         let rule = setup_rule(test_rule);
         let phrase = setup_phrase(test_input);
+        let expt_output = setup_output(expt_output);
+
 
         match rule.apply(phrase) {
             Ok(out) => if out.render() == expt_output { true } else {
@@ -283,6 +285,20 @@ mod rule_tests {
                 false
             },
         }
+    }
+
+    fn setup_output(out_str: &str) -> String {
+        let mut s = String::with_capacity(out_str.len());
+
+        for ch in out_str.chars() {
+            match ch {
+                ':' => s.push('ː'),
+                '\'' => s.push('ˈ'),
+                ch => s.push(ch),
+            }
+        }
+
+        s
     }
 
     fn setup_rule(test_str: &str) -> Rule {
@@ -2261,12 +2277,20 @@ mod rule_tests {
         assert!(run("V=1 > [+hi] / _C-1", "fa.na", "fa.na"));
         assert!(run("V=1 > [+hi] / _C-1", "fa.ne", "faʲ.ne"));
 
-        assert!(run("%=1 > [+str] / _-1", "fa.ne", "ˈfaˈne"));
+        assert!(run("%=1 > [+str] / _-1", "fa.ne", "ˈfa.ne"));
 
         
-        assert!(run("V=1 -1 > [+hi] [+hi] "  , "fa.e", "faʲ.i"));
-        assert!(run("%=1 -1 > [+str] [+str] ", "fa.na", "ˈfaˈna"));
-        assert!(run("%=1 -1 > [+str] [+str] ", "fa.fa", "fa.fa"));
+        assert!(run("V=1 -1 > [+hi] [+hi] " , "fa.e", "faʲ.i"));
+        assert!(run("%=1 -1 > [+str] [+str]", "fa.na", "ˈfaˈna"));
+        assert!(run("%=1 -1 > [+str] [+str]", "fa.fa", "fa.fa"));
+        
+        assert!(run("<(..)-G> > [+str]", "saj.nam", "sajˈnam"));
+        assert!(run("V > [+str] / <(..)_-G>", "saj.nam", "sajˈnam"));
+        
+        assert!(run("V > [+long] / <(..)_-G>", "saj.nam", "saj.na:m"));
+
+        assert!(run("%=1 > [tone: 1] / -1 _", "ta5.sa5", "ta5.sa1"));
+
     }
 
     #[test]
