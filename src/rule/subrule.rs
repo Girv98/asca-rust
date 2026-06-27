@@ -2215,6 +2215,7 @@ impl SubRule {
 
     fn matrix_increment(&self, phrase: &Phrase, pos: &mut SegPos) {
         // the way we implement `long` vowels means we need to do this
+        if !phrase.in_bounds(*pos) { return }
         let seg_length = phrase.seg_length_at(*pos);
         for _ in 1..seg_length {
             pos.increment(phrase);
@@ -4064,6 +4065,7 @@ impl SubRule { // Context Matching
                     Ok(true)
                 } else { Ok(false) },
                 RefKind::Syllable(_) if within_struct.is_some() => Err(RuleRuntimeError::SyllRefInsideStruct(refr.position)),
+                // TODO: This will match when there is no syllable
                 RefKind::Syllable(s) if negate => Ok(!self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos)?),
                 RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos),
             }            
@@ -4137,7 +4139,6 @@ impl SubRule { // Context Matching
     fn context_match_ipa(&self, s: &Segment, mods: &Option<Modifiers>, phrase: &Phrase, pos: SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {
         let Some(seg) = phrase.get_seg_at(pos) else { return Ok(false) };
         if let Some(m) = mods {
-            // TODO: Will have to deal with Alphas
             let mod_match = self.match_ipa_with_modifiers(s, m, phrase, &pos, err_pos)?;
             Ok((!negate && mod_match) || (negate && !mod_match))
         } else {
@@ -4671,7 +4672,7 @@ impl SubRule { // Input Matching
         }
     }
 
-    fn input_match_syll_ref(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+    fn input_match_syll_ref(&self, captures: &mut Vec<MatchElement>, state_index: &mut usize, syll_to_match: &Syllable, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {
         if pos.seg_index != 0 || phrase[pos.word_index].out_of_bounds(*pos) {
             return Ok(false)
         }
@@ -4680,16 +4681,17 @@ impl SubRule { // Input Matching
         let cur_syll = &phrase[cwi].syllables[csi];
 
         if let Some(m) = mods {
-            if !self.match_stress(&m.suprs.stress, cur_syll, err_pos)? {
-                return Ok(false)
+            if !self.match_stress(&m.suprs.stress, cur_syll, err_pos)? && !negate {
+                return Ok(false) 
             } 
-            if let Some(t) = &m.suprs.tone.as_ref() && !self.match_tone(t, cur_syll) {
+            if let Some(t) = &m.suprs.tone.as_ref() && !self.match_tone(t, cur_syll) && !negate {
+                return Ok(false) 
+            }
+            if cur_syll.segments != syll_to_match.segments && !negate {
                 return Ok(false)
             }
-            if cur_syll.segments != syll_to_match.segments {
-                return Ok(false)
-            }
-        } else if *cur_syll != *syll_to_match {
+            
+        } else if (!negate && *cur_syll != *syll_to_match) || (negate && *cur_syll == *syll_to_match) {
             return Ok(false)
         }
         captures.push(MatchElement::Syllable(cwi, csi, err_pos));
@@ -4709,7 +4711,7 @@ impl SubRule { // Input Matching
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                RefKind::Syllable(s) => self.input_match_syll_ref(captures, state_index , s, mods, phrase, pos, err_pos),
+                RefKind::Syllable(s) => self.input_match_syll_ref(captures, state_index , s, mods, phrase, pos, err_pos, negate),
             },
             None => Err(RuleRuntimeError::UnknownReference(*refr)),
         }

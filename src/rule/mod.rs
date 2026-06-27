@@ -2261,10 +2261,20 @@ mod rule_tests {
         assert!(run("V=1 > [+hi] / _C-1", "fa.na", "fa.na"));
         assert!(run("V=1 > [+hi] / _C-1", "fa.ne", "faʲ.ne"));
 
-        // assert!(run("%=1 > [+str] / _-1", "fa.ne", "ˈfa.ne"));
+        assert!(run("%=1 > [+str] / _-1", "fa.ne", "ˈfaˈne"));
+
         
+        assert!(run("V=1 -1 > [+hi] [+hi] "  , "fa.e", "faʲ.i"));
+        assert!(run("%=1 -1 > [+str] [+str] ", "fa.na", "ˈfaˈna"));
+        assert!(run("%=1 -1 > [+str] [+str] ", "fa.fa", "fa.fa"));
+    }
+
+    #[test]
+    fn negation_ipa() {
+        assert!(run("V > [+hi] / _C-a",   "fa.ne", "faʲ.ne"));
         
-        // assert!(run("C > -V", "fa.ne", "Error"));
+        assert!(run("V > [+hi] / -aC_",   "fa.ne", "fa.ne"));
+        assert!(run("V ~ [+hi] / -aC_",   "fa.ne", "fa.ne"));
     }
 
     #[test]
