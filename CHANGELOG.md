@@ -1,3 +1,21 @@
+0.10.1
+==================
+[0.10.0...0.10.1](https://github.com/Girv98/asca-rust/compare/0.10.0...0.10.1)
+
+Features:
+* Lib:
+    * Segments, matrices, groups, and references can be negated in input and environment
+        * e.g. `<(..)-G> > [+str] ;; a syllable that doesn't end in a glide is stressed`
+            * `saj.nam => saj'nam`
+    * Boundaries can be used at the periphery of structures
+        * Allows for boundary manipulation with all the benefits of underline structures
+        * e.g. `V:[-str] $ > * / _S:[+str] | #<(..)_>`
+            * `me.da'ra.ni => me'dra.ni` 
+            * `ka'ra.sa    => ka'ra.sa` 
+
+Fixes:
+ * Lib: Options at the beginning or end of a structure properly check if they fill a syllable
+
 0.10.0
 ==================
 [0.9.3...0.10.0](https://github.com/Girv98/asca-rust/compare/0.9.3...0.10.0)

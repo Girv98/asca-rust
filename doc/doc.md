@@ -37,6 +37,7 @@ This is documentation regarding the core principles of defining words and sound 
         * [Environment Sets](#environment-sets)
         * [Optionals](#optionals)
         * [References](#references)
+        * [Segment Negation](#negation)
         * [Ellipses](#ellipses)
         * [Syllable Structure Matching](#syllable-structure-matching)
             * [Underline Structures](#underline-structures)
@@ -760,6 +761,9 @@ V > [+str] / _{C,G}%#       ;; A penult syll ending with a consonant or glide be
 V > [+str] / _{C,G}%# (becomes) C > [+str] / _%#
 ;; therefore
 V:[+long], {C,G} > [+str] / _%# ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed
+
+;; With negation
+V:[+long], -V > [+str] / _%#    ;; A penult syll ending with either a long vowel or a consonant/glide becomes stressed
 ```
 
 ```wasm
@@ -922,7 +926,7 @@ N -> Nasals                                         (equiv. to [+cons, -syll, +s
 G -> Glides                                         (equiv. to [-cons, -syll, +son])
 V -> Vowels                                         (equiv. to [-cons, +syll, +son])
 ```
-Note that glides are considered `[-cons]` and are therefore not captured by `C`
+Note that glides are considered `[-cons]` and are therefore not captured by `C`. `[-syll]`, `{C,G}` or `-V` can be used to capture both consonants and glides, see [here](#negation) for the latter.
 
 ### Sets
 Sets are defined between curly brackets `{}` and can contain IPA, Groups, Matrices, Syllables, References, Structures, and Boundaries (a set in the input or output
@@ -1039,7 +1043,7 @@ References allow us to invoke the value of a previously matched element. Referen
 Currently; matrices, groups, and syllables can be referenced.
 
 Using references, we can implement metathesis without need of the `&` operator:
-```
+```wasm
 Old English R metathesis
 
 [+rho]=1 V=2 > 2 1 / _s
@@ -1048,15 +1052,37 @@ Old English R metathesis
 ```
 
 It can also be used to define a simple haplology rule:
-```
+```wasm
 %=1 > * / 1_    ;; A syllable is deleted if preceded by an identical syllable
 ```
 
 References can be modified with diacritics or a feature matrix as if they were a segment or syllable:
 
-```
+```wasm
 %=1 > * / 1:[+str]_ 
 ;; A syllable is deleted if preceded by a stressed syllable that is otherwise identical
+```
+
+### Negation
+
+`-` or `¬` can be used to negate a segment, matrix, group, or reference when matching.
+
+```wasm
+Example:
+
+V > [+long] / <(..)_-G>
+;; A vowel that doesn't have an off-glide lengthens
+
+saj.nam => saj.na:m
+```
+
+```wasm
+Example:
+
+%=1 > [tone: 1] / ¬1 _
+;; A syllable gains low tone if preceded by a non-identical syllable
+
+ta5.sa5 => ta5.sa1
 ```
 
 ### Ellipses
@@ -1118,9 +1144,11 @@ Example: Latin Stress Rule using Structures
 ⟨(..)V{C,G}⟩ > [+str] / _%#     ;; A penult syllable ending with a consonant or glide becomes stressed
 % > [+stress] / _ %:[-str]%#    ;; If the penult is unstressed, the antepenult becomes stressed
 
-;; Like the previous Latin stress example, rules 2 and 3 can be condensed
-
+;; Like the previous Latin stress example, rules 2 and 3 can be condensed:
 ⟨(..){V:[+long], C, G}⟩ => [+str] / _%#
+
+;; With negation:
+⟨(..){V:[+long], ¬V}⟩ => [+str] / _%#
 ```
 
 Structures can also be used to insert whole syllables:
