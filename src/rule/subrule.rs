@@ -4064,7 +4064,7 @@ impl SubRule { // Context Matching
                     Ok(true)
                 } else { Ok(false) },
                 RefKind::Syllable(_) if within_struct.is_some() => Err(RuleRuntimeError::SyllRefInsideStruct(refr.position)),
-                RefKind::Syllable(_) if negate => todo!("Err?"),
+                RefKind::Syllable(s) if negate => Ok(!self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos)?),
                 RefKind::Syllable(s) => self.context_match_syll_ref(s, mods, phrase, pos, forwards, err_pos),
             }            
         } else {
