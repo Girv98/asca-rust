@@ -2,34 +2,35 @@
 RuleBlock ← Line*
 
 Line ← <Whitespace>? (Eol / Comment / Rule)
-Rule ← Input Arrow Output ContBlock? ExptBlock? Terminal                        // NOTE: InpTerm cannot be Empty when corresponding OutTerm is (AtSign / Ampersand / Empty) 
+Rule ← Input Arrow Output ContBlock? ExptBlock? Terminal                                // NOTE: InpTerm cannot be Empty when corresponding OutTerm is (AtSign / Ampersand / Empty) 
 
 Input   ← InpTerm ( ',' InpTerm )*
 InpTerm ← Empty / InpElem+
-InpElem ← OptEllipsis / Ellipsis / CrossBound / SyllBound / Term
+InpElem ← OptEllipsis / Ellipsis / CrossBound / SyllBound / NegTerm / Term
 
 Output  ← OutTerm ( ',' OutTerm )*
 OutTerm ← AtSign / Ampersand / Empty / OutElem+
-OutElem ← Syll / Struct / Set / Segment / Reference / SyllBound                 // NOTE: 'Set' here only makes sense if it corresponds to a Set in INP
+OutElem ← Syll / Struct / Set / Segment / Reference / SyllBound                         // NOTE: 'Set' here only makes sense if it corresponds to a Set in INP
 
 ContBlock   ← '/' EnvExpr
 ExptBlock   ← Pipe EnvExpr
 
 EnvExpr     ← EnvSpec / Env (',' Env)*
-EnvSpec     ← Underline ',' EnvElem+                                            // e.g. _,# ==> #_ , _#
+EnvSpec     ← Underline ',' EnvElem+                                                    // e.g. _,# ==> #_ , _#
 Env         ← EnvSet / EnvStat  
-EnvSet      ← ':{' EnvStat (',' EnvStat)* '}:'                                  // i.e. :{ ... }:
+EnvSet      ← ':{' EnvStat (',' EnvStat)* '}:'                                          // i.e. :{ ... }:
 EnvStat     ← WordBound? EnvElem* EnvCenter EnvElem* WordBound?
-EnvElem     ← CrossBound / SyllBound / OptEllipsis / Ellipsis / Option / Term
+EnvElem     ← CrossBound / SyllBound / OptEllipsis / Ellipsis / Option / NegTerm / Term
 EnvCenter   ← UndStruct / Underline
-UndStruct   ← '<' SyllTerm* Underline SyllTerm* '>' (':' Params)?               // TODO RefAssign?
+UndStruct   ← '<' SyllTerm* Underline SyllTerm* '>' (':' Params)?                       // TODO RefAssign?
 
 Term        ← Syll / Struct / Set / Segment / Reference
+NegTerm     ← ('-' / '¬') (Segment / Reference)                                         // NOTE: Reference to a syllable should error
 Syll        ← '%' (':' Params)? RefAssign?
 Struct      ← '<' SyllTerm* '>' (':' Params)? RefAssign?
-SyllTerm    ← Segment / OptEllipsis / Ellipsis / Reference / Set / Option       // NOTE: Boundaries and Syllables inside a struct are runtime invalid
+SyllTerm    ← Segment / OptEllipsis / Ellipsis / Reference / Set / Option               // NOTE: Boundaries and Syllables inside a struct are runtime invalid
 Set         ← '{' SetTerm+ (',' SetTerm+)* ','? '}' (':' Params)?
-SetTerm     ← Reference / Segment / Boundary / Syll                             // NOTE: WordBound not valid in input/output
+SetTerm     ← Reference / Segment / Boundary / Syll                                     // NOTE: WordBound not valid in input/output
 Option      ← '(' (OptTerm+ (',' [0-9]* (':' [1-9]+)?)?)? ')'
 OptTerm     ← CrossBound / Boundary / Syll / Set / Segment / Reference
 Segment     ← IPA (':' Params)? / Matrix RefAssign?
