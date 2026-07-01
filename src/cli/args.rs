@@ -29,6 +29,7 @@ pub enum AscaCommand {
         /// If -j is provided, these words with be used instead of the words listed in the json file
         #[clap(verbatim_doc_comment, value_hint=ValueHint::FilePath)]
         words: Vec<MaybeStdin<PathBuf>>,
+
         /// Path to an alias file containing romanisations to and from.
         #[arg(short='l', long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
         alias: Option<PathBuf>,
@@ -87,6 +88,20 @@ pub enum AscaCommand {
     Conv(Conv),
     // /// Enter tui.
     // Tui
+    Trace {
+        /// Path to a rsca file containing the rules to be applied.
+        /// - If -r is not provided, asca will look for a file in the current directory.
+        #[arg(short, long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
+        rules: Option<PathBuf>,
+
+        /// Word or Phrase for the rules to be applied
+        #[clap(verbatim_doc_comment)]
+        word: MaybeStdin<String>,
+
+        /// Path to an alias file containing romanisations to and from.
+        #[arg(short='l', long, verbatim_doc_comment, value_hint=clap::ValueHint::FilePath)]
+        alias: Option<PathBuf>,
+    }
 }
 
 #[derive(Debug, Subcommand)]

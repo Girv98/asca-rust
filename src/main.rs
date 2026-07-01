@@ -38,6 +38,9 @@ fn run() -> io::Result<()> {
             cli::seq::run(path, get_word_input(words)?, tag, output, ow, output_all, all_steps)
         },
         // Some(AscaCommand::Tui) => println!("tui coming soon..."),
+        Some(AscaCommand::Trace { rules, word, alias }) => {
+            cli::trace::run(rules, word.into_inner(), alias)
+        },
         None => Ok(()),
     }
 }

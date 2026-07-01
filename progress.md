@@ -6,6 +6,9 @@
 - Cli
     - [ ] Better rule file `.rsca` syntax
         - [ ] Rule toggling in rule files with `!`
+    - [x] `trace` command
+    - [ ] `sketch` (?) command
+- Web
     - Reverse rule tracing
         - i.e. see which words have been effected by a give rule, rather than which rules have been applied to a given word
 - Internal Changes:
