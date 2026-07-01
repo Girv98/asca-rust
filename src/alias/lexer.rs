@@ -555,12 +555,12 @@ impl<'a> AliasLexer<'a> {
 
 
 #[cfg(test)]
-mod lexer_tests {
+mod tests {
 
     use super::*;
 
     #[test]
-    fn test_deromanisation_simple() {
+    fn deromanisation_simple() {
         let test_input= String::from("sh > ʃ");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::String,     "sh".to_owned(), AliasPosition::new(AliasKind::Deromaniser, 0, 0, 2)),
@@ -579,7 +579,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_deromanisation_stress() {
+    fn deromanisation_stress() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("á > a:[+str]");
@@ -604,7 +604,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_romanisation_simple() {
+    fn romanisation_simple() {
         let test_input= String::from("ʃ > sh");
         let expected_result = vec![
             AliasToken::new(AliasTokenKind::Cardinal,    "ʃ".to_owned(), AliasPosition::new(AliasKind::Romaniser, 0, 0, 1)),
@@ -623,7 +623,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_romanisation_length() {
+    fn romanisation_length() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("ʃ:[-long] > sh");
@@ -669,7 +669,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_romanisation_stress() {
+    fn romanisation_stress() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("a:[+str] > á");
@@ -694,7 +694,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_romanisation_named_escape() {
+    fn romanisation_named_escape() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("a:[+str] > a@{acute}");
@@ -719,7 +719,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_romanisation_unicode_escape() {
+    fn romanisation_unicode_escape() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("a:[+str] > a\\u{0301}");
@@ -744,7 +744,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_romanisation_literal_escape() {
+    fn romanisation_literal_escape() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("a:[+str] > a\\$");

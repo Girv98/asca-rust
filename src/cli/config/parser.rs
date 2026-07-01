@@ -532,7 +532,7 @@ impl<'a> Parser<'a> {
 }
 
 #[cfg(test)]
-mod parser_tests {
+mod tests {
 
     use super::*;
     use super::super::lexer::{Lexer, Token};
@@ -549,7 +549,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_simple_tag_loop() {
+    fn simple_tag_loop() {
         let test_input= String::from(
             "beta > alpha:\n\
                 examples/indo-european/germanic/pgmc/pre.rsca;
@@ -570,7 +570,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_pipe_does_not_exist() {
+    fn pipe_does_not_exist() {
         let test_input= String::from(
             "beta > alpha:\n\
                 examples/indo-european/germanic/pgmc/pre.rsca;
@@ -592,7 +592,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_with_words() {
+    fn with_words() {
         let test_input= String::from(
             "examples/indo-european/pie-uvular-common.wsca examples/indo-european/pie-pronouns.wsca > beta:\n \
                 examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\
@@ -615,7 +615,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_without_words() {
+    fn without_words() {
         let test_input= String::from(
             "beta: # test\n\
                 examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\"; # test\n\
@@ -653,7 +653,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_mult() {
+    fn mult() {
         let test_input= String::from(
             "alpha:\n\
                 examples/indo-european/germanic/pgmc/pre.rsca ! \"Laryngeal colouring\";\n\

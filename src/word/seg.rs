@@ -553,11 +553,11 @@ impl Segment {
 }
 
 #[cfg(test)]
-mod seg_tests {
+mod tests {
     use super::super::*;
 
     #[test]
-    fn test_debug_print() {
+    fn debug_print() {
         let seg = Word::new("n".to_owned()).unwrap().syllables[0].segments[0];
         let n = format!("{:?}", seg);
         println!("{n}");
@@ -565,14 +565,14 @@ mod seg_tests {
     }
 
     #[test]
-    fn test_edge_cases() {
+    fn edge_cases() {
         let word = Word::new("i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ".to_owned()).unwrap();
 
         assert_eq!(&word.render(), "i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ")
     }
     
     #[test]
-    fn test_diacritics() {
+    fn diacritics() {
         let word = Word::new("iʵ.t̪.".to_owned()).unwrap();
             
         assert_eq!(&word.render(), "iʵ.t̪")

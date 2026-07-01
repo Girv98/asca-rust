@@ -1627,7 +1627,7 @@ impl Parser {
 }
 
 #[cfg(test)]
-mod parser_tests {
+mod tests {
 
     // macro_rules! map {
     //     ($($k:expr => $v:expr),* $(,)?) => {{
@@ -1650,14 +1650,14 @@ mod parser_tests {
     }
     
     #[test]
-    fn test_floating_diacritic() {
+    fn floating_diacritic() {
         let maybe_result = Parser:: new(setup("a, \"H > \"h"), 0, 0).parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::FloatingDiacritic(..) = maybe_result.unwrap_err() {true} else {false} );
     }
 
     #[test]
-    fn test_trailing_comma() {
+    fn trailing_comma() {
         let maybe_result = Parser:: new(setup("a, > e"), 0, 0).parse();
 
         assert!(maybe_result.is_ok());
@@ -1680,7 +1680,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_multi_rule() {
+    fn multi_rule() {
         let maybe_result = Parser:: new(setup("%:[+stress], % > [-stress], [+stress] / _ , #_"), 0, 0).parse();
 
         assert!(maybe_result.is_ok());
@@ -1723,7 +1723,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_metathesis() {
+    fn metathesis() {
         let maybe_result = Parser::new(setup("t͡ɕ...b͡β > &"), 0, 0).parse();
 
         assert!(maybe_result.is_ok());
@@ -1747,7 +1747,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_references_plain() {
+    fn references_plain() {
 
         let mut x = Modifiers::new();
         x.feats[FeatKind::Syllabic as usize] = Some(ModKind::Binary(BinMod::Negative));
@@ -1774,7 +1774,7 @@ mod parser_tests {
     }
 
     #[test] 
-    fn test_tone() {
+    fn tone() {
 
         let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321]"), 0, 0).parse();
         assert!(maybe_result.is_ok());
@@ -1792,7 +1792,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_comments() {
+    fn comments() {
         let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] ;; hello"), 0, 0).parse();
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
@@ -1843,7 +1843,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_spec_struct() {
+    fn spec_struct() {
         let maybe_result = Parser::new(setup("a > e / <sn_sns>"), 0, 0).parse();
         eprintln!("{:?}", maybe_result);
         let result = maybe_result.unwrap().unwrap();
@@ -1872,7 +1872,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_spec_struct_bef() {
+    fn spec_struct_bef() {
         let maybe_result = Parser::new(setup("a > e / <s_n><sin>=1"), 0, 0).parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_ok());
@@ -1895,7 +1895,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_exceptions() {
+    fn exceptions() {
 
         // Double Slash
         let maybe_res = Parser::new(setup("a > e / _ // _u"), 0, 0).parse();

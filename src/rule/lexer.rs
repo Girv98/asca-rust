@@ -751,12 +751,12 @@ impl<'a> Lexer<'a> {
 }
 
 #[cfg(test)]
-mod lexer_tests {
+mod tests {
 
     use super::*;
 
     #[test]
-    fn test_syll() {
+    fn syll() {
 
         let test_input = "%";
         let expected_result = TokenKind::Syllable;
@@ -768,7 +768,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_americanist_aliases() {
+    fn americanist_aliases() {
         let test_input= String::from("¢ ñ λ ł ƛ ⁿ¢ ⁿλ ⁿƛ");
         //                                    t͡s ɲ d͡ɮ ɬ t͡ɬ ⁿt͡s ⁿd͡ɮ ⁿt͡ɬ 
         let expected_result = vec![
@@ -793,7 +793,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_floating_dia() {
+    fn floating_dia() {
         let test_input= String::from("\"H > \"h");
 
         let expected_res = vec![
@@ -813,7 +813,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_ipa_sep() {
+    fn ipa_sep() {
         
         let test_input= String::from("t͡ɕ b͡β b a ʘq ʘ^q qʘ q^ʘ b\"H");
         
@@ -842,7 +842,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_ipa_joined() {
+    fn ipa_joined() {
         
         let test_input= String::from("t^ɕb͡βba");
         let expected_result = vec![
@@ -863,7 +863,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_ipa_tie() {
+    fn ipa_tie() {
         
         let test_input= String::from("t^ɕ > b^β");
         let expected_result = vec![
@@ -883,7 +883,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_metathesis() {
+    fn metathesis() {
         // Standard Ellipsis
         let test_input= String::from("t^ɕ...b͡β > &");
         let expected_result = vec![
@@ -924,7 +924,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_feature_matrix() {
+    fn feature_matrix() {
         use FeatureCategory::*;
         let test_input= String::from("[+voi, -sg, αPLACE]");
         let expected_result = vec![
@@ -949,7 +949,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_negative_alpha() {
+    fn negative_alpha() {
         use FeatureCategory::*;
         let test_input= String::from("[-αPLACE]");
         let expected_result = vec![
@@ -969,7 +969,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_negation() {
+    fn negation() {
         use FeatureCategory::*;
         use SupraKind::*;
         let test_input= String::from("-V[-str] ->");
@@ -993,7 +993,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_references() {
+    fn references() {
         
         let test_input= String::from("C=1 V=2 > 2 1 / _C // ___");
         let expected_result = vec![
@@ -1024,7 +1024,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_brackets() {
+    fn brackets() {
         let test_input= String::from("{C,V} > [] / :{ j_{} }:");
         let expected_result = vec![
             Token::new(TokenKind::LeftCurly,      "{", 0, 0,  0,  1),
@@ -1055,7 +1055,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_modified_set() {
+    fn modified_set() {
         let test_input= String::from("{C,V}:[] > * / :{ j_{}:[] }:");
                 let expected_result = vec![
             Token::new(TokenKind::LeftCurly,      "{", 0, 0,  0,  1),
@@ -1091,7 +1091,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_external_boundary() {
+    fn external_boundary() {
         // Deletion
         let test_input= String::from("## > *");
 
@@ -1136,7 +1136,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_underline_in_structs() {
+    fn underline_in_structs() {
         let test_input= String::from("<a_e>");
 
         let expected_result = vec![
@@ -1160,7 +1160,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_sets_in_structs() {
+    fn sets_in_structs() {
 
         let test_input= String::from("<{a, e}>");
 

@@ -583,7 +583,7 @@ impl AliasParser {
 
 
 #[cfg(test)]
-mod parser_tests {
+mod tests {
     use crate::{alias::lexer::AliasLexer, rule::SupraSegs};
 
     use super::*;
@@ -594,7 +594,7 @@ mod parser_tests {
 
 
     #[test]
-    fn test_romanisation_simple() {
+    fn romanisation_simple() {
         let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("ʃ > sh"), 0).parse();
         assert!(maybe_result.is_ok());
 
@@ -607,7 +607,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_romanisation_mods() {
+    fn romanisation_mods() {
         let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("a:[+str] > á"), 0).parse();
         assert!(maybe_result.is_ok());
 
@@ -623,7 +623,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_romanisation_unicode() {
+    fn romanisation_unicode() {
         let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("a:[+str] > a @{acute}"), 0).parse();
         assert!(maybe_result.is_ok());
 
@@ -638,7 +638,7 @@ mod parser_tests {
     }
 
     #[test]
-    fn test_deromanisation_simple() {
+    fn deromanisation_simple() {
         let maybe_result = AliasParser::new(AliasKind::Deromaniser, setup_derom("sh > ʃ"), 0).parse();
         assert!(maybe_result.is_ok());
 

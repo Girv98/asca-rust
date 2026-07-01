@@ -269,11 +269,11 @@ impl<'a> Lexer<'a> {
 
 
 #[cfg(test)]
-mod lexer_tests {
+mod tests {
     use super::*;
 
     #[test]
-    fn test_end_line_comments_mult() {
+    fn end_line_comments_mult() {
         let test_input= String::from(
             "foo.wsca bar.wsca > beta: # test\n\
                 rules1.rsca ! \"Glottal Deletion\"; # test\n\
@@ -400,7 +400,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_end_line_comments() {
+    fn end_line_comments() {
         let test_input= String::from(
             "foo.wsca bar.wsca > beta: # test\n\
                 rules1.rsca ! \"Glottal Deletion\"; # test\n\
@@ -500,7 +500,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_simple() {
+    fn simple() {
         let test_input= String::from(
             "beta: rules1.rsca; rules2.rsca;"
         );
@@ -534,7 +534,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_lt_gt() {
+    fn lt_gt() {
         let test_input= String::from(
             "alpha > beta: rules1.rsca < \"asdf\"; rules2.rsca > \"asdf\";"
         );
@@ -573,7 +573,7 @@ mod lexer_tests {
     }
 
     #[test]
-    fn test_lt_eq_gt_eq() {
+    fn lt_eq_gt_eq() {
         let test_input= String::from(
             "alpha > beta: rules1.rsca <= \"asdf\"; rules2.rsca >= \"asdf\";"
         );
