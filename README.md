@@ -15,8 +15,8 @@ Repo for the web UI is [here](https://github.com/Girv98/asca)
 - [Cross Word-Boundary Interactions](./doc/doc.md#cross-word-boundary-operations)
 - [Syllable Structure Matching](./doc/doc.md#syllable-structure-matching)
 - [Left-to-Right and Right-to-Left Propagation](./doc/doc.md#propagation)
-- [Optional/Repeating Segments](./doc/doc.md#optional-segments)
-- [References](./doc/doc/#references)
+- [Optional/Repeating Segments](./doc/doc.md#optionals)
+- [References](./doc/doc.md#references)
 
 User guide can be found [here](./doc/doc.md).
 
