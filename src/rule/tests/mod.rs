@@ -33,6 +33,7 @@ fn setup_output(out_str: &str) -> String {
         match ch {
             ':' => s.push('ː'),
             '\'' => s.push('ˈ'),
+            'g' => s.push('ɡ'),
             ch => s.push(ch),
         }
     }
