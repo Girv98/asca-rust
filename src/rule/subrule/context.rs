@@ -187,6 +187,21 @@ impl SubRule {
         Ok(())
     } 
 
+    fn boundary_check(&self, phrase: &Phrase, center: &UnderlineStruct, start_pos: SegPos, end_pos: SegPos) -> bool {
+
+        if center.before.is_empty() && (start_pos.seg_index != 0) {
+            return false
+        }
+
+        if center.after.is_empty() 
+        && !(end_pos.at_syll_end(phrase) && end_pos.syll_index == start_pos.syll_index) // end of same syllable as start_pos
+        && !(end_pos.seg_index == 0 && self.last_is_boundary(&self.input)) {            // last input item is a boundary
+            return false
+        }
+
+        true
+    }
+
     fn match_underline_struct(&self, phrase_rev: &Phrase, phrase: &Phrase, matches: &[MatchElement], start_pos: SegPos, end_pos: SegPos, center: &UnderlineStruct) -> Result<bool, RuleRuntimeError> {
         
         { // Sanity Check Input
@@ -207,13 +222,8 @@ impl SubRule {
         if let Some(tone) = center.tone && !self.match_tone(&tone, syll) { return Ok(false) }
         if !self.match_stress(&center.stress, syll, center.position)? { return Ok(false) }
 
-        // Check boundaries
-        if center.before.is_empty() && start_pos.seg_index != 0 {
-            return Ok(false)
-        }
-        if center.after.is_empty() && !start_pos.at_syll_end(phrase) {
-            return Ok(false)
-        }
+        // Check that boundaries of structure make sense
+        if !self.boundary_check(phrase, center, start_pos, end_pos) { return Ok(false) }
 
         // Increment start_pos and end_pos before matching
         let cur_syll_index = start_pos.syll_index;
@@ -325,6 +335,21 @@ impl SubRule {
             ParseElement::Set(choices) if choices.contains_only(&ParseElement::ExtlBound).is_some() => true,
 
             _ => false
+        }
+    }
+
+    fn last_is_boundary(&self, items: &[ParseItem]) -> bool {
+        match items.last() {
+            Some(x) => match &x.kind {
+                ParseElement::WordBound | ParseElement::SyllBound | ParseElement::ExtlBound => true,
+
+                ParseElement::Set(choices) if choices.contains_only(&ParseElement::WordBound).is_some() => true,
+                ParseElement::Set(choices) if choices.contains_only(&ParseElement::SyllBound).is_some() => true,
+                ParseElement::Set(choices) if choices.contains_only(&ParseElement::ExtlBound).is_some() => true,
+
+                _ => false
+            },
+            None => false,
         }
     }
 

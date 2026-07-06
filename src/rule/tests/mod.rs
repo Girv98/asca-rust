@@ -759,6 +759,18 @@ fn del_set() {
 }
 
 #[test]
+fn sub_del_matrix() {
+    assert!(run("VN > [+nas]",      "ka.na.gon", "kã.a.gõ"));
+    assert!(run("VN > [+nas] / _$", "ka.na.gon", "ka.na.gõ"));
+
+    assert!(run("VN > [+nas] / <(..)_>", "gon", "gõ"));
+    assert!(run("VN > [+nas] / <(..)_>", "ka.na.gon", "ka.na.gõ"));
+
+    assert!(run("VN ~ [+nas] / <(..)_>", "ka.na.gon", "ka.na.gn")); // TODO
+}
+
+
+#[test]
 fn except_after_simple_ipa() {
     let test_rule = " i > e | c_";
     let test_word = "ki.ci";
@@ -1416,6 +1428,7 @@ fn reddit_uncomfortably_crumbled() {
 
     assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_>", "me.daˈra.ni",    "meˈdra.ni"));
     assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_>", "kaˈra.sa",       "kaˈra.sa"));
+    assert!(run("V:[-str] $ ~> * / _ {r,l} V:[+str] | #<(..)_>", "kaˈra.sa",       "kaˈra.sa"));
     assert!(run("V:[-str] $ => * / _ {r,l} V:[+str] | #<(..)_>", "ja.ha.baˈla.ma", "ja.haˈbla.ma"));
 }
 
