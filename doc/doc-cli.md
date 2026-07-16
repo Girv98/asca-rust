@@ -11,6 +11,7 @@
     * [Run](#run-command)
     * [Seq](#seq-command)
     * [Conv](#conv-command)
+    * [Trace](#trace-command)
 * [Shell Completions](#shell-completions)
 
 ## File Formats
@@ -310,6 +311,19 @@ Arguments:
             - If not provided, asca will look for a config in the current directory.
 Options:
     -h      Print help
+```
+### Trace Command
+```
+usage: asca trace <WORD> [-r | --rules <path>] | [-l | --alias <path>] | [-h | --help]
+
+Arguments:
+    <WORD>      Word or Phrase for the rules to be applied
+
+Options:
+    -r  <path>  Path to a rsca file containing the rules to be applied.
+                - If -r is not provided, asca will look for a file in the current directory.
+    -l  <path>  Path to an alias file containing romanisations to and from.
+    -h          Print help
 ```
 
 ## Shell Completions

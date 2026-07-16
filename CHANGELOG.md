@@ -1,3 +1,14 @@
+0.10.2
+==================
+[0.10.1...0.10.2](https://github.com/Girv98/asca-rust/compare/0.10.1...0.10.2)
+
+Features:
+* Cli: New `trace` command to visualise changes that a given rule set applies to a given word
+
+Fixes:
+* Lib: Fixes a regression introduced in `0.10.1` that affected right-hand boundary checking within an underline structure
+    * Specifically, rules such as `VN > [+nas] / <(..)_>` now work as expected
+
 0.10.1
 ==================
 [0.10.0...0.10.1](https://github.com/Girv98/asca-rust/compare/0.10.0...0.10.1)
