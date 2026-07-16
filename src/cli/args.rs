@@ -86,8 +86,7 @@ pub enum AscaCommand {
     /// Convert between different formats, such as the asca-web json file and the cli wsca/rsca format.
     #[clap(subcommand)]
     Conv(Conv),
-    // /// Enter tui.
-    // Tui
+    /// Trace changes that a given rule set applies to a given word
     Trace {
         /// Path to a rsca file containing the rules to be applied.
         /// - If -r is not provided, asca will look for a file in the current directory.
