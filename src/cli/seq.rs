@@ -399,16 +399,16 @@ fn print_result(trace: &[Vec<String>], tag: &str, all_steps: bool) {
         }
         // Concat start word
         let pad = base_pad[0] + util::fix_combining_char_pad(&trace[0][word]);
-        let mut str = format!("{:<pad$}", &trace[0][word].bright_blue().bold());
+        let mut str = format!("{:<pad$}", trace[0][word].bright_blue().bold());
         if all_steps {
             // Concat intermediate steps
             for (s, step) in trace.iter().take(num_steps-1).skip(1).enumerate() {
                 let pad = base_pad[s] + util::fix_combining_char_pad(&step[word]);
-                str = format!("{str}{arr} {:<pad$}", &step[word]);
+                str = format!("{str}{arr} {:<pad$}", step[word]);
             }
         }
         // Concat final result
-        str = format!("\n{str}{arr} {}", &trace[num_steps-1][word].bright_green().bold());
+        str = format!("\n{str}{arr} {}", trace[num_steps-1][word].bright_green().bold());
         output += &str;
     }
     println!("{}", output.trim());

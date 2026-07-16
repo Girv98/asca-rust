@@ -47,9 +47,7 @@ impl Trie {
         let mut cur = &mut self.root;
         for c in s.chars() {
             match cur.children.binary_search_by(|f| f.key.cmp(&Some(c))) {
-                Ok(i) => {
-                    cur = &mut cur.children[i];
-                }
+                Ok (i) => cur = &mut cur.children[i],
                 Err(i) => {
                     cur.children.insert(i, Node::with_key(c));
                     cur = &mut cur.children[i];
@@ -70,31 +68,23 @@ impl Trie {
 
         for c in s.chars() {
             match curr_node.children.binary_search_by(|f| f.key.cmp(&Some(c))) {
-                Ok(i) => {
-                    curr_node = &curr_node.children[i];
-                }
-                Err(_) => {
-                    return false;
-                }
+                Ok (i) => curr_node = &curr_node.children[i],
+                Err(_) => return false,
             }
         }
 
         curr_node.is_terminal
     }
 
-    /// Returns true if input is a 'prefix' of a leaf in the tree
-    /// A prefix can also end in a leaf 
+    /// Returns true if input is a 'prefix' of a leaf in the tree.
+    /// A prefix can also end in a leaf.
     pub(crate) fn contains_prefix(&self, s: &str) -> bool { 
         let mut curr_node = &self.root;
 
         for c in s.chars() {
             match curr_node.children.binary_search_by(|f| f.key.cmp(&Some(c))) {
-                Ok(i) => {
-                    curr_node = &curr_node.children[i];
-                }
-                Err(_) => {
-                    return false;
-                }
+                Ok (i) => curr_node = &curr_node.children[i],
+                Err(_) => return false,
             }
         }
 
@@ -108,12 +98,8 @@ impl Trie {
 
         for c in s.chars() {
             match cur.children.binary_search_by(|f| f.key.cmp(&Some(c))) {
-                Ok(i) => {
-                    cur = &cur.children[i];
-                }
-                Err(_) => {
-                    return Vec::new();
-                }
+                Ok (i) => cur = &cur.children[i],
+                Err(_) => return Vec::new(),
             }
         }
 
@@ -132,7 +118,6 @@ impl Trie {
         }
 
         results
-
      }
 
 }
@@ -147,7 +132,7 @@ impl Display for Trie {
             for _ in 0..q.len() {
                 if let Some(node) = q.pop_front() {
                     for c in node.children.iter() {
-                        write!(f, "{} ", &c.key.unwrap())?;
+                        write!(f, "{} ", c.key.unwrap())?;
                         if !c.children.is_empty() {
                             q.push_back(c);
                         }

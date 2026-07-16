@@ -314,9 +314,9 @@ fn run_trace_wasm(unparsed_rules: &[RuleGroup], unparsed_phrase: &[String], alia
     let phrase = get_trace_phrase(unparsed_phrase, alias_into, trace_index)?.unwrap_or_default();
     let res = apply_rules_trace(&rules, &phrase)?;
     
-    let rendered_input = match phrase.iter().map(|word| word.render_with(&[])).collect::<Result<Vec<_>, _>>() {
-        Ok(ri) => ri.join(" "),
-        Err(e) => return Err(e),
+    let rendered_input = {
+        let ri = phrase.iter().map(|word| word.render_with(&[])).collect::<Result<Vec<_>, _>>()?;
+        ri.join(" ")
     };
     
     let (output, unknowns, rule_indices) = rule::trace::to_string_wasm(&phrase, res, unparsed_rules)?;

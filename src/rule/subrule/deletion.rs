@@ -36,7 +36,7 @@ impl SubRule {
                 },
                 &MatchElement::Syllable(wp, i, _) => {
                     // remove syllable
-                    if ((!self.inp_x_bound && !self.env_x_bound) || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
+                    if (!self.has_cross_bound() || res_phrase.len() == 1) && res_phrase[wp].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     pos.syll_index = i;

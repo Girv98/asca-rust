@@ -58,7 +58,7 @@ enum ActionKind {
     DeleteSegment(SegLen),
     InsertSegment(SegLen, Segment, Option<SupraSegs>, ErrPos),
     InsertSyllable(Syllable),
-    InsertWord(Word), // NOTE: This is will never happen because of line 120 in self.apply()
+    InsertWord(Word), // NOTE: This is will never happen, see self.apply() for more
     ReplaceSegment((OldLen, NewLen), Payload, ErrPos),
     ReplaceSyllable(Syllable),
     ModifySyllable(SupraSegs, ErrPos),
@@ -99,13 +99,13 @@ pub(crate) struct SubRule {
 
 impl SubRule {
 
-    fn is_cross_bound(&self) -> bool { self.inp_x_bound || self.env_x_bound }
+    fn has_cross_bound(&self) -> bool { self.inp_x_bound || self.env_x_bound }
 
     pub(crate) fn apply(&self, phrase: Phrase) -> Result<Phrase, RuleRuntimeError> {
         if phrase.is_empty() || (phrase.len() == 1 && phrase[0].syllables.is_empty()) { return Ok(phrase) }
 
         // '##' will not match if there's only one word, 
-        if self.is_cross_bound() && phrase.len() < 2 { return Ok(phrase) }
+        if self.has_cross_bound() && phrase.len() < 2 { return Ok(phrase) }
 
         let res = self.apply_phrase(if self.is_reversed { phrase.reversed() } else { phrase })?;
 
@@ -983,7 +983,7 @@ impl SubRule {
                     }
                 },
                 ActionKind::DeleteSyllable => {
-                    if ((!self.inp_x_bound && !self.env_x_bound) || res_phrase.len() == 1) && res_phrase[action.pos.word_index].syllables.len() <= 1 {
+                    if ((!self.has_cross_bound()) || res_phrase.len() == 1) && res_phrase[action.pos.word_index].syllables.len() <= 1 {
                         return Err(RuleRuntimeError::DeletionOnlySyll)
                     }
                     res_phrase[action.pos.word_index].syllables.remove(action.pos.syll_index);
@@ -1130,10 +1130,8 @@ impl SubRule {
                     if !old_phrase.in_bounds(old_next_pos) {
                         let old_next_syll = old_phrase[last_action.pos.word_index].syllables.get(last_action.pos.syll_index+1)?;
                         // Find next syllable in result, making sure that we don't accidentally match a previous syllable
-                        match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
-                            Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),
-                            None => return None,
-                        }
+                        let sp = res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change))?;
+                        return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 })
                     }
 
                     let old_syll = &old_phrase[last_action.pos.word_index].syllables[last_action.pos.syll_index];
@@ -1198,10 +1196,8 @@ impl SubRule {
                         return Some(old_next_pos)
                     };
                     // Find next syllable in result, making sure that we don't accidentally match a previous syllable
-                    match res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change)) {
-                        Some(sp) => return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 }),
-                        None => return None,
-                    }
+                    let sp = res_phrase[last_action.pos.word_index].syllables.iter().enumerate().position(|(i, s)| *s == *old_next_syll && i > last_action.pos.syll_index.saturating_add_signed(word_len_change))?;
+                    return Some(SegPos { word_index: last_action.pos.word_index, syll_index: sp, seg_index: 0 })
                 }
 
                 let old_syll = &old_phrase[last_action.pos.word_index].syllables[last_action.pos.syll_index];

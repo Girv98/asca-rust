@@ -75,7 +75,7 @@ impl TryFrom<&[RuleGroup]> for ParsedRules {
     
     fn try_from(rgs: &[RuleGroup]) -> Result<Self, Self::Error> {
         let names: Vec<String> = rgs.iter().map(|v| v.name.clone()).collect();
-        let rules = crate::parallel_parse_rule_groups(&rgs)?;
+        let rules = crate::parallel_parse_rule_groups(rgs)?;
         let descs: Vec<String> = rgs.iter().map(|v| v.description.clone()).collect();
 
         Ok(Self { names, rules, descs })
