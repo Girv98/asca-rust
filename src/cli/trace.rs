@@ -1,3 +1,5 @@
+use std::io;
+
 use colored::Colorize;
 
 use asca::{error::ASCAError, rule::{RuleGroup, trace::Change}, word::Phrase};
@@ -6,7 +8,7 @@ use crate::cli::{parse, util::{self, RULE_FILE_EXT}};
 
 
 
-pub(crate) fn run(rules: Option<std::path::PathBuf>, word: String, alias: Option<std::path::PathBuf>) -> Result<(), std::io::Error> {
+pub(crate) fn run(rules: Option<std::path::PathBuf>, word: String, alias: Option<std::path::PathBuf>) -> io::Result<()> {
     
     let rules = parse::parse_rsca(&util::validate_or_get_path(rules.as_deref(), &[RULE_FILE_EXT, "txt"], "rule")?)?;
 
@@ -23,9 +25,8 @@ pub(crate) fn run(rules: Option<std::path::PathBuf>, word: String, alias: Option
         Ok(sv) => for s in sv {
             println!("{}", s);
         },
-        Err(_) => todo!(),
+        Err(e) => return Err(util::get_asca_errors(e, &rules, &into, &[])),
     }
-
 
     Ok(())
 }
