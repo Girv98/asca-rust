@@ -108,6 +108,17 @@ fn wildcard() {
 
 
 #[test]
+fn septm() {
+    assert!(run("p$t > $p / #se_m:[+syll]#", "sepˈtm̩", "seˈpm̩"));
+}
+
+#[test]
+fn copy_vowel_insertion() {
+    assert!(run("* > 1$  / #_CV=1", "'de.no", "'e.de.no")); // WRONG
+    assert!(run("* > <1> / #_CV=1", "'de.no", "e'de.no"));
+}
+
+#[test]
 fn semivowel_syllabication() {
     assert!(run("[-syll, +approx, -lat, Ahi] > [+syll, +son, -cons, +lab, - PHR, Atense]", "ʕ̞.w.ʟ", "ɑ.u.ʟ"));
 

@@ -838,6 +838,8 @@ impl SubRule {
         let mut phrase_len_change: isize = 0;
         let mut word_len_change = vec![0; phrase.len()];
 
+        let mut skip = false;
+
         // NOTE: because we are going reverse, the first of multiple syllable tone or stress changes on the same syllable will be final
         // This may not be a problem, but is the opposite of what happened previously
         for (i, action) in actions.iter().enumerate().rev() {
@@ -990,6 +992,7 @@ impl SubRule {
                     word_len_change[action.pos.word_index] -= 1;
                 },
                 ActionKind::InsertBoundary => {
+                    if skip { skip = false; continue }
                     // Break syllable into two at position
                     let mut new_syll = Syllable::new();
 
@@ -1003,6 +1006,15 @@ impl SubRule {
                     word_len_change[action.pos.word_index] += 1;
                 },
                 ActionKind::DeleteBoundary => {
+                    // Prevent needless boundary deletion which can lead to "supra-stealing"
+                    if let Some(x) = actions.get(actions.len()-i-1) && matches!(x.kind, ActionKind::InsertBoundary) {
+                        let mut pos = x.pos; pos.increment(phrase);
+
+                        if pos == action.pos {
+                            skip = true; continue;
+                        }
+                    }
+                    
                     if action.pos.syll_index == 0 || action.pos.syll_index >= res_phrase[action.pos.word_index].syllables.len() {
                         continue; // can't delete a word boundary
                     }
