@@ -6,7 +6,7 @@ use super :: {
 
 use crate :: {
     error :: RuleRuntimeError, 
-    rule  :: { Modifiers, ParseElement, ParseItem, Position, Reference, SpecMod },
+    rule  :: { Modifiers, Narrowing, ParseElement, ParseItem, Position, Reference, SpecMod },
     word  :: { Phrase, SegPos, Segment, Syllable, Tone }
 };
 
@@ -124,7 +124,7 @@ impl SubRule {
         }
     }
 
-    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, refr: &Option<usize>, state: &MatchElement, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
+    fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, narrow: &Option<Narrowing>, refr: &Option<usize>, state: &MatchElement, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
         // X -> Matrix        
         match state {
             &MatchElement::LongSegment(pos, _) => {
@@ -165,7 +165,7 @@ impl SubRule {
             MatchElement::Set(els, _, _) => {
                 let mut actions = vec![];
                 for el in els {
-                    actions.extend(self.sub_matrix(phrase, mods, refr, el, out_pos)?);
+                    actions.extend(self.sub_matrix(phrase, mods, narrow, refr, el, out_pos)?);
                 }
                 Ok(actions)
             },
@@ -602,8 +602,8 @@ impl SubRule {
                             actions.push(self.sub_structure(phrase, items, stress, tone, refr, match_el, out_item.position)?);
                             in_index += 1; out_index += 1;
                         }
-                        (_, ParseElement::Matrix(mods, refr)) => { 
-                            actions.extend(self.sub_matrix(phrase, mods, refr, match_el, out_item.position)?);
+                        (_, ParseElement::Matrix(mods, narrow, refr)) => { 
+                            actions.extend(self.sub_matrix(phrase, mods, narrow, refr, match_el, out_item.position)?);
                             in_index += 1; out_index += 1;
                         }
                         (_, ParseElement::Ipa(seg, mods) )=> {

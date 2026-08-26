@@ -4,7 +4,7 @@ use super :: {
 
 use crate :: {
     error :: RuleRuntimeError, 
-    rule  :: { ItemSet, Reference, SetChoice }, 
+    rule  :: { ItemSet, Narrowing, Reference, SetChoice }, 
     word  :: { Phrase, SegPos, Segment, Syllable, Tone }
 };
 
@@ -43,7 +43,7 @@ impl SubRule {
                 pos.increment(phrase); 
                 Ok(true)
             } else { Ok(false) },
-            ParseElement::Matrix(m, v) => self.context_match_matrix(m, v, phrase, pos, state.position, negate),
+            ParseElement::Matrix(m, n, v) => self.context_match_matrix(m, n, v, phrase, pos, state.position, negate),
             ParseElement::Syllable(s, t, v) => if ins_match_before {
                 Ok(!pos.at_word_start() && self.context_match_syll(s, t, v, phrase, pos, forwards, state.position)?)
             } else {
@@ -135,7 +135,7 @@ impl SubRule {
                     self.matrix_increment(phrase, &mut pos);
                     pos.increment(phrase);
                 } else { return Ok(false) }
-                ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, &mut pos, item.position, false)? { // TODO
+                ParseElement::Matrix(mods, narrow, refr) => if !self.context_match_matrix(mods, narrow, refr, phrase, &mut pos, item.position, false)? { // TODO
                     return Ok(false) 
                 }
                 // NOTE: since syllables are invalid, passing `forwards` won't matter
@@ -406,7 +406,7 @@ impl SubRule {
                     self.matrix_increment(phrase, pos);
                     pos.increment(phrase);
                 } else { return Ok(false) }
-                ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, item.position, false)? { // TODO
+                ParseElement::Matrix(mods, narrow, refr) => if !self.context_match_matrix(mods, narrow, refr, phrase, pos, item.position, false)? { // TODO
                     return Ok(false) 
                 }
                 // NOTE: since syllables are invalid, passing `forwards` won't matter
@@ -507,7 +507,7 @@ impl SubRule {
                         self.matrix_increment(phrase, pos);
                         pos.increment(phrase);
                     } else { m = false; break; },
-                    ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, items[*index].position, false)? { // TODO
+                    ParseElement::Matrix(mods, narrow, refr) => if !self.context_match_matrix(mods, narrow, refr, phrase, pos, items[*index].position, false)? { // TODO
                         m = false; break;
                     },
                     // since syllables are invalid, passing `forwards` won't matter
@@ -724,7 +724,7 @@ impl SubRule {
                     pos.increment(phrase);
                     Ok(true)
                 } else {Ok(false)},
-                ParseElement::Matrix(mods, refr) => self.context_match_matrix(mods, refr, phrase, pos, s.position, false), // TODO
+                ParseElement::Matrix(mods, narrow, refr) => self.context_match_matrix(mods, narrow, refr, phrase, pos, s.position, false), // TODO
                 ParseElement::Syllable(stress, tone, refr) => self.context_match_syll(stress, tone, refr, phrase, pos, forwards, s.position),
                 ParseElement::WordBound => Ok(phrase[pos.word_index].out_of_bounds(*pos)),
                 ParseElement::SyllBound => Ok(pos.at_syll_start()),
@@ -888,7 +888,7 @@ impl SubRule {
         }
     }
 
-    pub(super) fn context_match_matrix(&self, mods: &Modifiers, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {        
+    pub(super) fn context_match_matrix(&self, mods: &Modifiers, narrow: &Option<Narrowing>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {        
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         
         let mod_match = self.match_modifiers(mods, phrase, pos, err_pos)?;
