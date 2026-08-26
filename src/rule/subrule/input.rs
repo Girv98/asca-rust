@@ -4,7 +4,7 @@ use super :: {
 
 use crate :: {
     error :: RuleRuntimeError, 
-    rule  :: { ItemSet, Reference, SetChoice },
+    rule  :: { ItemSet, Narrowing, Reference, SetChoice },
     word  :: { Phrase, SegPos, Segment, Syllable, Tone }
 };
 
@@ -168,7 +168,7 @@ impl SubRule {
                 *state_index += 1;
                 Ok(true)
             } else { Ok(false) },
-            ParseElement::Matrix(m, v) => if self.input_match_matrix(captures, m, v, phrase, seg_pos, err_pos, negate)? {
+            ParseElement::Matrix(m, n, v) => if self.input_match_matrix(captures, m, n, v, phrase, seg_pos, err_pos, negate)? {
                 seg_pos.increment(phrase);
                 *state_index += 1;
                 Ok(true) 
@@ -248,7 +248,7 @@ impl SubRule {
                     self.matrix_increment(phrase, pos);
                     pos.increment(phrase);
                 } else { return Ok(false) },
-                ParseElement::Matrix(mods, refr) => if !self.context_match_matrix(mods, refr, phrase, pos, item.position, false)? { // TODO
+                ParseElement::Matrix(mods, narrow, refr) => if !self.context_match_matrix(mods, narrow, refr, phrase, pos, item.position, false)? { // TODO
                     return Ok(false)
                 },
                 ParseElement::Reference(num, mods) => match self.references.borrow().get(&num.value) {
@@ -399,7 +399,7 @@ impl SubRule {
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
-                ParseElement::Matrix(mods, refr) => if self.input_match_matrix(&mut caps, mods, refr, phrase, pos, item.position, false)? { // TODO
+                ParseElement::Matrix(mods, narrow, refr) => if self.input_match_matrix(&mut caps, mods, narrow, refr, phrase, pos, item.position, false)? { // TODO
                     pos.increment(phrase);
                     Ok(true)
                 } else { Ok(false) },
@@ -444,39 +444,26 @@ impl SubRule {
         }
 
         Ok(false)
+    }
 
-        // for (i,s) in set.items.iter().enumerate() {
-        //     let res = match &s.kind {
-        //         ParseElement::Reference(vt, mods) => self.input_match_ref(captures, state_index, vt, mods, phrase, pos, s.position),
-        //         ParseElement::Ipa(seg, mods) => if self.input_match_ipa(captures, seg, mods, phrase, pos, s.position)? {
-        //             pos.increment(phrase);
-        //             Ok(true)
-        //         } else { Ok(false) },
-        //         ParseElement::Matrix(mods, refr) => if self.input_match_matrix(captures, mods, refr, phrase, pos, s.position)? {
-        //             pos.increment(phrase);
-        //             Ok(true)
-        //         } else { Ok(false) },
-        //         ParseElement::Syllable(stress, tone, refr) => self.input_match_syll(captures, state_index, stress, tone, refr, phrase, pos, s.position),
-        //         ParseElement::SyllBound => if pos.at_syll_start() {
-        //             captures.push(MatchElement::SyllBound(pos.word_index, pos.syll_index, Some(i)));
-        //             Ok(true)
-        //         } else { Ok(false) },
-        //         ParseElement::WordBound => Err(RuleRuntimeError::WordBoundSetLocError(s.position)),
-        //         ParseElement::Structure(items, stress, tone, refr) => self.input_match_structure(captures, state_index, items, stress, tone, refr, phrase, pos, s.position),
-        //         _ => unreachable!(),
-        //     };
-        //     if res? {
-        //         debug_assert!(!captures.is_empty());
-        //         // SAFETY: captures is not empty
-        //         unsafe { captures.last_mut().unwrap_unchecked().set_ind(Some(i)) };
-        //         return Ok(true)
-        //     }
-        //     *pos = back_pos;
-        //     // TODO: Deal with these clones
-        //     *self.alphas.borrow_mut() = back_alphas.clone();
-        //     *self.references.borrow_mut() = back_refs.clone();
-        // }
-        // Ok(false)
+    // TODO: This should be its own data structure and not an ItemSet, all of these errors can be enforced at Parsing
+    fn input_match_narrowing_set(&self, set: &ItemSet, phrase: &Phrase, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+        let back_alphas = self.alphas.borrow().clone();
+
+        for choice in &set.choices {
+            if choice.items.len() > 1 { return Err(todo!("Narrowing Set Choice cannot be more than one item")) }
+            let Some(item) = choice.items.first() else { continue };
+            match item.kind {
+                ParseElement::Matrix(mods, _, _) => if self.match_modifiers(&mods, phrase, pos, err_pos)? {
+                    return Ok(true)
+                },
+                ParseElement::Ipa(_, _) => todo!(),
+                _ => return Err(todo!("Narrowing set can only contain Matrix or IPA"))
+            }
+            *self.alphas.borrow_mut() = back_alphas.clone();
+        }
+
+        Ok(false)
     }
 
     fn input_match_ipa(&self, captures: &mut Vec<MatchElement>, s: &Segment, mods: &Option<Modifiers>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> {
@@ -551,11 +538,19 @@ impl SubRule {
         }
     }
 
-    fn input_match_matrix(&self, captures: &mut Vec<MatchElement>, mods: &Modifiers, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> { 
+    fn input_match_matrix(&self, captures: &mut Vec<MatchElement>, mods: &Modifiers, narrow: &Option<Narrowing>, refr: &Option<usize>, phrase: &Phrase, pos: &mut SegPos, err_pos: Position, negate: bool) -> Result<bool, RuleRuntimeError> { 
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         
         let mod_match = self.match_modifiers(mods, phrase, pos, err_pos)?;
-        if (!negate && mod_match) || (negate && !mod_match) {
+
+        let narrow_match = match narrow {
+            Some(Narrowing::Matrix(mods)) => self.match_modifiers(mods, phrase, pos, err_pos)?,
+            Some(Narrowing::Set(set)) => self.input_match_narrowing_set(set, phrase, pos, err_pos)?,
+            // Some(Narrowing::Ipa(val, mods)) => todo!(),
+            None => false
+        };
+
+        if ((!negate && mod_match) || (negate && !mod_match)) && !narrow_match {
             if let Some(r) = refr {
                 let Some(seg) = phrase.get_seg_at(*pos) else { return Ok(false) };
                 self.references.borrow_mut().insert(*r, RefKind::Segment(seg));
