@@ -118,7 +118,7 @@ impl SetChoice {
             match &mut item.kind {
                 ParseElement::Reference(_, m @ None) | ParseElement::Ipa(_, m @ None) => *m = Some(*matrix),
                 
-                ParseElement::Reference(_, Some(m)) | ParseElement::Ipa(_, Some(m)) | ParseElement::Matrix(m, _) => {
+                ParseElement::Reference(_, Some(m)) | ParseElement::Ipa(_, Some(m)) | ParseElement::Matrix(m, _, _) => {
                     for (ni, nk) in &node_mods { m.nodes[*ni] = **nk; }
                     for (fi, fk) in &feat_mods { m.feats[*fi] = **fk; }
 
@@ -263,6 +263,11 @@ impl UnderlineStruct {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Narrowing {
+    Matrix(Modifiers),
+    Set(ItemSet),
+}
 
 type RefAssign = Option<usize>;
 type StressMod = Option<SpecMod>;
@@ -281,7 +286,7 @@ pub(crate) enum ParseElement {
     OptEllipsis, // (..)
     Set      (ItemSet),
     Ipa      (Segment, Option<Modifiers>),
-    Matrix   (Modifiers, RefAssign),
+    Matrix   (Modifiers, Option<Narrowing>, RefAssign),
     Syllable (StressMod, Option<Tone>, RefAssign),
     Structure(Vec<ParseItem>, StressMod, Option<Tone>, RefAssign),
     Optional (Vec<ParseItem>, OptMin, OptMax),
@@ -291,8 +296,16 @@ pub(crate) enum ParseElement {
 
 impl ParseElement {
     fn as_matrix(&self) -> Option<&Modifiers> {
-        if let Self::Matrix(v, _) = self {
+        if let Self::Matrix(v, _, _) = self {
             Some(v)
+        } else {
+            None
+        }
+    }
+
+    fn as_matrix_with_narrowing(&self) -> Option<(&Modifiers, &Option<Narrowing>)> {
+        if let Self::Matrix(v, n, _) = self {
+            Some((v, n))
         } else {
             None
         }
@@ -336,8 +349,8 @@ impl fmt::Display for ParseElement {
 
             Self::Ipa(s, m) => write!(f, "{s:?} + {m:?}"),
 
-            Self::Matrix(tokens, refr) => {
-                write!(f, "{tokens:#?}={refr:#?}")
+            Self::Matrix(tokens, narrow, refr) => {
+                write!(f, "{tokens:#?}:-{narrow:#?}={refr:#?}")
             },
             Self::Syllable(str, tone, refr) => {
                 write!(f, "SYLL=>{str:?}:{tone:#?}={refr:#?}")
@@ -719,7 +732,7 @@ impl Parser {
 
     fn join_group_with_params(&self, character: ParseItem, parameters: ParseItem) -> ParseItem {
         let mut chr = *character.kind.as_matrix().expect("Caller asserts `character` is a matrix");
-        let params = parameters.kind.as_matrix().expect("Caller asserts `parameters` is a matrix"); 
+        let params = parameters.kind.as_matrix().expect("Caller asserts `parameters` is a matrix");
         for (i, n) in params.nodes.iter().enumerate() {
             if n.is_none() { continue }
             chr.nodes[i] = *n
@@ -734,7 +747,7 @@ impl Parser {
         chr.suprs.length = params.suprs.length;
         chr.suprs.tone = params.suprs.tone;
 
-        ParseItem::new(ParseElement::Matrix(chr, None), Position::new(self.group, self.line, character.position.start, parameters.position.end ))
+        ParseItem::new(ParseElement::Matrix(chr, None, None), Position::new(self.group, self.line, character.position.start, parameters.position.end ))
     }
 
     fn ipa_to_vals(ipa: Token) -> Result<Segment, RuleSyntaxError> {
@@ -776,16 +789,20 @@ impl Parser {
             "V" => vec![CONS_M, SONR_P, SYLL_P],                 // -cons, +son, +syll                // Vowel
 
             // TODO(girv): possible other groups
-            // "T"  // Palatal  [+cons, +dist, +fr, -bk, +hi, -lo]
+            // "B"	// Labial
+            // "T"  // Alveolar/Dental
+            // "J"  // Palatal  [+cons, +dist, +fr, -bk, +hi, -lo]
             // "K"  // Velar    [+cons, -fr, +bk, +hi, -lo]
             // "Q"  // Uvular   [+cons, -fr, +bk, -hi, -lo]
+            // "I"	// Front vowels
+            // "U"	// Back vowels
 
             _ => return Err(RuleSyntaxError::UnknownGrouping(chr.clone())),
         }).into_iter().for_each(|(feature, value)| {
             args.feats[feature as usize] = Some(value)
         });
 
-        Ok(ParseItem::new(ParseElement::Matrix(args, None), Position::new(self.group, self.line, chr.position.start, chr.position.end )))
+        Ok(ParseItem::new(ParseElement::Matrix(args, None, None), Position::new(self.group, self.line, chr.position.start, chr.position.end )))
     }
 
     fn is_feature(&self) -> bool{ matches!(self.curr_tkn.kind, TokenKind::Feature(_)) }
@@ -925,7 +942,7 @@ impl Parser {
         let args = self.get_param_args(false)?;
         let end = self.token_list[self.pos-1].position.end;
         
-        Ok(ParseItem::new(ParseElement::Matrix(args, None), Position::new(self.group, self.line, start, end)))
+        Ok(ParseItem::new(ParseElement::Matrix(args, None, None), Position::new(self.group, self.line, start, end)))
     }
 
     fn get_group(&mut self) -> Result<ParseItem, RuleSyntaxError> {
@@ -999,8 +1016,40 @@ impl Parser {
     fn get_ref_assign(&mut self, number: Token, char: &ParseItem) -> ParseItem {
         // RefAssign ← '=' [0-9]+
         let num = number.value.parse::<usize>().expect("number should be a number as set in `self.get_seg`");
-        let mods = char.kind.as_matrix().expect("char should be matrix as set in `self.get_group`");
-        ParseItem::new(ParseElement::Matrix(*mods, Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end ))
+        let (mods, narrow) = char.kind.as_matrix_with_narrowing().unwrap();
+        ParseItem::new(ParseElement::Matrix(*mods, narrow.clone(), Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end ))
+    }
+
+    fn get_narrowing(&mut self, item: &mut ParseItem) -> Result<(), RuleSyntaxError> {
+
+        let (narrow, pos) = match self.curr_tkn.kind {
+            TokenKind::Group => {
+                let ParseItem { kind: ParseElement::Matrix(mods, _, _), position } = self.get_group()? else { unreachable!() };
+                (Narrowing::Matrix(mods), position)
+            },
+            TokenKind::LeftSquare => {
+                let ParseItem { kind: ParseElement::Matrix(mods, _, _), position } = self.get_params()? else { unreachable!() };
+                (Narrowing::Matrix(mods), position)
+            },
+            TokenKind::LeftCurly => {
+                let Some(ParseItem { kind: ParseElement::Set(x), position }) = self.get_set()? else { unreachable!() };
+                (Narrowing::Set(x), position)
+            },
+            TokenKind::Cardinal => {
+                todo!()
+            }
+            
+            other => todo!("Error: {other}")
+        };
+
+        match &mut item.kind {
+            ParseElement::Matrix(_, maybe_narrow, _) => *maybe_narrow = Some(narrow),
+            _ => unreachable!()
+        }
+
+        item.position.end = pos.end;
+
+        Ok(())
     }
 
     fn get_seg(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
@@ -1009,7 +1058,12 @@ impl Parser {
             return Ok(Some(self.get_ipa()?))
         }
         if self.peek_expect(TokenKind::Group) {
-            let chr = self.get_group()?;
+            let mut chr = self.get_group()?;
+
+            if self.expect(TokenKind::Narrowing) {
+                self.get_narrowing(&mut chr)?;
+            } 
+
             if self.expect(TokenKind::Equals) {
                 let Some(n) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
@@ -1020,7 +1074,12 @@ impl Parser {
             return Ok(Some(chr))
         }
         if self.expect(TokenKind::LeftSquare) {
-            let params = self.get_params()?;
+            let mut params = self.get_params()?;
+
+            if self.expect(TokenKind::Narrowing) {
+                self.get_narrowing(&mut params)?;
+            } 
+
             if self.expect(TokenKind::Equals) {
                 let Some(n) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
@@ -1703,8 +1762,8 @@ mod tests {
         x.suprs.stress = Some(SpecMod::First(ModKind::Binary(BinMod::Negative)));
         y.suprs.stress = Some(SpecMod::First(ModKind::Binary(BinMod::Positive)));
         let exp_output = vec![
-            ParseItem::new(ParseElement::Matrix(x, None), Position::new(0, 0, 17, 26)),
-            ParseItem::new(ParseElement::Matrix(y, None), Position::new(0, 0, 28, 37)),
+            ParseItem::new(ParseElement::Matrix(x, None, None), Position::new(0, 0, 17, 26)),
+            ParseItem::new(ParseElement::Matrix(y, None, None), Position::new(0, 0, 28, 37)),
         ];
             
         let exp_context: Vec<EnvItem> = vec![
@@ -1752,14 +1811,14 @@ mod tests {
         let mut x = Modifiers::new();
         x.feats[FeatKind::Syllabic as usize] = Some(ModKind::Binary(BinMod::Negative));
         
-        let _c = ParseItem::new(ParseElement::Matrix(x, Some(1)), Position::new(0, 0, 0, 1));
+        let _c = ParseItem::new(ParseElement::Matrix(x, None, Some(1)), Position::new(0, 0, 0, 1));
 
         let mut y = Modifiers::new();
         y.feats[FeatKind::Consonantal as usize] = Some(ModKind::Binary(BinMod::Negative));
         y.feats[FeatKind::Sonorant as usize] = Some(ModKind::Binary(BinMod::Positive));
         y.feats[FeatKind::Syllabic as usize] = Some(ModKind::Binary(BinMod::Positive));
 
-        let _v = ParseItem::new(ParseElement::Matrix(y, Some(2)), Position::new(0, 0, 4, 5));
+        let _v = ParseItem::new(ParseElement::Matrix(y, None, Some(2)), Position::new(0, 0, 4, 5));
 
         let maybe_result = Parser:: new(setup("C=1 V=2 > 2 1 / _C"), 0, 0).parse();
 
@@ -1785,7 +1844,7 @@ mod tests {
         let mut out = Modifiers::new();
 
         out.suprs.tone = Some(321);
-        let exp_output = ParseItem::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
+        let exp_output = ParseItem::new(ParseElement::Matrix(out, None, None), Position::new(0, 0, 16, 27));
 
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);
@@ -1801,7 +1860,7 @@ mod tests {
         
         let mut out: Modifiers = Modifiers::new();
         out.suprs.tone = Some(321);
-        let exp_output = ParseItem::new(ParseElement::Matrix(out, None), Position::new(0, 0, 16, 27));
+        let exp_output = ParseItem::new(ParseElement::Matrix(out, None, None), Position::new(0, 0, 16, 27));
 
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);

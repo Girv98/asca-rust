@@ -47,6 +47,7 @@ pub(crate) enum TokenKind {
     Comment,          // Delimited by ';;'
     Feature(FeatureCategory),
     Negation,         // ¬ or -
+    Narrowing,        // :¬ or :-
     Eol,              // End of Line 
 }
 
@@ -100,6 +101,7 @@ impl Display for TokenKind {
             TokenKind::Comment         => write!(f, "Comment"),
             TokenKind::Feature(x)      => write!(f, "{x}"),
             TokenKind::Negation        => write!(f, "Not"),
+            TokenKind::Narrowing       => write!(f, "Without"),
             TokenKind::Eol             => write!(f, "End of Line"),
         }
     }
@@ -241,6 +243,7 @@ impl<'a> Lexer<'a> {
         self.pos -= 1;
     }
 
+    // TODO: change to stack system so that nested brackets can be allowed and validated
     fn get_bracket(&mut self) -> Result<Option<Token>, RuleSyntaxError> {
         let start = self.pos;
         let tokenkind: TokenKind;
@@ -262,9 +265,9 @@ impl<'a> Lexer<'a> {
                 tokenkind = TokenKind::LeftAngle; value = "⟨"; self.inside_syll = true;
             },
             '{' => { 
-                if self.inside_set && !self.inside_syll {
-                    return Err(RuleSyntaxError::NestedBrackets(self.group, self.line, start));
-                }
+                // if self.inside_set && !self.inside_syll {
+                //     return Err(RuleSyntaxError::NestedBrackets(self.group, self.line, start));
+                // }
                 tokenkind = TokenKind::LeftCurly; value = "{";  self.inside_set = true;
             },
             '(' => { 
@@ -384,7 +387,8 @@ impl<'a> Lexer<'a> {
                     self.inside_env_set = true;
                     self.chop(2) 
                 },
-                 _  => { tokenkind = TokenKind::Colon;        self.chop(1) }
+                '¬' | '-' => { tokenkind = TokenKind::Narrowing; self.chop(2) },
+                 _        => { tokenkind = TokenKind::Colon;     self.chop(1) }
             },
             '<' => { 
                 if self.inside_syll {
@@ -981,6 +985,27 @@ mod tests {
             Token::new(TokenKind::RightSquare,           "]", 0, 0,  7,  8),
             Token::new(TokenKind::Arrow,                "->", 0, 0,  9, 11),
             Token::new(TokenKind::Eol,                    "", 0, 0, 11, 12),
+        ];
+
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+
+        assert_eq!(result.len(), expected_result.len());
+
+        for i in 0..result.len() {
+            assert_eq!(result[i], expected_result[i]);
+        }
+    }
+
+    #[test]
+    fn narrowing() {
+        let test_input= String::from("C:-N-V");
+        let expected_result = vec![
+            Token::new(TokenKind::Group,      "C", 0, 0, 0, 1),
+            Token::new(TokenKind::Narrowing, ":-", 0, 0, 1, 3),
+            Token::new(TokenKind::Group,      "N", 0, 0, 3, 4),
+            Token::new(TokenKind::Negation,   "-", 0, 0, 4, 5),
+            Token::new(TokenKind::Group,      "V", 0, 0, 5, 6),
+            Token::new(TokenKind::Eol,         "", 0, 0, 6, 7),
         ];
 
         let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
