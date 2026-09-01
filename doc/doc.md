@@ -666,7 +666,8 @@ bk  = back
 ### Using Distinctive Features
 
 Distinctive features are defined between square brackets `e.g. [+cons]`. These are called matrices. A matrix can have multiple features, each separated by a comma `e.g. [+cons, -syll]`. 
-ASCA is fairly flexible with distinctive features; Features have many shorthands `e.g. [bk, hi, lo, dr, sg] = [back, high, low, del.rel., spread glottis]` ([full list](#feature-shorthands)), and whitespace is not important, meaning `[+del.rel.]` is identical to `[ + d e l . r e l . ]`.     
+ASCA is fairly flexible with distinctive features; Features have many shorthands `e.g. [bk, hi, lo, dr, sg] = [back, high, low, del.rel., spread glottis]` ([full list](#feature-shorthands)), and whitespace is not important, meaning `[+del.rel.]` is identical to `[ + d e l . r e l . ]`. Separating commas are also not strictly necessary,
+i.e. `[+hi, +bk, -tns]` can be rendered as `[+hi +bk -tns]` or even `[+hi+bk-tns]`.
 
 A matrix can be used standalone to represent a segment, or can be used to modify a segment by joining them with a colon `:`.
 ```wasm
@@ -1074,6 +1075,14 @@ V > [+long] / <(..)_-G>
 ;; A vowel that doesn't have an off-glide lengthens
 
 saj.nam => saj.na:m
+```
+A negated segment still matches the "presence" of a segment, just that the segment does not match the given item. For example, the previous example would also produce
+`saj.na => saj.na` as there is no segment following the last vowel. To allow for this case, we can put the negation in an option:
+```wasm
+V > [+long] / <(..)_(-G)>
+
+saj.nam => saj.na:m
+saj.na => saj.na:
 ```
 
 ```wasm
