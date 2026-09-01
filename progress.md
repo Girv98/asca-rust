@@ -15,10 +15,11 @@
     - Join Root, Manner, and Voice (like with place) in order to allow for more Manner DFs    
 - Rules
     - Allow sets to be negated 
+    - Allow syllables to be negated 
     - Set Narrowing using negation
-        - i.e. `S:-N ;; Sonorants but not nasals (equiv. to S:[-nas] i guess)`
-        - i.e. `C:-{s, t} ;; Consonants but not s and t`
-        - i.e. `[+strid]:-z ;; Stridents but not z`
+        - [x] i.e. `S:-N ;; Sonorants but not nasals (equiv. to S:[-nas] i guess)`
+        - [ ] i.e. `C:-{s, t} ;; Consonants but not s and t`
+        - [ ] i.e. `[+strid]:-z ;; Stridents but not z`
 
 
 ᶴ for post-alveolar? 
