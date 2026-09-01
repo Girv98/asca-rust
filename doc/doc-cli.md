@@ -209,6 +209,8 @@ Commands:
     run     Run basic cli
     seq     Run an asca config
     conv    Convert between different formats, such as the asca-web json file and the cli wsca/rsca format.
+    trace   Trace changes that a given ruleset applies to a given word
+    help    Print this message or the help of the given subcommand(s)
 ```
 ### Run command
 ```
