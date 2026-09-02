@@ -168,7 +168,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::ExpectedCharArrow (c, ..) => write!(f, "Expected '->', but received -'{c}'"),
             Self::MalformedComment  (c, ..) => write!(f, "Malformed Comment: Expected ';;', but received ';{c}'"),
             Self::UnknownCharacter  (c, ..) => write!(f, "Unknown character '{c}'"),
-            Self::ExpectedCharDot   (c, ..) => write!(f, "Expected '..', but received .'{c}'"),
+            Self::ExpectedCharDot   (c, ..) => write!(f, "Expected '..', but received '.{c}'"),
             Self::ExpectedNumber    (c, ..) => write!(f, "Expected a number, but received '{c}'"),
             Self::ExpectedTokenFeature(token) => write!(f, "{} cannot be placed inside a matrix. An element inside `[]` must a distinctive feature", token.value),
             Self::ExpectedRightBracket(token) => write!(f, "Expected ')', but received '{}'", token.value),
