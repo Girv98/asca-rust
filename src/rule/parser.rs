@@ -1567,7 +1567,7 @@ impl Parser {
 
             if inp_term.is_empty() {
                 match self.curr_tkn.kind {
-                    TokenKind::Comma if inputs.is_empty() => return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.curr_tkn.position.start)),
+                    TokenKind::Comma | TokenKind::Arrow | TokenKind::GreaterThan if inputs.is_empty() => return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.curr_tkn.position.start)),
                     TokenKind::Diacritic(_) => return Err(RuleSyntaxError::FloatingDiacritic(self.curr_tkn.position)),
                     _ if inputs.is_empty()  => return Err(RuleSyntaxError::UnknownCharacter(self.curr_tkn.value.chars().next().unwrap(), self.group, self.line, self.curr_tkn.position.start)),
                     _ => break
@@ -1989,5 +1989,12 @@ mod tests {
         let exp_expt = EnvItem { envs: vec![Env { center:None, before: vec![], after: vec![itm], position: Position::new(0, 0, 8, 10)}], position: Position::new(0, 0, 8, 10) };
 
         assert_eq!(result.except[0] , exp_expt);
+    }
+
+
+    #[test]
+    fn error() {
+        let maybe_res = Parser::new(setup("> e"), 0, 0).parse();
+        assert!(matches!(maybe_res, Err(RuleSyntaxError::EmptyInput(..))));
     }
 }
