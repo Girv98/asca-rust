@@ -59,6 +59,7 @@ impl SubRule {
             } else if let Some (x) = match_begin { 
                 // if we were in the middle of matching but now don't match, go back to when we started matching +1 and start again
                 cur_index = x;
+                self.matrix_increment(phrase, &mut cur_index);
                 cur_index.increment(phrase);
                 state_index = 0;
                 captures = vec![];
@@ -67,6 +68,7 @@ impl SubRule {
                 self.references.borrow_mut().clear();
             } else {
                 // if we weren't in the middle of matching, move on
+                self.matrix_increment(phrase, &mut cur_index);
                 cur_index.increment(phrase);
                 self.alphas.borrow_mut().clear();
                 self.references.borrow_mut().clear();
