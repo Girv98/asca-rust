@@ -2,17 +2,11 @@ use super::{setup_rule, setup_word, run};
 
 #[test]
 fn simple_ipa() {
-    let test_rule = "sk > &";
-    let test_word = "ˈɑːs.ki.ɑn";
-    assert!(run(test_rule, test_word, "ˈɑːk.si.ɑn"));
+    assert!(run("sk > &", "ˈɑːs.ki.ɑn", "ˈɑːk.si.ɑn"));
 
-    let test_rule = "[+rhotic]V > & / _s";
-    let test_word = "ˈhros";
-    assert!(run(test_rule, test_word, "ˈhors"));
+    assert!(run("[+rhotic]V > & / _s", "ˈhros", "ˈhors"));
 
-    let test_rule = "oba > &";
-    let test_word = "ˈko.ba.lo.ba";
-    assert!(run(test_rule, test_word, "ˈka.bo.la.bo"));
+    assert!(run("oba > &", "ˈko.ba.lo.ba", "ˈka.bo.la.bo"));
 }
 
 #[test]
@@ -32,37 +26,33 @@ fn seg_different_lengths() {
 
 #[test]
 fn met_pfas() {
-    let test_rule = "pf..s > &";
-    assert!(run(test_rule, "pfas", "safp"));
-    let test_rule = "{pf}..s > &";
-    assert!(run(test_rule, "pfas", "safp"));
+    assert!(run("pf..s > &", "pfas", "safp"));
+    assert!(run("{pf}..s > &", "pfas", "safp"));
 }
 
 #[test]
 fn met_sapf() {
-    let test_rule = "s..pf > &";
-    assert!(run(test_rule, "sapf", "fpas"));
+    assert!(run("s..pf > &", "sapf", "fpas"));
 }
 
 #[test]
 fn ord_pfas() {
-    let test_rule = "pf..s > @";
-    assert!(run(test_rule, "pfas", "sapf"));
-    let test_rule = "{pf}..s > @";
-    assert!(run(test_rule, "pfas", "sapf"));
+    assert!(run("pf..s > @", "pfas", "sapf"));
+    assert!(run("{pf}..s > @", "pfas", "sapf"));
 }
 
 #[test]
 fn ord_sapf() {
-    let test_rule = "s..pf > @";
-    assert!(run(test_rule, "sapf", "pfas"));
+    assert!(run("s..pf > @", "sapf", "pfas"));
 }
 
 #[test]
-fn asdasd() {
+fn three_ellipses_different_lengths() {
     assert!(run("pf..ts..k > &", "pfa.tsa.ka", "ka.sta.fpa"));
     assert!(run("pf..ts..k > @", "pfa.tsa.ka", "ka.tsa.pfa"));
-
+    
+    assert!(run("pf..tsr..k > &", "pfa.tsra.ka", "ka.rsta.fpa"));
+    assert!(run("pf..tsr..k > @", "pfa.tsra.ka", "ka.tsra.pfa"));
 }
 
 #[test]
@@ -428,7 +418,7 @@ fn ellipsis_uneven_syllable_syllable() {
 #[test]
 fn ellipsis_even_syllable_syll_bound() {
     let test_rule = setup_rule("<so>..$ > &");
-    assert!(test_rule.apply_word(setup_word("so.ra.ca")).is_err());
+    assert!(test_rule.unwrap().apply_word(setup_word("so.ra.ca")).is_err());
 }
 
 #[test]

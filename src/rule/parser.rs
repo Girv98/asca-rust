@@ -266,7 +266,51 @@ impl UnderlineStruct {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Narrowing {
     Matrix(Modifiers),
-    Set(ItemSet),
+    Set(NarrowSet),
+    Ipa(Segment, Option<Modifiers>)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NarrowSet {
+    pub(crate) choices: Vec<NarrowSetChoice>,
+    pub(crate) position: Position,
+}
+
+impl NarrowSet {
+    fn join_params(&mut self, matrix: &Modifiers) {
+        
+        let node_mods: Vec<(usize, &Option<ModKind>)> = matrix.nodes.iter().enumerate().filter(|(_, nk)| nk.is_some()).collect();
+        let feat_mods: Vec<(usize, &Option<ModKind>)> = matrix.feats.iter().enumerate().filter(|(_, fk)| fk.is_some()).collect();
+        
+        for item in &mut self.choices {
+
+            match item {
+                NarrowSetChoice::Segment(_, m @ None, _) => *m = Some(*matrix),
+
+                NarrowSetChoice::Segment(_, Some(m), _) |
+                NarrowSetChoice::Matrix(m, _) => {
+                    for (ni, nk) in &node_mods { m.nodes[*ni] = **nk; }
+                    for (fi, fk) in &feat_mods { m.feats[*fi] = **fk; }
+
+                    if let Some(stress) = matrix.suprs.stress {
+                        m.suprs.stress = Some(stress)
+                    }
+                    if let Some(length) = matrix.suprs.length {
+                        m.suprs.length = Some(length)
+                    }
+                    if let Some(tone) = matrix.suprs.tone {
+                        m.suprs.tone = Some(tone)
+                    }
+                },
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NarrowSetChoice {
+    Matrix(Modifiers, Position),
+    Segment(Segment, Option<Modifiers>, Position),
 }
 
 type RefAssign = Option<usize>;
@@ -1021,7 +1065,7 @@ impl Parser {
     }
 
     fn get_narrowing(&mut self, item: &mut ParseItem) -> Result<(), RuleSyntaxError> {
-
+        // Narrow ← ':' ('-' / '¬') (Matrix / Set / IPA (':' Params)?)
         let (narrow, pos) = match self.curr_tkn.kind {
             TokenKind::Group => {
                 let ParseItem { kind: ParseElement::Matrix(mods, _, _), position } = self.get_group()? else { unreachable!() };
@@ -1032,14 +1076,16 @@ impl Parser {
                 (Narrowing::Matrix(mods), position)
             },
             TokenKind::LeftCurly => {
-                let Some(ParseItem { kind: ParseElement::Set(x), position }) = self.get_set()? else { unreachable!() };
-                (Narrowing::Set(x), position)
+                let Some(narrow_set) = self.get_narrowing_set()? else { unreachable!() };
+                let pos = narrow_set.position;
+                (Narrowing::Set(narrow_set), pos)
             },
             TokenKind::Cardinal => {
-                todo!()
+                let ParseItem { kind: ParseElement::Ipa(seg, mods), position } = self.get_ipa()? else { unreachable!() };
+                (Narrowing::Ipa(seg, mods), position)
             }
             
-            other => todo!("Error: {other}")
+            _ => return Err(RuleSyntaxError::NarrowWrongKind(self.curr_tkn.position))
         };
 
         match &mut item.kind {
@@ -1216,6 +1262,94 @@ impl Parser {
         }
 
         Ok(SetChoice { items })
+    }
+
+    fn convert_set_to_narrowing_set(&mut self, choices: &[ParseItem]) -> Result<Vec<NarrowSetChoice>, RuleSyntaxError> {
+        let mut terms = Vec::with_capacity(choices.len());
+
+        for choice in choices {
+            let ParseItem { kind, position } = choice;
+
+            match kind {
+                &ParseElement::Matrix(mods, None, None) => {
+                    terms.push(NarrowSetChoice::Matrix(mods, *position));
+                }
+                &ParseElement::Matrix(_, Some(_), _) => {
+                    return Err(RuleSyntaxError::Narrowseption(*position))
+                }
+                &ParseElement::Matrix(_, _, Some(_)) => {
+                    return Err(RuleSyntaxError::NarrowReference(*position));
+                }
+                &ParseElement::Ipa(seg, mods) => {
+                    terms.push(NarrowSetChoice::Segment(seg, mods, *position));
+                } 
+                _ => unreachable!()
+            }
+        }
+
+        Ok(terms)
+    }
+
+    fn get_narrowing_set(&mut self) -> Result<Option<NarrowSet>, RuleSyntaxError> {
+        // NarrowSet ← '{' Segment (',' Segment)* ','? '}'
+        let start_pos = self.curr_tkn.position.start;
+        if !self.expect(TokenKind::LeftCurly) { return Ok(None) }
+        let mut terms = Vec::new();
+
+        while self.has_more_tokens() {
+            if self.expect(TokenKind::RightCurly) { break; }
+            if !terms.is_empty() && !self.expect(TokenKind::Comma) {
+                let mut err_pos = self.curr_tkn.position;
+                while self.has_more_tokens() && !(self.curr_tkn.kind == TokenKind::Comma || self.curr_tkn.kind == TokenKind::RightCurly) {
+                    err_pos.end = self.curr_tkn.position.end;
+                    self.advance();
+                }
+
+                if !self.has_more_tokens() {
+                    return Err(RuleSyntaxError::UnexpectedEol(self.curr_tkn.clone(), '}'))
+                }
+
+                return Err(RuleSyntaxError::NarrowTooMany(err_pos));
+            }
+
+            let Some(choice) = self.get_seg()? else {
+                // To allow for trailing commas
+                if self.expect(TokenKind::RightCurly) { 
+                    break; 
+                } else {
+                    return Err(RuleSyntaxError::NarrowSetWrongKind(self.curr_tkn.position))
+                }
+            };
+
+            terms.push(choice);
+        }
+
+        let end_pos = self.token_list[self.pos-1].position.end;
+        let mut pos = Position::new(self.group, self.line, start_pos, end_pos);
+
+        if terms.is_empty() {
+            return Err(RuleSyntaxError::EmptySet(pos))
+        }
+
+        if !self.expect(TokenKind::Colon) {
+            let narrow_set_choice = self.convert_set_to_narrowing_set(&terms)?;
+            return Ok(Some(NarrowSet { choices: narrow_set_choice, position: pos }))
+        }
+
+        if !self.expect(TokenKind::LeftSquare) {
+            return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
+        }
+
+        let params = self.get_params()?;
+        let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`");
+        pos.end = params.position.end;
+
+        let narrow_set_choice = self.convert_set_to_narrowing_set(&terms)?;
+        let mut set = NarrowSet { choices: narrow_set_choice, position: pos };
+
+        set.join_params(matrix);
+
+        Ok(Some(set))
     }
 
     fn get_set(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {

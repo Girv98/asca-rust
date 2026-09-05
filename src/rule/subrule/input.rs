@@ -4,7 +4,7 @@ use super :: {
 
 use crate :: {
     error :: RuleRuntimeError, 
-    rule  :: { ItemSet, Narrowing, Reference, SetChoice },
+    rule  :: { ItemSet, NarrowSet, NarrowSetChoice, Narrowing, Reference, SetChoice },
     word  :: { Phrase, SegPos, Segment, Syllable, Tone }
 };
 
@@ -394,6 +394,7 @@ impl SubRule {
 
         let mut caps = Vec::new();
 
+        debug_assert!(!choice.items.is_empty());
         for item in &choice.items {
             let res = match &item.kind {
                 ParseElement::Reference(vt, mods) => self.input_match_ref(&mut caps, state_index, vt, mods, phrase, pos, item.position, false), // TODO
@@ -448,19 +449,20 @@ impl SubRule {
         Ok(false)
     }
 
-    // TODO: This should be its own data structure and not an ItemSet, all of these errors can be enforced at Parsing
-    fn input_match_narrowing_set(&self, set: &ItemSet, phrase: &Phrase, pos: &SegPos, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+    fn input_match_narrowing_set(&self, set: &NarrowSet, phrase: &Phrase, pos: &SegPos) -> Result<bool, RuleRuntimeError> {
         let back_alphas = self.alphas.borrow().clone();
 
-        for choice in &set.choices {
-            if choice.items.len() > 1 { return Err(todo!("Narrowing Set Choice cannot be more than one item")) }
-            let Some(item) = choice.items.first() else { continue };
-            match item.kind {
-                ParseElement::Matrix(mods, _, _) => if self.match_modifiers(&mods, phrase, pos, err_pos)? {
+        for item in &set.choices {
+            match &item {
+                NarrowSetChoice::Matrix(mods, err_pos) => if self.match_modifiers(mods, phrase, pos, *err_pos)? {
                     return Ok(true)
                 },
-                ParseElement::Ipa(_, _) => todo!(),
-                _ => return Err(todo!("Narrowing set can only contain Matrix or IPA"))
+                NarrowSetChoice::Segment(seg, mods, err_pos) => {
+                    let mut dummy_pos = *pos;
+                    if self.input_match_ipa(&mut vec![], seg, mods, phrase, &mut dummy_pos, *err_pos, false)? {
+                        return Ok(true)
+                    }
+                },
             }
             *self.alphas.borrow_mut() = back_alphas.clone();
         }
@@ -547,8 +549,11 @@ impl SubRule {
 
         let narrow_match = match narrow {
             Some(Narrowing::Matrix(mods)) => self.match_modifiers(mods, phrase, pos, err_pos)?,
-            Some(Narrowing::Set(set)) => self.input_match_narrowing_set(set, phrase, pos, err_pos)?,
-            // Some(Narrowing::Ipa(val, mods)) => todo!(),
+            Some(Narrowing::Set(set)) => self.input_match_narrowing_set(set, phrase, pos)?,
+            Some(Narrowing::Ipa(seg, mods)) => {
+                let mut dummy_pos = *pos;
+                self.input_match_ipa(&mut vec![], seg, mods, phrase, &mut dummy_pos, err_pos, false)?
+            },
             None => false
         };
 

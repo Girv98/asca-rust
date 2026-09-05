@@ -1,11 +1,14 @@
 
 
 mod meta;
+mod narrow;
 
-use crate::{rule::{Lexer, Parser, Rule, RuleGroup}, word::{Phrase, Word}};
+use crate::{error::RuleSyntaxError, rule::{Lexer, Parser, Rule, RuleGroup}, word::{Phrase, Word}};
 
 fn run(test_rule: &str, test_input: &str, expt_output: &str) -> bool {
-    let rule = setup_rule(test_rule);
+    let Ok(rule) = setup_rule(test_rule) else {
+        return false;
+    };
     let phrase = setup_phrase(test_input);
     let expt_output = setup_output(expt_output);
 
@@ -41,26 +44,25 @@ fn setup_output(out_str: &str) -> String {
     s
 }
 
-fn setup_rule(test_str: &str) -> Rule {
+fn setup_rule(test_str: &str) -> Result<Rule, RuleSyntaxError> {
     let maybe_lex = Lexer::new(&test_str.chars().collect::<Vec<_>>(),0 ,0).get_line();
     match maybe_lex {
         Ok(lexed) => {
             match Parser::new(lexed, 0, 0).parse() {
-                Ok(rule) => return rule.unwrap(),
+                Ok(rule) => return Ok(rule.unwrap()),
                 Err(e) => {
                     let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
                     println!("{}", e.format(&vec![rg]));
-                    assert!(false);
+                    return Err(e);
                 },
             }
         },
         Err(e) => {
             let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
             println!("{}", e.format(&vec![rg]));
-            assert!(false);
+            return Err(e);
         },
     } 
-    unreachable!()
 }
 
 fn setup_word(test_str: &str) -> Word {
@@ -106,6 +108,10 @@ fn wildcard() {
     assert!(run("[] > [+red]", "arisan",      "aᵊrᵊiᵊsᵊaᵊnᵊ"));
 }
 
+#[test]
+fn dadsfd() {
+    assert!(run("{s,} > x / _{V,}", "sam", "xam"));
+}
 
 #[test]
 fn septm() {
@@ -611,8 +617,8 @@ fn sub_skip() {
     assert!(run("p..t > t..p", "pa.ta.ka", "ta.pa.ka"));
     assert!(run("p..t > x:[+long]..x", "pa.ta.ka", "xːa.xa.ka"));
     
-    assert!(setup_rule("p..t > xx").apply_word(setup_word("pa.ta.ka")).is_err());
-    assert!(setup_rule("p..t > x:[+long]x").apply_word(setup_word("pa.ta.ka")).is_err());
+    assert!(setup_rule("p..t > xx").unwrap().apply_word(setup_word("pa.ta.ka")).is_err());
+    assert!(setup_rule("p..t > x:[+long]x").unwrap().apply_word(setup_word("pa.ta.ka")).is_err());
 
     assert!(run("a$ > e$", "a.pa.ta.ka.a.da", "e.pe.te.ke.e.de"));
     assert!(run("a$ > e$", "a.pa.ta.ki.a.da", "e.pe.te.ki.e.de"));
@@ -652,7 +658,7 @@ fn ellipses_prop() {
 #[test]
 fn sub_del_ellipsis() {
     assert!(run("pf..t > x..x", "pfa.ta.ka", "xa.xa.ka"));
-    assert!(setup_rule("pf..t..k > x..x").apply_word(setup_word("pfa.ta.ka")).is_err());
+    assert!(setup_rule("pf..t..k > x..x").unwrap().apply_word(setup_word("pfa.ta.ka")).is_err());
 
     assert!(run("p..t > x..", "pa.ta.ka", "xa.a.ka"));
     
@@ -1257,7 +1263,7 @@ fn portuguese() {
         for (i, rule) in test_rules.iter().enumerate() {
             println!("--{}--", i+1);
             println!("{}", w.render());
-            w = rule.apply_word(w).unwrap();
+            w = rule.as_ref().unwrap().apply_word(w).unwrap();
         }
         output_words.push(w)
     }
@@ -1639,7 +1645,7 @@ fn engala_new() {
         for (ri, rule) in test_rules.iter().enumerate() {
             println!("-- {} --", ri);
             println!("{}", w.render());
-            w = match rule.apply_word(w) {
+            w = match rule.as_ref().unwrap().apply_word(w) {
                 Ok(w) => w,
                 Err(_) => {
                     // println!("{}", e.format_error(&["* > t:[Avoi] / n_C:[+cont, Avoi, +cor]".to_string()]));
@@ -1881,7 +1887,7 @@ fn proto_anaki() {
         for (_ri, rule) in test_rules.iter().enumerate() {
             // println!("-- {} --", _ri+1);
             // println!("{}", w.render(&[]));
-            w = match rule.apply_word(w) {
+            w = match rule.as_ref().unwrap().apply_word(w) {
                 Ok(w) => w,
                 Err(_) => {
                     // println!("{}", e.format_error(&["      ".to_string()]));

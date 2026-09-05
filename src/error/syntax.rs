@@ -135,6 +135,11 @@ pub enum RuleSyntaxError {
     StuffBeforeWordBound   (Position),
     StuffAfterWordBound    (Position),
     FloatingDiacritic      (Position),
+    NarrowSetWrongKind     (Position),
+    NarrowWrongKind        (Position),
+    NarrowReference        (Position),
+    Narrowseption          (Position),
+    NarrowTooMany          (Position),
     WordBoundLoc           (Position),
     OptLocError            (Position),
     EmptySet               (Position),
@@ -205,6 +210,11 @@ impl fmt::Display for RuleSyntaxError {
             Self::StuffBeforeWordBound   (_) => write!(f, "Cannot have segments before the beginning of a word"),
             Self::StuffAfterWordBound    (_) => write!(f, "Cannot have segments after the end of a word"),
             Self::FloatingDiacritic      (_) => write!(f, "Floating diacritic. Diacritics can only be used to modify IPA Segments"),
+            Self::NarrowSetWrongKind     (_) => write!(f, "A narrowing set can only contain a Matrix or IPA segment"),
+            Self::NarrowWrongKind        (_) => write!(f, "A narrowing can only be a Matrix, Set, or IPA segment"),
+            Self::NarrowReference        (_) => write!(f, "A narrowing set cannot itself contain a narrowing"),
+            Self::Narrowseption          (_) => write!(f, "A narrowing set cannot contain a reference assignment"),
+            Self::NarrowTooMany          (_) => write!(f, "A narrowing set cannot contain more than one item per choice"),
             Self::WordBoundLoc           (_) => write!(f, "Word boundaries are not allowed in the input or output"),
             Self::OptLocError            (_) => write!(f, "Options can only be used in Environments or Structures"),
             Self::EmptySet               (_) => write!(f, "Sets cannot be empty"),
@@ -295,8 +305,13 @@ impl RuleSyntaxError {
             Self::TooManyWordBoundaries(pos) |
             Self::StuffBeforeWordBound(pos)  | 
             Self::StuffAfterWordBound(pos)   | 
-            Self::FloatingDiacritic(pos)     => (
-                " ".repeat(pos.start) + "^" + "\n", 
+            Self::FloatingDiacritic(pos)     |
+            Self::NarrowSetWrongKind(pos)    |
+            Self::NarrowWrongKind(pos)       |
+            Self::NarrowReference(pos)       |
+            Self::Narrowseption(pos)         |
+            Self::NarrowTooMany(pos)         => (
+                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n", 
                 pos.group,
                 pos.line
             ),
