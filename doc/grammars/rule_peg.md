@@ -25,7 +25,7 @@ EnvCenter   ← UndStruct / Underline
 UndStruct   ← '<' SyllTerm* Underline SyllTerm* '>' (':' Params)?                       // TODO RefAssign?
 
 Term        ← Syll / Struct / Set / Segment / Reference
-NegTerm     ← ('-' / '¬') (Segment / Reference)                                         // NOTE: Reference to a syllable should error
+NegTerm     ← ('-' / '¬') (Segment / Reference)                                         // TODO: Allow Structures and Sets
 Syll        ← '%' (':' Params)? RefAssign?
 Struct      ← '<' SyllTerm* '>' (':' Params)? RefAssign?
 SyllTerm    ← Segment / OptEllipsis / Ellipsis / Reference / Set / Option               // NOTE: Boundaries and Syllables inside a struct are runtime invalid
@@ -33,9 +33,11 @@ Set         ← '{' SetTerm+ (',' SetTerm+)* ','? '}' (':' Params)?
 SetTerm     ← Reference / Segment / Boundary / Syll                                     // NOTE: WordBound not valid in input/output
 Option      ← '(' (OptTerm+ (',' [0-9]* (':' [1-9]+)?)?)? ')'
 OptTerm     ← CrossBound / Boundary / Syll / Set / Segment / Reference
-Segment     ← IPA (':' Params)? / Matrix RefAssign?
+Segment     ← IPA (':' Params)? / Matrix Narrow? RefAssign?
 Matrix      ← Group / Params
 Reference   ← [0-9]+ (':' Params)?
+Narrow      ← ':' ('-' / '¬') (Matrix / NarrowSet / IPA (':' Params)?)
+NarrowSet   ← '{' Segment (',' Segment)* ','? '}' (':' Params)?
 RefAssign   ← '=' [0-9]+
 
 Group	    ← [A-Z] (':' Params)?
