@@ -79,3 +79,36 @@ fn error() {
     let Err(res) = setup_rule("C:-{sasds,") else { assert!(false); return };
     assert!(matches!(res, RuleSyntaxError::NarrowTooMany(_)));
 }
+
+#[test]
+fn env_matrix() {
+    assert!(run("V > [+s.g.] / _C:-N",          "akan",   "a̤kan"));
+    assert!(run("V > [+s.g.] / C:-N_",          "kana",   "ka̤na"));
+    assert!(run("V > [+s.g.] / _{C:-N}",        "akan",   "a̤kan"));
+    assert!(run("V > [+s.g.] / {C:-N}_",        "kana",   "ka̤na"));
+    
+    assert!(run("V > [+s.g.] / _C:-P",          "akan",   "aka̤n"));
+    assert!(run("V > [+s.g.] / C:-P_",          "kana",   "kana̤"));
+}
+
+#[test]
+fn env_segment() {
+    assert!(run("V > [+s.g.] / _C:-n",          "akan",   "a̤kan"));
+    assert!(run("V > [+s.g.] / C:-n_",          "kana",   "ka̤na"));
+    
+    assert!(run("V > [+s.g.] / C:-n:[+long]_",  "kana",   "ka̤na̤"));
+}
+
+
+
+#[test]
+fn env_set() {
+    assert!(run("V > [+s.g.] / _C:-{n}",          "akan",   "a̤kan"));
+    assert!(run("V > [+s.g.] / C:-{n}_",          "kana",   "ka̤na"));
+    
+    assert!(run("V > [+s.g.] / C:-{n:[+long]}_",  "kana",   "ka̤na̤"));
+
+    
+    assert!(run("V > [+s.g.] / _C:-{P, N}",          "akalan",   "aka̤lan"));
+    assert!(run("V > [+s.g.] / C:-{P, N}_",          "kalana",   "kala̤na"));
+}

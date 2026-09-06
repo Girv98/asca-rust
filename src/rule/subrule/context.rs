@@ -4,7 +4,7 @@ use super :: {
 
 use crate :: {
     error :: RuleRuntimeError, 
-    rule  :: { ItemSet, Narrowing, Reference, SetChoice }, 
+    rule  :: { ItemSet, NarrowSet, NarrowSetChoice, Narrowing, Reference, SetChoice }, 
     word  :: { Phrase, SegPos, Segment, Syllable, Tone }
 };
 
@@ -749,6 +749,25 @@ impl SubRule {
         Ok(true)
     }
 
+    fn context_match_narrowing_set(&self, set: &NarrowSet, phrase: &Phrase, pos: SegPos) -> Result<bool, RuleRuntimeError> {
+        let back_alphas = self.alphas.borrow().clone();
+
+        for item in &set.choices {
+            match &item {
+                NarrowSetChoice::Matrix(mods, err_pos) => if self.match_modifiers(mods, phrase, &pos, *err_pos)? {
+                    return Ok(true)
+                },
+                NarrowSetChoice::Segment(seg, mods, err_pos) => 
+                    if self.context_match_ipa(seg, mods, phrase, pos, *err_pos, false)? {
+                        return Ok(true)
+                    }
+            }
+            *self.alphas.borrow_mut() = back_alphas.clone();
+        }
+
+        Ok(false)
+    }
+
     pub(super) fn context_match_set(&self, set: &ItemSet, phrase: &Phrase, pos: &mut SegPos, forwards: bool, within_struct: Option<usize>) -> Result<bool, RuleRuntimeError> {
         let back_pos= *pos;
         let back_alphas = self.alphas.borrow().clone();
@@ -892,7 +911,15 @@ impl SubRule {
         if phrase[pos.word_index].out_of_bounds(*pos) { return Ok(false) }
         
         let mod_match = self.match_modifiers(mods, phrase, pos, err_pos)?;
-        if (!negate && mod_match) || (negate && !mod_match) {
+
+        let narrow_match = match narrow {
+            Some(Narrowing::Matrix(mods)) => self.match_modifiers(mods, phrase, pos, err_pos)?,
+            Some(Narrowing::Set(set)) => self.context_match_narrowing_set(set, phrase, *pos)?,
+            Some(Narrowing::Ipa(seg, mods)) => self.context_match_ipa(seg, mods, phrase, *pos, err_pos, false)?,
+            None => false,
+        };
+
+        if ((!negate && mod_match) || (negate && !mod_match)) && !narrow_match {
             if let Some(r) = refr {
                 // SAFETY: pos is in bounds and phrase is not empty
                 self.references.borrow_mut().insert(*r, RefKind::Segment(unsafe { phrase.get_seg_at(*pos).unwrap_unchecked() }));
