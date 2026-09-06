@@ -1,3 +1,27 @@
+NEXT RELEASE
+==================
+[0.10.2...master](https://github.com/Girv98/asca-rust/compare/0.10.2...master)
+
+Features:
+* Lib: 
+    * Matrix Narrowing
+        * e.g. `O:-s => [+voi] ;; Obstruents except /s/ become voiced`
+            * `sa.ta.kam => sa.da.gam`
+        * e.g. `O:-F => [+voi] ;; Obstruents that are not fricatives become voiced`
+            * `sa.ta.kam => sa.da.gam`
+        * e.g. `O:-{s, t} => [+voi] ;; Obstruents that are not /s/ or /t/ become voiced`
+            * `sa.ta.kam => sa.ta.gam`
+
+Fixes:
+* Lib:
+    * Prevent "Supra-stealing" in substitution rules with boundaries
+    * Long segments in an input set are skipped correctly if they are not successfully matched
+
+* Cli: Add description to trace command (oops!)
+
+Tweaks:
+* Error message changes 
+
 0.10.2
 ==================
 [0.10.1...0.10.2](https://github.com/Girv98/asca-rust/compare/0.10.1...0.10.2)
