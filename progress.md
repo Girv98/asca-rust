@@ -16,10 +16,10 @@
 - Rules
     - Allow sets to be negated 
     - Allow syllables to be negated 
-    - Set Narrowing using negation
-        - [x] i.e. `S:-N ;; Sonorants but not nasals (equiv. to S:[-nas] i guess)`
-        - [ ] i.e. `C:-{s, t} ;; Consonants but not s and t`
-        - [ ] i.e. `[+strid]:-z ;; Stridents but not z`
+    - [x] Set Narrowing using negation
+        - [x] i.e. `S:-N ;; Sonorants but not nasals`
+        - [x] i.e. `C:-{s, t} ;; Consonants but not s and t`
+        - [x] i.e. `[+strid]:-z ;; Stridents but not z`
 
 
 ᶴ for post-alveolar? 
