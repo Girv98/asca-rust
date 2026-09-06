@@ -425,7 +425,10 @@ impl<'a> Lexer<'a> {
             '…' | '⋯' => { tokenkind = TokenKind::Ellipsis; self.chop(1) },
             '.' => match self.next_char() {
                 '.' => { tokenkind = TokenKind::Ellipsis; self.chop_while(|x| *x == '.') },
-                _ => return Err(RuleSyntaxError::ExpectedCharDot(self.next_char(), self.group, self.line, self.pos))
+                _ => {
+                    self.advance();
+                    return Err(RuleSyntaxError::ExpectedCharDot(self.curr_char(), self.group, self.line, self.pos))
+                }
             },
             _ => return Ok(None)
         };
@@ -717,8 +720,30 @@ impl<'a> Lexer<'a> {
         if let Some(dia_token) = self.get_diacritic()     { return Ok(dia_token) }
         if let Some(ipa_token) = self.get_ipa()           { return Ok(ipa_token) }
         if let Some(str_token) = self.get_string()?       { return Ok(str_token) } 
+
+        match self.curr_char() {
+            '"' => {
+                if self.next_char() == '\0' {
+                    return Err(RuleSyntaxError::UnexpectedEol(Token::new(TokenKind::Eol, "\0", self.group, self.line, self.pos, self.pos+2), "diacritic"))
+                }
+
+                let pos = Position::new(self.group, self.line, self.pos, self.pos+2);
+                self.advance();
+                Err(RuleSyntaxError::UnknownDiacritic(self.curr_char(), pos))
+            },
+            '^' => {
+                if self.next_char() == '\0' {
+                    return Err(RuleSyntaxError::UnexpectedEol(Token::new(TokenKind::Eol, "\0", self.group, self.line, self.pos, self.pos+2), "joining"))
+                }
+
+                let pos = Position::new(self.group, self.line, self.pos, self.pos+2);
+                self.advance();
+                Err(RuleSyntaxError::UnknownJoining(self.curr_char(), pos))
+            },
+            other => Err(RuleSyntaxError::UnknownCharacter(other, self.group, self.line, self.pos))
+        }
         
-        Err(RuleSyntaxError::UnknownCharacter(self.curr_char(), self.group, self.line, self.pos))
+        // Err(RuleSyntaxError::UnknownCharacter(self.curr_char(), self.group, self.line, self.pos))
     }
 
     pub(crate) fn get_line(&mut self) -> Result<Vec<Token>, RuleSyntaxError> {

@@ -130,6 +130,8 @@ pub enum RuleSyntaxError {
     EmptyEnv       (GroupIndex, LineIndex, PosIndex),
     InsertMetath(GroupIndex, LineIndex, PosIndex, PosIndex),
     InsertDelete(GroupIndex, LineIndex, PosIndex, PosIndex),
+    UnknownDiacritic (char, Position),
+    UnknownJoining   (char, Position),
     TooManyUnderlinesStruct(Position),
     TooManyWordBoundaries  (Position),
     StuffBeforeWordBound   (Position),
@@ -154,7 +156,7 @@ pub enum RuleSyntaxError {
     BadNegation        (Position, Position),
     UnbalancedRuleEnv(Vec<EnvItem>),
     UnbalancedRuleIO (Vec<Vec<ParseItem>>),
-    UnexpectedEol(Token, char),
+    UnexpectedEol(Token, &'static str),
     OptMathError (Token, usize, usize),
 }
 
@@ -170,10 +172,12 @@ impl fmt::Display for RuleSyntaxError {
             Self::FeatCannotBeBinary(feat, ..)  => write!(f, "Feature '{feat}' cannot have a binary value."),
             Self::ExpectedAlphabetic(c, ..) => write!(f, "Expected ASCII character, but received '{c}'"),
             Self::ExpectedCharColon (c, ..) => write!(f, "Expected ':', but received '{c}'"),
-            Self::ExpectedCharArrow (c, ..) => write!(f, "Expected '->', but received -'{c}'"),
-            Self::MalformedComment  (c, ..) => write!(f, "Malformed Comment: Expected ';;', but received ';{c}'"),
+            Self::ExpectedCharArrow (c, ..) => write!(f, "Expected '->', but received '-{c}'"),
+            Self::MalformedComment  (c, ..) => write!(f, "Malformed Comment: Expected ';;', but received {}", if *c == '\0' {String::from("End of Line")} else { format!("';{c}'") }),
             Self::UnknownCharacter  (c, ..) => write!(f, "Unknown character '{c}'"),
-            Self::ExpectedCharDot   (c, ..) => write!(f, "Expected '..', but received '.{c}'"),
+            Self::UnknownDiacritic  (c, ..) => write!(f, "Unknown diacritic{}", if *c == '\0' {String::from(", received End of Line")} else { format!(" '\"{c}'") }),
+            Self::UnknownJoining    (c, ..) => write!(f, "Unknown joining{}", if *c == '\0' {String::from(", received End of Line")} else { format!(" '\"{c}'") }),
+            Self::ExpectedCharDot   (c, ..) => write!(f, "Expected '..', but received {}", if *c == '\0' {String::from("End of Line")} else { format!("'.{c}'") }),
             Self::ExpectedNumber    (c, ..) => write!(f, "Expected a number, but received '{c}'"),
             Self::ExpectedTokenFeature(token) => write!(f, "{} cannot be placed inside a matrix. An element inside `[]` must a distinctive feature", token.value),
             Self::ExpectedRightBracket(token) => write!(f, "Expected ')', but received '{}'", token.value),
@@ -222,7 +226,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::UnknownFeature    (feat, _) => write!(f, "Unknown feature '{feat}'. Did you mean {}? ", get_feat_closest(feat)),
             Self::DiacriticDoesNotMeetPreReqsFeat(.., t , pos) |
             Self::DiacriticDoesNotMeetPreReqsNode(.., t , pos) => {
-                write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be [{}{}]", if *pos { '+' } else { '-' },t) 
+                write!(f, "Segment does not have prerequisite properties to have this diacritic. Must be [{}{}]", if *pos { '+' } else { '-' }, t) 
             },
             Self::UnexpectedDiacritic(..) => write!(f, "Diacritics can only be used to modify IPA Segments"),
             Self::SupraConflict      (..) => write!(f, "Cannot use conflicting suprasegmental types in the same matrix"),
@@ -231,7 +235,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::SetSyllWrongMods   (.., feat) => write!(f, "Syllables cannot be modified with '{feat}'"),
             Self::UnbalancedRuleEnv(_) => write!(f, "Environment has too few elements"),
             Self::UnbalancedRuleIO (_) => write!(f, "Input or Output has too few elements"),
-            Self::UnexpectedEol(_, c) => write!(f, "Expected `{c}`, but received End of Line"),
+            Self::UnexpectedEol(_, c) => write!(f, "Expected {c}, but received End of Line"),
             Self::OptMathError (_, lo, hi) => write!(f, "An Optional's second argument '{hi}' must be greater than or equal to it's first argument '{lo}'"),
         }
     }
@@ -302,6 +306,8 @@ impl RuleSyntaxError {
                 *group,
                 *line
             ),
+            Self::UnknownDiacritic  (_, pos) |
+            Self::UnknownJoining    (_, pos) |
             Self::TooManyWordBoundaries(pos) |
             Self::StuffBeforeWordBound(pos)  | 
             Self::StuffAfterWordBound(pos)   | 

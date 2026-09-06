@@ -944,7 +944,7 @@ impl Parser {
                 continue;
             }
             if self.curr_tkn.kind == TokenKind::Eol {
-                return Err(RuleSyntaxError::UnexpectedEol(self.curr_tkn.clone(), ']'))
+                return Err(RuleSyntaxError::UnexpectedEol(self.curr_tkn.clone(), "']'"))
             }
             return Err(RuleSyntaxError::ExpectedTokenFeature(self.curr_tkn.clone()))
         }
@@ -1310,7 +1310,7 @@ impl Parser {
                 }
 
                 if !self.has_more_tokens() {
-                    return Err(RuleSyntaxError::UnexpectedEol(self.curr_tkn.clone(), '}'))
+                    return Err(RuleSyntaxError::UnexpectedEol(self.curr_tkn.clone(), "'}'"))
                 }
 
                 return Err(RuleSyntaxError::NarrowTooMany(err_pos));

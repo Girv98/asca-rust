@@ -73,9 +73,9 @@ fn error() {
 
     
     let Err(res) = setup_rule("C:-{s") else { assert!(false); return };
-    assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, '}')));
+    assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, "'}'")));
     let Err(res) = setup_rule("C:-{sx") else { assert!(false); return };
-    assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, '}')));
+    assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, "'}'")));
     let Err(res) = setup_rule("C:-{sasds,") else { assert!(false); return };
     assert!(matches!(res, RuleSyntaxError::NarrowTooMany(_)));
 }
