@@ -630,9 +630,13 @@ impl Parser {
         }
         if contains_word_bound {
             if !is_after && els.first().expect("contains wbound").kind != ParseElement::WordBound {
-                return Err(RuleSyntaxError::StuffBeforeWordBound(word_bound_pos))
+                let mut pos = els[0].position;
+                pos.end = word_bound_pos.start;
+                return Err(RuleSyntaxError::StuffBeforeWordBound(pos))
             } else if is_after && els.last().expect("contains wbound").kind != ParseElement::WordBound {
-                return Err(RuleSyntaxError::StuffAfterWordBound(word_bound_pos))
+                let mut pos = els.last().unwrap().position;
+                pos.start = word_bound_pos.end;
+                return Err(RuleSyntaxError::StuffAfterWordBound(pos))
             }
         }
 
