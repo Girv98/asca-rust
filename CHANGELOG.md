@@ -4,13 +4,16 @@ NEXT RELEASE
 
 Features:
 * Lib: 
-    * Matrix Narrowing
-        * e.g. `O:-s => [+voi] ;; Obstruents except /s/ become voiced`
-            * `sa.ta.kam => sa.da.gam`
-        * e.g. `O:-F => [+voi] ;; Obstruents that are not fricatives become voiced`
-            * `sa.ta.kam => sa.da.gam`
-        * e.g. `O:-{s, t} => [+voi] ;; Obstruents that are not /s/ or /t/ become voiced`
-            * `sa.ta.kam => sa.ta.gam`
+    * Matrix Narrowing: Matrices and Groups can be modified to exclude segments they would normally match.
+        * Exclude single segments
+            * e.g. `O:-s => [+voi] ;; Obstruents except /s/ become voiced`
+                * `sa.ta.kam => sa.da.gam`
+        * Exclude single group or matrix
+            * e.g. `O:-F => [+voi] ;; Obstruents that are not fricatives become voiced`
+                * `sa.ta.kam => sa.da.gam`
+        * Exclude multiple segments, groups, or matrices
+            * e.g. `O:-{t, [+cont]} => [+voi] ;; Obstruents that are not /t/ or [+cont] become voiced`
+                * `sa.ta.kam => sa.ta.gam`
 
 Fixes:
 * Cli: Add description to trace command (oops!)
