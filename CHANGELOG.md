@@ -13,16 +13,16 @@ Features:
             * `sa.ta.kam => sa.ta.gam`
 
 Fixes:
+* Cli: Add description to trace command (oops!)
 * Lib:
     * Prevent "Supra-stealing" in substitution rules with boundaries
     * Long segments in an input set are skipped correctly if they are not successfully matched
 
-* Cli: Add description to trace command (oops!)
 
 Tweaks:
-* Error message changes 
+* Error message changes and additions
 
-0.10.2
+[0.10.2](https://github.com/Girv98/asca-rust/releases/tag/0.10.2) (2026-07-16)
 ==================
 [0.10.1...0.10.2](https://github.com/Girv98/asca-rust/compare/0.10.1...0.10.2)
 
@@ -33,7 +33,7 @@ Fixes:
 * Lib: Fixes a regression introduced in `0.10.1` that affected right-hand boundary checking within an underline structure
     * Specifically, rules such as `VN > [+nas] / <(..)_>` now work as expected
 
-0.10.1
+[0.10.1](https://github.com/Girv98/asca-rust/releases/tag/0.10.1) (2026-06-27)
 ==================
 [0.10.0...0.10.1](https://github.com/Girv98/asca-rust/compare/0.10.0...0.10.1)
 
@@ -51,7 +51,7 @@ Features:
 Fixes:
  * Lib: Options at the beginning or end of a structure properly check if they fill a syllable
 
-0.10.0
+[0.10.0](https://github.com/Girv98/asca-rust/releases/tag/0.10.0) (2026-06-21)
 ==================
 [0.9.3...0.10.0](https://github.com/Girv98/asca-rust/compare/0.9.3...0.10.0)
 
@@ -119,7 +119,7 @@ Tweaks:
 
 Perf: 20-30% average execution speedup measured with example configs
 
-0.9.3
+[0.9.3](https://github.com/Girv98/asca-rust/releases/tag/0.9.3) (2025-11-25)
 ==================
 [0.9.2...0.9.3](https://github.com/Girv98/asca-rust/compare/0.9.2...0.9.3)
 
@@ -129,7 +129,7 @@ Fixes:
     * Avoid infinite loop after lengthening a segment in certain situations at the end of a word
     * Enforce use of commas within a set i.e. `{p,t,k}` not `{ptk}` (trailing comma allowed)
 
-0.9.2
+[0.9.2](https://github.com/Girv98/asca-rust/releases/tag/0.9.2) (2025-10-26)
 ==================
 [0.9.1...0.9.2](https://github.com/Girv98/asca-rust/compare/0.9.1...0.9.2)
 
@@ -140,7 +140,7 @@ Fixes:
 
 Perf: Rule parsing and application is now parallelised
 
-0.9.1
+[0.9.1](https://github.com/Girv98/asca-rust/releases/tag/0.9.1) (2025-07-25)
 ==================
 [0.9.0...0.9.1](https://github.com/Girv98/asca-rust/compare/0.9.0...0.9.1)
 
@@ -155,7 +155,7 @@ Fixes:
     * Substituting a syllable boundary with a Structure works as it should
     * `$ > $` no longer hangs
 
-0.9.0
+[0.9.0](https://github.com/Girv98/asca-rust/releases/tag/0.9.1) (2025-07-21)
 ==================
 [0.8.4...0.9.0](https://github.com/Girv98/asca-rust/compare/0.8.4...0.9.0)
 
@@ -183,7 +183,7 @@ Fixes:
 
 Meta: `Variables` renamed to `References`
 
-0.8.4
+[0.8.4](https://github.com/Girv98/asca-rust/releases/tag/0.8.4) (2025-07-06)
 ==================
 [0.8.3...0.8.4](https://github.com/Girv98/asca-rust/compare/0.8.3...0.8.4)
 
@@ -193,7 +193,7 @@ Fixes:
     * A comment after a deletion rule with no environment no longer errors
     * Special environment checking works properly with a following comment
 
-0.8.3
+[0.8.3](https://github.com/Girv98/asca-rust/releases/tag/0.8.3) (2025-07-04)
 ==================
 [0.8.2...0.8.3](https://github.com/Girv98/asca-rust/compare/0.8.2...0.8.3)
 
@@ -202,7 +202,7 @@ Features:
     * Sets and Options now allowed within non-output Structures
     * Ellipses can now be wrapped in brackets `(..)` to skip 'zero or more' segments instead of 'one or more' segments.
 
-0.8.2
+[0.8.2](https://github.com/Girv98/asca-rust/releases/tag/0.8.2) (2025-07-01)
 ==================
 [0.8.1...0.8.2](https://github.com/Girv98/asca-rust/compare/0.8.1...0.8.2)
 
@@ -211,7 +211,7 @@ Fixes:
     * Fixed infinite loop caused by erroneous use of `^` in certain situations.
     * Fixed `qǀ`, `qǃ`, `qǁ`, `q‼`, and `qǂ` being falsely encoded as `+voice`
 
-0.8.1
+[0.8.1](https://github.com/Girv98/asca-rust/releases/tag/0.8.1) (2025-07-01)
 ==================
 [0.8.0...0.8.1](https://github.com/Girv98/asca-rust/compare/0.8.0...0.8.1)
 
@@ -227,7 +227,7 @@ Fixes:
     * Blank lines are omitted from the end of the printed output
     * Progress and info messages are sent to stderr instead of stdout
 
-0.8.0
+[0.8.0](https://github.com/Girv98/asca-rust/releases/tag/0.8.0) (2025-06-27)
 ==================
 [0.7.7...0.8.0](https://github.com/Girv98/asca-rust/compare/0.7.7...0.8.0)
 
@@ -242,21 +242,21 @@ Breaking:
 Features:
 * Lib: More inbuilt diacritic aliases using the new `"` prefix ([see doc](doc/doc.md#inbuilt-aliases))
 
-0.7.7
+[0.7.7](https://github.com/Girv98/asca-rust/releases/tag/0.7.7) (2025-06-03)
 ==================
 [0.7.5...0.7.7](https://github.com/Girv98/asca-rust/compare/0.7.5...0.7.7)
 
 Fixes:
 * Lib: Fixes bug introduced in 0.7.5 where words in a phrase are output without spaces
 
-0.7.5
+[0.7.5](https://github.com/Girv98/asca-rust/releases/tag/0.7.5) (2025-05-26)
 ==================
 [0.7.4...0.7.5](https://github.com/Girv98/asca-rust/compare/0.7.4...0.7.5)
 
 Features:
 * Wasm: Pass traced rule indices to WasmResult
 
-0.7.4
+[0.7.4](https://github.com/Girv98/asca-rust/releases/tag/0.7.4) (2025-05-24)
 ==================
 [0.7.3...0.7.4](https://github.com/Girv98/asca-rust/compare/0.7.3...0.7.4)
 
@@ -266,7 +266,7 @@ Features:
 Fixes:
 * Lib: A `$` or `*` alone in the output of a deromanisation rule is now allowed and no longer crashes
 
-0.7.3
+[0.7.3](https://github.com/Girv98/asca-rust/releases/tag/0.7.3) (2025-05-22)
 ==================
 [0.7.1...0.7.3](https://github.com/Girv98/asca-rust/compare/0.7.1...0.7.3)
 
@@ -276,7 +276,7 @@ Features:
 Fixes:
 * Lib/Web: Aliases now work as expected when tracing
 
-0.7.1
+[0.7.1](https://github.com/Girv98/asca-rust/releases/tag/0.7.1) (2025-05-19)
 ==================
 [0.7.0...0.7.1](https://github.com/Girv98/asca-rust/compare/0.7.0...0.7.1)
 
@@ -288,7 +288,7 @@ Fixes:
     * Double slash `//` for exception block no longer errors in certain cases
     * Fixed formatting of errors that have two underlines
 
-0.7.0
+[0.7.0](https://github.com/Girv98/asca-rust/releases/tag/0.7.0) (2025-05-10)
 ==================
 [0.6.1...0.7.0](https://github.com/Girv98/asca-rust/compare/0.6.1...0.7.0)
 
@@ -319,7 +319,7 @@ Fixes:
 * Lib(aliases): Segment length character `ː` is correctly omitted when removing a long segment
 
 
-0.6.1
+[0.6.1](https://github.com/Girv98/asca-rust/releases/tag/0.6.1) (2025-04-16)
 ==================
 [0.6.0...0.6.1](https://github.com/Girv98/asca-rust/compare/0.6.0...0.6.1)
 
@@ -330,7 +330,7 @@ Fixes:
 * Lib: Infinite loop when inserting after a boundary in certain cases
 * Minor: trace formatting error
 
-0.6.0
+[0.6.0](https://github.com/Girv98/asca-rust/releases/tag/0.6.0) (2025-04-09)
 ==================
 [0.5.3...0.6.0](https://github.com/Girv98/asca-rust/compare/0.5.3...0.6.0)
 
@@ -338,7 +338,7 @@ Features:
 * Lib: A given word or phrase can now be traced throughout its evolution
 * Lib: Multiple words can now be placed on the same line separated by a space
 
-0.5.3
+[0.5.3](https://github.com/Girv98/asca-rust/releases/tag/0.5.3) (2025-04-07)
 ==================
 [0.5.2...0.5.3](https://github.com/Girv98/asca-rust/compare/0.5.2...0.5.3)
 
@@ -346,7 +346,7 @@ Features:
 * Lib: Rules can now have comments, delimited by `;;`
 * Lib: Multiple contiguous underlines are now allowed in environments
 
-0.5.2
+[0.5.2](https://github.com/Girv98/asca-rust/releases/tag/0.5.2) (2025-04-04)
 ==================
 [0.5.1...0.5.2](https://github.com/Girv98/asca-rust/compare/0.5.1...0.5.2)
 
@@ -356,7 +356,7 @@ Features:
 Fixes:
 * Aliases: Segments will no longer by double printed when using the `+` operator on a `+long` matrix
 
-0.5.1
+[0.5.1](https://github.com/Girv98/asca-rust/releases/tag/0.5.1) (2025-03-28)
 ==================
 [0.5.0...0.5.1](https://github.com/Girv98/asca-rust/compare/0.5.0...0.5.1)
 
@@ -366,7 +366,7 @@ Fixes:
 Performance:
 * Better unicode normalisation (thanks to [@j624364](https://github.com/j624364))
 
-0.5.0
+[0.5.0](https://github.com/Girv98/asca-rust/releases/tag/0.5.0) (2025-01-24)
 ==================
 [0.4.4...0.5.0](https://github.com/Girv98/asca-rust/compare/0.4.4...0.5.0)
 
@@ -384,7 +384,7 @@ Fixes:
 * Applying a negative feature to a node that is not present does not attach the node
     * For example, assigning `[-round]` to `/t/` would make it `[+lab, -ldental, -rnd]` when it should have no effect.
 
-0.4.4
+[0.4.4](https://github.com/Girv98/asca-rust/releases/tag/0.4.4) (2025-01-25)
 ==================
 [0.4.3...0.4.4](https://github.com/Girv98/asca-rust/compare/0.4.3...0.4.4)
 
@@ -395,7 +395,7 @@ Fixes:
 Features:
 * Cli: Terminal output is now aligned for easier comprehension
 
-0.4.3
+[0.4.3](https://github.com/Girv98/asca-rust/releases/tag/0.4.3) (2025-01-19)
 ==================
 [0.4.2...0.4.3](https://github.com/Girv98/asca-rust/compare/0.4.2...0.4.3)
 
@@ -410,7 +410,7 @@ Tweaks:
     * Tone of `0` is now equivalent to no tone, matching documentation
     * Improvements to how tone is dealt with when merging syllables
 
-0.4.2
+[0.4.2](https://github.com/Girv98/asca-rust/releases/tag/0.4.2) (2025-01-14)
 ==================
 [0.4.1...0.4.2](https://github.com/Girv98/asca-rust/compare/0.4.1...0.4.2)
 
@@ -424,7 +424,7 @@ Fixes:
 Tweaks:
 * Lib: Word-initial stress characters are removed when aliasing syllable boundaries
 
-0.4.1
+[0.4.1](https://github.com/Girv98/asca-rust/releases/tag/0.4.1) (2025-01-13)
 ==================
 [0.4.0...0.4.1](https://github.com/Girv98/asca-rust/compare/0.4.0...0.4.1)
 
@@ -432,7 +432,7 @@ Features:
 * Lib: Allow unicode escapes within alias rules
 * Lib: Adds several named escapes for common diacritics
 
-0.4.0
+[0.4.0](https://github.com/Girv98/asca-rust/releases/tag/0.4.0) (2025-01-12)
 ==================
 [0.3.1...0.4.0](https://github.com/Girv98/asca-rust/compare/0.3.1...0.4.0)
 
@@ -441,14 +441,14 @@ Features:
 * Cli: Introduce alias file type
 * Cli: Apply alias files to sequences
 
-0.3.1
+[0.3.1](https://github.com/Girv98/asca-rust/releases/tag/0.3.1) (2025-01-07)
 ==================
 [0.3.0...0.3.1](https://github.com/Girv98/asca-rust/compare/0.3.0...0.3.1)
 
 Features: 
 * Lib: Add `ᶻ` diacritic as a voiced alternative to the stridentised diacritic `ˢ`.
 
-0.3.0
+[0.3.0](https://github.com/Girv98/asca-rust/releases/tag/0.3.0) (2025-01-04)
 ==================
 [0.2.1...0.3.0](https://github.com/Girv98/asca-rust/compare/0.2.1...0.3.0)
 
@@ -462,7 +462,7 @@ Tweaks:
 * Lib: Change wasm function to `run_wasm`
 * Lib: Re-export Error module
 
-0.2.1
+[0.2.1](https://github.com/Girv98/asca-rust/releases/tag/0.2.1) (2024-12-31)
 ==================
 [0.2.0...0.2.1](https://github.com/Girv98/asca-rust/compare/0.2.0...0.2.1)
 
