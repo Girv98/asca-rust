@@ -14,13 +14,17 @@ Features:
         * Exclude multiple segments, groups, or matrices
             * e.g. `O:-{t, [+cont]} => [+voi] ;; Obstruents that are not /t/ or [+cont] become voiced`
                 * `sa.ta.kam => sa.ta.gam`
+    * Place Groupings
+        * `K`, `Q`, and `J` to represent Velar, Uvular, and Palatal Consonants respectfully
 
 Fixes:
 * Cli: Add description to trace command (oops!)
 * Lib:
     * Prevent "Supra-stealing" in substitution rules with boundaries
     * Long segments in an input set are skipped correctly if they are not successfully matched
+    * Add error for when a parsed number is too large
 
+Perf: 20% average reduction in stack and heap usage (measured with example configs)
 
 Tweaks:
 * Error message changes and additions
