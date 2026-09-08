@@ -18,7 +18,7 @@ mod substitution;
 
 use crate  :: {
     error  :: RuleRuntimeError, 
-    rule   :: { Alpha, AlphaMod, BinMod, EnvItem, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, RuleType, SpecMod, SupraSegs, UnderlineStruct }, 
+    rule   :: { Alpha, AlphaChar, AlphaMod, BinMod, EnvItem, ModKind, Modifiers, ParseElement, ParseItem, PlaceMod, Position, RuleType, SpecMod, SupraSegs, UnderlineStruct }, 
     word   :: { FeatKind, NodeKind, Phrase, SegPos, Segment, StressKind, Syllable, Tone, Word },
 };
 
@@ -91,7 +91,7 @@ pub(crate) struct SubRule {
     pub(crate) except     : Option<EnvItem>,
     pub(crate) rule_type  : RuleType,
     pub(crate) references : RefCell<HashMap<usize, RefKind>>,
-    pub(crate) alphas     : RefCell<HashMap<char, Alpha>>,
+    pub(crate) alphas     : RefCell<HashMap<AlphaChar, Alpha>>,
     pub(crate) is_reversed: bool,
     pub(crate) inp_x_bound: bool,
     pub(crate) env_x_bound: bool,

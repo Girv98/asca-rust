@@ -39,8 +39,11 @@ impl fmt::Debug for DiaMods {
                         BinMod::Positive => nodes.push('+'),
                     },
                     ModKind::Alpha(am) => match am {
-                        AlphaMod::Alpha(a) => nodes.push(*a),
-                        AlphaMod::InvAlpha(ia) => nodes.push_str(&ia.to_uppercase().to_string()),
+                        AlphaMod::Alpha(a) => nodes.push(a.as_char()),
+                        AlphaMod::InvAlpha(ia) => {
+                            nodes.push('-');
+                            nodes.push(ia.as_char());
+                        },
                     },
                 },
                 None => nodes.push('0'),
@@ -56,8 +59,11 @@ impl fmt::Debug for DiaMods {
                         BinMod::Positive => feats.push('+'),
                     },
                     ModKind::Alpha(am) => match am {
-                        AlphaMod::Alpha(a) => feats.push(*a),
-                        AlphaMod::InvAlpha(ia) => feats.push_str(&ia.to_uppercase().to_string()),
+                        AlphaMod::Alpha(a) => feats.push(a.as_char()),
+                        AlphaMod::InvAlpha(ia) => {
+                            feats.push('-');
+                            feats.push(ia.as_char());
+                        },
                     },
                 },
                 None => feats.push('0'),

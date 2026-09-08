@@ -2,11 +2,11 @@ use std::{ fmt, sync::Arc };
 
 use crate :: {
     error :: RuleSyntaxError, 
-    rule  :: { BinMod, SpecMod, ModKind, Rule }, 
+    rule  :: { BinMod, ModKind, Rule, SpecMod }, 
     word  :: { Diacritic, FeatKind, FeatureCategory, NodeKind, Segment, SupraKind, Tone }, 
     CARDINALS_MAP, DIACRITS
 };
-use super :: { AlphaMod, Modifiers, Mods, Position, Token, TokenKind };
+use super :: { Modifiers, Mods, Position, Token, TokenKind };
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -860,29 +860,24 @@ impl Parser {
         match self.curr_tkn.kind {
             TokenKind::Feature(feature) => {
                 let value = &self.curr_tkn.value;
-                match value.as_ref() {
-                    "+" => Ok((feature, Mods::Binary(BinMod::Positive))),
-                    "-" => Ok((feature, Mods::Binary(BinMod::Negative))),
-                    "α"|"β"|"γ"|"δ"|"ε"|"ζ"|"η"|"θ"|"ι"|"κ"|"λ"|"μ"|"ν"|"ξ"|"ο"|"π"|"ρ"|"σ"|"ς"|"τ"|"υ"|"φ"|"χ"|"ψ"|"ω"|
-                    "A"|"B"|"C"|"D"|"E"|"F"|"G"|"H"|"I"|"J"|"K"|"L"|"M"|"N"|"O"|"P"|"Q"|"R"|"S"|"T"|"U"|"V"|"W"|"X"|"Y"|"Z" => 
-                    Ok((feature, Mods::Alpha(AlphaMod::Alpha(value.chars().next().unwrap())))),
-                    "-α"|"-β"|"-γ"|"-δ"|"-ε"|"-ζ"|"-η"|"-θ"|"-ι"|"-κ"|"-λ"|"-μ"|"-ν"|"-ξ"|"-ο"|"-π"|"-ρ"|"-σ"|"-ς"|"-τ"|"-υ"|"-φ"|"-χ"|"-ψ"|"-ω"|
-                    "-A"|"-B"|"-C"|"-D"|"-E"|"-F"|"-G"|"-H"|"-I"|"-J"|"-K"|"-L"|"-M"|"-N"|"-O"|"-P"|"-Q"|"-R"|"-S"|"-T"|"-U"|"-V"|"-W"|"-X"|"-Y"|"-Z" => 
-                        Ok((feature, Mods::Alpha(AlphaMod::InvAlpha(value.chars().nth(1).unwrap())))),
-                    _ if feature == FeatureCategory::Supr(SupraKind::Tone) => {
+
+                if let Some(mk) = ModKind::from_str(value) {
+                    return Ok((feature, Mods::from(mk)))
+                }
+
+                match feature {
+                    FeatureCategory::Supr(SupraKind::Tone) => {
                         let v = value.replace('0', "");
                         if v.chars().count() > 4 {
                             Err(RuleSyntaxError::ToneTooBig(self.curr_tkn.clone()))
                         } else {
                             Ok((feature, Mods::Number(v.parse().unwrap_or(0))))
                         }
-                    },
-                    _ => {
-                        unreachable!();
                     }
+                    _ => unreachable!("Feature value is +,-, alpha, or tone"),
                 }
             },
-            _ => unreachable!(),
+            _ => unreachable!("TokenKind is feature"),
         }
     }
 

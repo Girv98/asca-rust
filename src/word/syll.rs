@@ -1,8 +1,8 @@
-use std     :: { cell::RefCell, collections::{ HashMap, VecDeque }, fmt };
-use crate   :: {
-    error   :: RuleRuntimeError, 
-    rule    :: { Alpha, AlphaMod, ModKind, Modifiers, Position, SpecMod, SupraSegs }, 
-    word    :: Segment,  
+use std   :: { cell::RefCell, collections::{ HashMap, VecDeque }, fmt };
+use crate :: {
+    error :: RuleRuntimeError, 
+    rule  :: { Alpha, AlphaChar, AlphaMod, ModKind, Modifiers, Position, SpecMod, SupraSegs }, 
+    word  :: Segment,  
 };
 
 /// The stress level of the syllable
@@ -99,7 +99,7 @@ impl Syllable {
         vec
     }
 
-    pub(crate) fn insert_segment(&mut self, pos: usize, seg: &Segment, mods: &Option<Modifiers>, alphas: &RefCell<HashMap<char, Alpha>>, err_pos: Position) -> Result<i8, RuleRuntimeError> {
+    pub(crate) fn insert_segment(&mut self, pos: usize, seg: &Segment, mods: &Option<Modifiers>, alphas: &RefCell<HashMap<AlphaChar, Alpha>>, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         let mut lc = 0;
         if pos > self.segments.len() {
             self.segments.push_back(*seg);
@@ -124,7 +124,7 @@ impl Syllable {
         len
     }
 
-    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &Modifiers, start_pos: usize, err_pos: Position) -> Result<i8, RuleRuntimeError> {
+    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>>, mods: &Modifiers, start_pos: usize, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         // check seg length, if long then we must apply mods to all occurences (we assume that we are at the start)
         // debug_assert!(self.in_bounds(start_pos));
         let mut pos = start_pos;
@@ -140,7 +140,7 @@ impl Syllable {
     }
 
     /// NOTE: Will panic if old_len is greater than i8::MAX 
-    pub(crate) fn calc_new_length(alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
+    pub(crate) fn calc_new_length(alphas: &RefCell<HashMap<AlphaChar, Alpha>>, mods: &SupraSegs, old_len: u8, err_pos: Position) -> Result<u8, RuleRuntimeError> {
         let mut len_change: i8 = 0;
 
         if let Some(len_mods) = mods.length {
@@ -210,7 +210,7 @@ impl Syllable {
     }
 
 
-    pub(crate) fn apply_supras(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, pos: usize, err_pos: Position) -> Result<i8, RuleRuntimeError> {
+    pub(crate) fn apply_supras(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>>, mods: &SupraSegs, pos: usize, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         let seg = self.segments[pos];
         let cur_len = self.get_seg_length_at(pos) as u8;
 
@@ -231,7 +231,7 @@ impl Syllable {
         Ok(new_len as i8 - cur_len as i8)
     }
 
-    pub(crate) fn apply_syll_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &SupraSegs, err_pos: Position) -> Result<(), RuleRuntimeError> {
+    pub(crate) fn apply_syll_mods(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>>, mods: &SupraSegs, err_pos: Position) -> Result<(), RuleRuntimeError> {
         if let Some(str_mods) = mods.stress {
             match str_mods {
                 SpecMod::First(prim) => if prim.as_bool(alphas, err_pos)? {

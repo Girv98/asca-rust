@@ -20,7 +20,7 @@ use std :: {
 
 use crate :: {
     error :: { ASCAError, AliasRuntimeError, RuleRuntimeError, WordSyntaxError }, 
-    rule  :: { Alpha, BinMod, SpecMod, ModKind, Modifiers, Position, SupraSegs }, 
+    rule  :: { Alpha, AlphaChar, BinMod, ModKind, Modifiers, Position, SpecMod, SupraSegs }, 
     CARDINALS_MAP, CARDINALS_TRIE, DIACRITS
 };
 
@@ -1230,7 +1230,7 @@ impl Word {
         }
     }
 
-    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<char, Alpha>>, mods: &Modifiers, start_pos: SegPos, err_pos: Position) -> Result<i8, RuleRuntimeError> {
+    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>>, mods: &Modifiers, start_pos: SegPos, err_pos: Position) -> Result<i8, RuleRuntimeError> {
         self.syllables[start_pos.syll_index].apply_seg_mods(alphas, mods, start_pos.seg_index, err_pos)
     }
     

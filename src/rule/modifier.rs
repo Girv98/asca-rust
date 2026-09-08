@@ -30,6 +30,15 @@ pub(crate) enum Mods {
     Alpha(AlphaMod),
 }
 
+impl From<ModKind> for Mods {
+    fn from(value: ModKind) -> Self {
+        match value {
+            ModKind::Binary(bm) => Self::Binary(bm),
+            ModKind::Alpha(am)  => Self::Alpha(am),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BinMod {
     Positive,
@@ -38,8 +47,8 @@ pub(crate) enum BinMod {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AlphaMod {
-    Alpha(char),
-    InvAlpha(char)
+    Alpha(AlphaChar),
+    InvAlpha(AlphaChar)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,7 +58,98 @@ pub(crate) enum ModKind {
 }
 
 impl ModKind {
-    pub(crate) fn as_bool(&self, alphas: &RefCell<HashMap<char, Alpha>>, err_pos: Position) -> Result<bool, RuleRuntimeError> {
+    pub(crate) fn from_str(value: &str) -> Option<Self> {
+        match AlphaChar::from_str(value) {
+            Some(alpha) if value.starts_with('-') => Some(Self::Alpha(AlphaMod::InvAlpha(alpha))),
+            Some(alpha)                           => Some(Self::Alpha(AlphaMod::Alpha(alpha))),
+
+            None => match value {
+                "+" => Some(Self::Binary(BinMod::Positive)),
+                "-" => Some(Self::Binary(BinMod::Negative)),
+                _ => None
+            }
+        }
+    }
+}
+
+// Previously, we just stored the character,
+// But that leads to Modifiers being quite large at 312 bytes.
+// Using this enum reduces it to 80 bytes
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum AlphaChar {
+    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    Alpha, Beta, Gamma, Delta, Epsilon, Zeta, Eta, Theta, Iota, Kappa, Lambda, Mu, Nu, 
+    Ksi, Omicron, Pi, Rho, Sigma, Stigma, SigmaTeliko, Tau, Upsilon, Phi, Chi, Psi, Omega
+}
+
+impl AlphaChar {
+    pub(crate) fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "A" | "-A" => Some(Self::A),  "α" | "-α" => Some(Self::Alpha),
+            "B" | "-B" => Some(Self::B),  "β" | "-β" => Some(Self::Beta),
+            "C" | "-C" => Some(Self::C),  "γ" | "-γ" => Some(Self::Gamma),
+            "D" | "-D" => Some(Self::D),  "δ" | "-δ" => Some(Self::Delta),
+            "E" | "-E" => Some(Self::E),  "ε" | "-ε" => Some(Self::Epsilon),
+            "F" | "-F" => Some(Self::F),  "ζ" | "-ζ" => Some(Self::Zeta),
+            "G" | "-G" => Some(Self::G),  "η" | "-η" => Some(Self::Eta),
+            "H" | "-H" => Some(Self::H),  "θ" | "-θ" => Some(Self::Theta),
+            "I" | "-I" => Some(Self::I),  "ι" | "-ι" => Some(Self::Iota),
+            "J" | "-J" => Some(Self::J),  "κ" | "-κ" => Some(Self::Kappa),
+            "K" | "-K" => Some(Self::K),  "λ" | "-λ" => Some(Self::Lambda),
+            "L" | "-L" => Some(Self::L),  "μ" | "-μ" => Some(Self::Mu),
+            "M" | "-M" => Some(Self::M),  "ν" | "-ν" => Some(Self::Nu),
+            "N" | "-N" => Some(Self::N),  "ξ" | "-ξ" => Some(Self::Ksi),
+            "O" | "-O" => Some(Self::O),  "ο" | "-ο" => Some(Self::Omicron),
+            "P" | "-P" => Some(Self::P),  "π" | "-π" => Some(Self::Pi),
+            "Q" | "-Q" => Some(Self::Q),  "ρ" | "-ρ" => Some(Self::Rho),
+            "R" | "-R" => Some(Self::R),  "σ" | "-σ" => Some(Self::Sigma),  
+            "S" | "-S" => Some(Self::S),  "ϛ" | "-ϛ" => Some(Self::Stigma),
+            "T" | "-T" => Some(Self::T),  "ς" | "-ς" => Some(Self::SigmaTeliko),
+            "U" | "-U" => Some(Self::U),  "τ" | "-τ" => Some(Self::Tau),
+            "V" | "-V" => Some(Self::V),  "υ" | "-υ" => Some(Self::Upsilon),
+            "W" | "-W" => Some(Self::W),  "φ" | "-φ" => Some(Self::Phi),
+            "X" | "-X" => Some(Self::X),  "χ" | "-χ" => Some(Self::Chi),
+            "Y" | "-Y" => Some(Self::Y),  "v" | "-v" => Some(Self::Psi),
+            "Z" | "-Z" => Some(Self::Z),  "ω" | "-ω" => Some(Self::Omega),
+            
+            _ => None
+        }
+    }
+    
+    pub(crate) fn as_char(&self) -> char {
+        match self {
+            AlphaChar::A => 'A', AlphaChar::Alpha       => 'α',
+            AlphaChar::B => 'B', AlphaChar::Beta        => 'β',
+            AlphaChar::C => 'C', AlphaChar::Gamma       => 'γ',
+            AlphaChar::D => 'D', AlphaChar::Delta       => 'δ',
+            AlphaChar::E => 'E', AlphaChar::Epsilon     => 'ε',
+            AlphaChar::F => 'F', AlphaChar::Zeta        => 'ζ',
+            AlphaChar::G => 'G', AlphaChar::Eta         => 'η',
+            AlphaChar::H => 'H', AlphaChar::Theta       => 'θ',
+            AlphaChar::I => 'I', AlphaChar::Iota        => 'ι',
+            AlphaChar::J => 'J', AlphaChar::Kappa       => 'κ',
+            AlphaChar::K => 'K', AlphaChar::Lambda      => 'λ',
+            AlphaChar::L => 'L', AlphaChar::Mu          => 'μ',
+            AlphaChar::M => 'M', AlphaChar::Nu          => 'ν',
+            AlphaChar::N => 'N', AlphaChar::Ksi         => 'ξ',
+            AlphaChar::O => 'O', AlphaChar::Omicron     => 'ο',
+            AlphaChar::P => 'P', AlphaChar::Pi          => 'π',
+            AlphaChar::Q => 'Q', AlphaChar::Rho         => 'ρ',
+            AlphaChar::R => 'R', AlphaChar::Sigma       => 'σ',
+            AlphaChar::S => 'S', AlphaChar::Stigma      => 'ϛ',
+            AlphaChar::T => 'T', AlphaChar::SigmaTeliko => 'ς',
+            AlphaChar::U => 'U', AlphaChar::Tau         => 'τ',
+            AlphaChar::V => 'V', AlphaChar::Upsilon     => 'υ',
+            AlphaChar::W => 'W', AlphaChar::Phi         => 'φ',
+            AlphaChar::X => 'X', AlphaChar::Chi         => 'χ',
+            AlphaChar::Y => 'Y', AlphaChar::Psi         => 'v',
+            AlphaChar::Z => 'Z', AlphaChar::Omega       => 'ω',
+        }
+    }
+}
+
+impl ModKind {
+    pub(crate) fn as_bool(&self, alphas: &RefCell<HashMap<AlphaChar, Alpha>>, err_pos: Position) -> Result<bool, RuleRuntimeError> {
         match self {
             ModKind::Binary(bin_mod) => Ok(*bin_mod == BinMod::Positive),
             ModKind::Alpha(alpha_mod) => match alpha_mod {
