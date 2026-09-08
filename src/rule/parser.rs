@@ -1061,11 +1061,11 @@ impl Parser {
         Ok(ParseItem::new(joined_kind, Position::new(self.group, self.line, pos.start, params.position.end )))
     }
     
-    fn get_ref_assign(&mut self, number: Token, char: &ParseItem) -> ParseItem {
+    fn get_ref_assign(&mut self, number: Token, char: &ParseItem) -> Result<ParseItem, RuleSyntaxError> {
         // RefAssign ← '=' [0-9]+
-        let num = number.value.parse::<usize>().expect("number should be a number as set in `self.get_seg`");
+        let num = Self::parse_number(&number)?;
         let (mods, narrow) = char.kind.as_matrix_with_narrowing().unwrap();
-        ParseItem::new(ParseElement::Matrix(*mods, narrow.clone(), Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end ))
+        Ok(ParseItem::new(ParseElement::Matrix(*mods, narrow.clone(), Some(num)), Position::new(self.group, self.line, char.position.start, char.position.end)))
     }
 
     fn get_narrowing(&mut self, item: &mut ParseItem) -> Result<(), RuleSyntaxError> {
@@ -1118,7 +1118,7 @@ impl Parser {
                 let Some(n) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let res =  self.get_ref_assign(n, &chr);
+                let res = self.get_ref_assign(n, &chr)?;
                 return Ok(Some(res))
             }
             return Ok(Some(chr))
@@ -1134,7 +1134,7 @@ impl Parser {
                 let Some(n) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let res = self.get_ref_assign(n, &params);
+                let res = self.get_ref_assign(n, &params)?;
                 return Ok(Some(res))
             }
             return Ok(Some(params))
@@ -1163,8 +1163,11 @@ impl Parser {
 
     fn get_ref(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         // Reference ← [0-9]+ (':' Params)?
-        let Some(Token { value, position, .. }) = self.eat_expect(TokenKind::Number) else { return Ok(None) };
-        let refr = Reference { value: value.parse().unwrap(), position };
+        let Some(token) = self.eat_expect(TokenKind::Number) else { return Ok(None) };
+        let refr = Reference { 
+            value: Self::parse_number(&token)?,
+            position: token.position,
+        };
 
         let mut pos = refr.position;
 
@@ -1227,7 +1230,7 @@ impl Parser {
             return Err(RuleSyntaxError::ExpectedComma(self.curr_tkn.clone()))
         }
         if let Some(number) = self.eat_expect(TokenKind::Number) {
-            first_bound = number.value.parse().unwrap();
+            first_bound = Self::parse_number(&number)?;
         }
         if self.expect(TokenKind::RightBracket) {
             let end_pos = self.token_list[self.pos-1].position.end;
@@ -1237,7 +1240,7 @@ impl Parser {
             return Err(RuleSyntaxError::ExpectedColon(self.curr_tkn.clone()))
         }
         if let Some(number) = self.eat_expect(TokenKind::Number) {
-            second_bound = number.value.parse().unwrap();
+            second_bound = Self::parse_number(&number)?;
             if second_bound < first_bound { 
                 return Err(RuleSyntaxError::OptMathError(number, first_bound, second_bound))
             }
@@ -1247,6 +1250,10 @@ impl Parser {
             return Ok(Some(ParseItem::new(ParseElement::Optional(segs, first_bound, second_bound), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         Err(RuleSyntaxError::ExpectedRightBracket(self.curr_tkn.clone()))
+    }
+    
+    fn parse_number(token: &Token) -> Result<usize, RuleSyntaxError> {
+        token.value.parse().or(Err(RuleSyntaxError::NumberTooBig(token.clone())))
     }
 
     fn get_set_choices(&mut self) -> Result<SetChoice, RuleSyntaxError> {
@@ -1416,7 +1423,7 @@ impl Parser {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let num = number.value.parse::<usize>().unwrap();
+                let num = Self::parse_number(&number)?;
                 let end_pos = self.token_list[self.pos-1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Syllable(None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
@@ -1434,7 +1441,7 @@ impl Parser {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
                 return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
             };
-            let num = number.value.parse::<usize>().unwrap();
+            let num = Self::parse_number(&number)?;
             return Ok(Some(ParseItem::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         Ok(Some(ParseItem::new(ParseElement::Syllable(mods.suprs.stress, mods.suprs.tone, None), Position::new(self.group, self.line, start_pos, end_pos))))
@@ -1510,7 +1517,7 @@ impl Parser {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let num = number.value.parse::<usize>().unwrap();
+                let num = Self::parse_number(&number)?;
                 let end_pos = self.token_list[self.pos-1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
@@ -1533,7 +1540,7 @@ impl Parser {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
                 return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
             };
-            let num = number.value.parse::<usize>().unwrap();
+            let num = Self::parse_number(&number)?;
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
         }
 
@@ -1563,7 +1570,7 @@ impl Parser {
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
-                let num = number.value.parse::<usize>().unwrap();
+                let num = Self::parse_number(&number)?;
                 let end_pos = self.token_list[self.pos-1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
@@ -1581,7 +1588,7 @@ impl Parser {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
                 return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
             };
-            let num = number.value.parse::<usize>().unwrap();
+            let num = Self::parse_number(&number)?;
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, mods.suprs.stress, mods.suprs.tone, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         

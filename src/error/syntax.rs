@@ -117,6 +117,7 @@ pub enum RuleSyntaxError {
     ExpectedArrow       (Token),
     ExpectedComma       (Token),
     ExpectedColon       (Token),
+    NumberTooBig        (Token),
     ToneTooBig          (Token),
     UnknownIPA          (Token),
     InsertErr           (Token),
@@ -196,6 +197,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::ExpectedArrow       (token) => write!(f, "Expected '>', '->' or '=>', but received '{}'", token.value),
             Self::ExpectedComma       (token) => write!(f, "Expected ',', but received '{}'", token.value),
             Self::ExpectedColon       (token) => write!(f, "Expected ':', but received '{}'", token.value),
+            Self::NumberTooBig        (_)     => write!(f, "Number is too large, largest possible number is {}", usize::MAX),
             Self::ToneTooBig          (_)     => write!(f, "A tone modifier cannot be more than 4 digits long"),
             Self::UnknownIPA          (token) => write!(f, "Could not get value of IPA '{}'.", token.value),
             Self::InsertErr           (_)     => write!(f, "The input of an insertion rule must only contain `*` or `∅`"),
@@ -265,6 +267,7 @@ impl RuleSyntaxError {
             Self::ExpectedArrow       (t) | 
             Self::ExpectedComma       (t) | 
             Self::ExpectedColon       (t) | 
+            Self::NumberTooBig        (t) | 
             Self::ToneTooBig          (t) | 
             Self::UnknownIPA          (t) | 
             Self::InsertErr           (t) | 
