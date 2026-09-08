@@ -292,26 +292,23 @@ impl SubRule {
                                 SpecMod::Both(l, v) => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
                                     (true, true)   => 3,
                                     (true, false)  => 2,
-                                    (false, false) => 1,
                                     (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
+                                    (false, false) => 1,
                                 },
                                 SpecMod::Joined(j) => match j {
                                     ModKind::Binary(_) => return Err(RuleRuntimeError::GroupSuprIsBinary("length", err_pos)),
                                     ModKind::Alpha(am) => match am {
                                         AlphaMod::InvAlpha(_) => return Err(RuleRuntimeError::GroupSuprIsInverted("length", err_pos)),
                                         AlphaMod::Alpha(ch) => {
-                                            if let Some(alph) = self.alphas.borrow().get(&ch) {
-                                                let Some(group) = alph.as_grouped() else { return Err(RuleRuntimeError::AlphaIsNotSuprGroup(err_pos)) };
-                                                match group {
-                                                    (true, true)   => 3,
-                                                    (true, false)  => 2,
-                                                    (false, false) => 1,
-                                                    (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
-                                                }
-                                            } else {
-                                                return Err(RuleRuntimeError::AlphaUnknown(err_pos))
+                                            let b = self.alphas.borrow();
+                                            let Some(alph) = b.get(&ch) else { return Err(RuleRuntimeError::AlphaUnknown(err_pos)) };
+                                            let Some(group) = alph.as_grouped() else { return Err(RuleRuntimeError::AlphaIsNotSuprGroup(err_pos)) };
+                                            match group {
+                                                (true, true)   => 3,
+                                                (true, false)  => 2,
+                                                (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
+                                                (false, false) => 1,
                                             }
-
                                         },
                                     },
                                 },
@@ -326,53 +323,49 @@ impl SubRule {
                 
                 }
                 ParseElement::Reference(num, modifiers) => {
-                    if let Some(refr) = self.references.borrow().get(&num.value) {
-                        match refr {
-                            RefKind::Syllable(_) => return Err(RuleRuntimeError::SyllRefInsideStruct(item.position)),
-                            &RefKind::Segment(mut segment) => {
-                                let mut len = 1;
-                                if let Some(mods) = modifiers {
-                                    segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
-                                    len = match mods.suprs.length {
-                                        Some(lm) => match lm {
-                                            SpecMod::Second(v) => if v.as_bool(&self.alphas, item.position)? { 3 } else { 1 },
-                                            SpecMod::First(l) => if l.as_bool(&self.alphas, item.position)? { 2 } else { 1 },
-                                            SpecMod::Both(l, v) => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
-                                                (true, true)   => 3,
-                                                (true, false)  => 2,
-                                                (false, false) => 1,
-                                                (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
-                                            },
-                                            SpecMod::Joined(j) => match j {
-                                                ModKind::Binary(_) => return Err(RuleRuntimeError::GroupSuprIsBinary("length", err_pos)),
-                                                ModKind::Alpha(am) => match am {
-                                                    AlphaMod::InvAlpha(_) => return Err(RuleRuntimeError::GroupSuprIsInverted("length", err_pos)),
-                                                    AlphaMod::Alpha(ch) => {
-                                                        if let Some(alph) = self.alphas.borrow().get(&ch) {
-                                                            let Some(group) = alph.as_grouped() else { return Err(RuleRuntimeError::AlphaIsNotSuprGroup(err_pos)) };
-                                                            match group {
-                                                                (true, true)   => 3,
-                                                                (true, false)  => 2,
-                                                                (false, false) => 1,
-                                                                (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
-                                                            }
-                                                        } else {
-                                                            return Err(RuleRuntimeError::AlphaUnknown(err_pos))
-                                                        }
-
-                                                    },
+                    match self.references.borrow().get(&num.value) {
+                        Some(RefKind::Syllable(_)) => return Err(RuleRuntimeError::SyllRefInsideStruct(item.position)),
+                        Some(&RefKind::Segment(mut segment)) => {
+                            let mut len = 1;
+                            if let Some(mods) = modifiers {
+                                segment.apply_seg_mods(&self.alphas, mods.nodes, mods.feats, item.position, false)?;
+                                len = match mods.suprs.length {
+                                    Some(lm) => match lm {
+                                        SpecMod::Second(v) => if v.as_bool(&self.alphas, item.position)? { 3 } else { 1 },
+                                        SpecMod::First(l)  => if l.as_bool(&self.alphas, item.position)? { 2 } else { 1 },
+                                        SpecMod::Both(l, v) => match (l.as_bool(&self.alphas, item.position)?, v.as_bool(&self.alphas, item.position)?) {
+                                            (true, true)   => 3,
+                                            (true, false)  => 2,
+                                            (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
+                                            (false, false) => 1,
+                                        },
+                                        SpecMod::Joined(j) => match j {
+                                            ModKind::Binary(_) => return Err(RuleRuntimeError::GroupSuprIsBinary("length", err_pos)),
+                                            ModKind::Alpha(am) => match am {
+                                                AlphaMod::InvAlpha(_) => return Err(RuleRuntimeError::GroupSuprIsInverted("length", err_pos)),
+                                                AlphaMod::Alpha(ch) => {
+                                                    let b = self.alphas.borrow();
+                                                    let Some(alph) = b.get(&ch) else { return Err(RuleRuntimeError::AlphaUnknown(err_pos)) };
+                                                    let Some(group) = alph.as_grouped() else { return Err(RuleRuntimeError::AlphaIsNotSuprGroup(err_pos)) };
+                                                    match group {
+                                                        (true, true)   => 3,
+                                                        (true, false)  => 2,
+                                                        (false, true)  => Err(RuleRuntimeError::OverlongPosLongNeg(item.position))?,
+                                                        (false, false) => 1,
+                                                    }
                                                 },
                                             },
-                                        }
-                                        None => 1,
-                                    };
-                                    // TODO: Ignore syll suprs?
-                                }
-                                for _ in 0..len {
-                                    syll.segments.push_back(segment);
-                                }
-                            },
+                                        },
+                                    }
+                                    None => 1,
+                                };
+                                // TODO: Ignore syll suprs?
+                            }
+                            for _ in 0..len {
+                                syll.segments.push_back(segment);
+                            }
                         }
+                        None => continue,
                     }
                 }
                 
