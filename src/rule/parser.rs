@@ -1071,6 +1071,7 @@ impl Parser {
                 (Narrowing::Matrix(mods), position)
             },
             TokenKind::LeftSquare => {
+                self.advance();
                 let ParseItem { kind: ParseElement::Matrix(mods, _, _), position } = self.get_params()? else { unreachable!() };
                 (Narrowing::Matrix(mods), position)
             },
