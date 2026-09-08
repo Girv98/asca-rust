@@ -823,9 +823,19 @@ impl Parser {
         const DLRL_M: (FeatKind, ModKind) = (DelayedRelease, Binary(BinMod::Negative));  // -del.rel.
         const NASL_P: (FeatKind, ModKind) = (Nasal,          Binary(BinMod::Positive));  // +nasal
 
+        const FRNT_N: (FeatKind, ModKind) = (Front,          Binary(BinMod::Negative));  // -front
+        const FRNT_P: (FeatKind, ModKind) = (Front,          Binary(BinMod::Positive));  // +front
+        const BACK_N: (FeatKind, ModKind) = (Back,           Binary(BinMod::Negative));  // -back
+        const BACK_P: (FeatKind, ModKind) = (Back,           Binary(BinMod::Positive));  // +back
+        const HIGH_N: (FeatKind, ModKind) = (High,           Binary(BinMod::Negative));  // -high
+        const HIGH_P: (FeatKind, ModKind) = (High,           Binary(BinMod::Positive));  // +high
+        const LOWW_N: (FeatKind, ModKind) = (Low,            Binary(BinMod::Negative));  // -low
+        const DIST_P: (FeatKind, ModKind) = (Distributed,    Binary(BinMod::Positive));  // +dist
+
         let mut args = Modifiers::new(); 
 
         (match chr.value.as_ref() {
+            // Class Groupings
             "C" => vec![CONS_P, SYLL_M],                         // +cons, -syll                      // Consonant
             "O" => vec![CONS_P, SONR_M, SYLL_M],                 // +cons, -son, -syll                // Obstruent
             "S" => vec![CONS_P, SONR_P, SYLL_M],                 // +cons, +son, -syll                // Sonorant
@@ -836,14 +846,17 @@ impl Parser {
             "G" => vec![CONS_M, SONR_P, SYLL_M],                 // -cons, +son, -syll                // Glide
             "V" => vec![CONS_M, SONR_P, SYLL_P],                 // -cons, +son, +syll                // Vowel
 
+            // Place Groupings
+            "K" => vec![CONS_P, FRNT_N, BACK_P, HIGH_P, LOWW_N], // +cons, -fr, +bk, +hi, -lo         // Velar Consonant
+            "Q" => vec![CONS_P, FRNT_N, BACK_P, HIGH_N, LOWW_N], // +cons, -fr, +bk, -hi, -lo         // Uvular Consonant
+            "J" => vec![CONS_P, FRNT_P, BACK_N, HIGH_P, LOWW_N, DIST_P], // +cons, +dist, +fr, -bk, +hi, -lo // Palatal Consonant
+
             // TODO(girv): possible other groups
-            // "B"	// Labial
+            // "B"	// Labial   [+cons, +lab, -ldent, -rnd]
             // "T"  // Alveolar/Dental
-            // "J"  // Palatal  [+cons, +dist, +fr, -bk, +hi, -lo]
-            // "K"  // Velar    [+cons, -fr, +bk, +hi, -lo]
-            // "Q"  // Uvular   [+cons, -fr, +bk, -hi, -lo]
-            // "I"	// Front vowels
-            // "U"	// Back vowels
+            // "R"  // Retroflex [+cons, +COR, -ant, -dist]
+            // "I"	// Front vowels [-cons, +son, +syll, +front]
+            // "U"	// Back vowels  [-cons, +son, +syll, +back]
 
             _ => return Err(RuleSyntaxError::UnknownGrouping(chr.clone())),
         }).into_iter().for_each(|(feature, value)| {
