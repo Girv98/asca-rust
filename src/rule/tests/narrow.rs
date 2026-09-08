@@ -56,27 +56,27 @@ fn segment() {
 
 #[test]
 fn error() {
-    let Err(res) = setup_rule("C:-{[]:-a} > [+s.g.]") else { assert!(false); return };
+    let res = setup_rule("C:-{[]:-a} > [+s.g.]").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::Narrowseption(_)));
     
-    let Err(res) = setup_rule("C:-{N=1} > [+s.g.]") else { assert!(false); return };
+    let res = setup_rule("C:-{N=1} > [+s.g.]").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::NarrowReference(_)));
 
-    let Err(res) = setup_rule("C:-{sasds,} > [+s.g.]") else { assert!(false); return };
+    let res = setup_rule("C:-{sasds,} > [+s.g.]").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::NarrowTooMany(_)));
 
-    let Err(res) = setup_rule("C:-{%} > [+s.g.]") else { assert!(false); return };
+    let res = setup_rule("C:-{%} > [+s.g.]").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::NarrowSetWrongKind(_)));
 
-    let Err(res) = setup_rule("C:-% > [+s.g.]") else { assert!(false); return };
+    let res = setup_rule("C:-% > [+s.g.]").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::NarrowWrongKind(_)));
 
     
-    let Err(res) = setup_rule("C:-{s") else { assert!(false); return };
+    let res = setup_rule("C:-{s").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, "'}'")));
-    let Err(res) = setup_rule("C:-{sx") else { assert!(false); return };
+    let res = setup_rule("C:-{sx").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, "'}'")));
-    let Err(res) = setup_rule("C:-{sasds,") else { assert!(false); return };
+    let res = setup_rule("C:-{sasds,").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::NarrowTooMany(_)));
 }
 
@@ -108,7 +108,18 @@ fn env_set() {
     
     assert!(run("V > [+s.g.] / C:-{n:[+long]}_",  "kana",   "ka̤na̤"));
 
-    
     assert!(run("V > [+s.g.] / _C:-{P, N}",          "akalan",   "aka̤lan"));
     assert!(run("V > [+s.g.] / C:-{P, N}_",          "kalana",   "kala̤na"));
+}
+
+
+#[test]
+fn doc() {
+    assert!(run("O:-s => [+voi]",          "sa.ta.kam",   "sa.da.gam"));
+    assert!(run("O:-F => [+voi]",          "sa.ta.kam",   "sa.da.gam"));
+    assert!(run("O:-{s,t} => [+voi]",      "sa.ta.kam",   "sa.ta.gam"));
+    assert!(run("O:-{t, [+cnt]} > [+voi]", "sa.ta.kam",   "sa.ta.gam"));
+    
+    assert!(run("O:-{s,t, [+dl]} => [+voi]", "sta.ta.k͡xam", "sta.ta.k͡xam"));
+    assert!(run("O:-{s,t, [+dl]} => [+voi]", "sa.t͡sa.k͡xam", "sa.t͡sa.k͡xam"));
 }
