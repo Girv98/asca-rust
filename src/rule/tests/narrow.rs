@@ -1,4 +1,7 @@
-use crate::{error::RuleSyntaxError, rule::tests::setup_rule};
+use crate::{
+    error::{ASCAError, RuleRuntimeError, RuleSyntaxError}, 
+    rule ::tests::{setup_phrase, setup_rule}
+};
 
 use super::run;
 
@@ -47,6 +50,7 @@ fn set_segment() {
 #[test]
 fn segment() {
     assert!(run("C:-n > [+s.g.]",          "kan",   "kʰan"));
+    assert!(run("C:-[+nas] > [+s.g.]",     "kan",   "kʰan"));
     assert!(run("[]:-n > [+s.g.]",         "kan",   "kʰa̤n"));
     assert!(run("[]:-n > [+s.g.]",         "kan:a", "kʰa̤n:a̤"));
     assert!(run("[]:-n:[+long] > [+s.g.]", "kan:a", "kʰa̤n:a̤"));
@@ -78,6 +82,20 @@ fn error() {
     assert!(matches!(res, RuleSyntaxError::UnexpectedEol(_, "'}'")));
     let res = setup_rule("C:-{sasds,").unwrap_err();
     assert!(matches!(res, RuleSyntaxError::NarrowTooMany(_)));
+
+
+    let phr = setup_phrase("kan");
+    let rule = setup_rule("C > F:-s").unwrap();
+    let res = rule.apply(phr.clone()).unwrap_err();
+    assert!(matches!(res, ASCAError::RuleRun(RuleRuntimeError::SubstitutionNarrowing(_))));
+
+    let rule = setup_rule("C > F:-[-stri]").unwrap();
+    let res = rule.apply(phr.clone()).unwrap_err();
+    assert!(matches!(res, ASCAError::RuleRun(RuleRuntimeError::SubstitutionNarrowing(_))));
+
+    let rule = setup_rule("C > F:-{[-stri], s}").unwrap();
+    let res = rule.apply(phr.clone()).unwrap_err();
+    assert!(matches!(res, ASCAError::RuleRun(RuleRuntimeError::SubstitutionNarrowing(_))));
 }
 
 #[test]

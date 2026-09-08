@@ -6,7 +6,7 @@ use super :: {
 
 use crate :: {
     error :: RuleRuntimeError, 
-    rule  :: { Modifiers, Narrowing, ParseElement, ParseItem, Position, Reference, SpecMod },
+    rule  :: { Modifiers, NarrowSet, Narrowing, ParseElement, ParseItem, Position, Reference, SpecMod },
     word  :: { Phrase, SegPos, Segment, Syllable, Tone }
 };
 
@@ -125,6 +125,14 @@ impl SubRule {
     }
 
     fn sub_matrix(&self, phrase: &Phrase, mods: &Modifiers, narrow: &Option<Narrowing>, refr: &Option<usize>, state: &MatchElement, out_pos: Position) -> Result<Vec<Action>, RuleRuntimeError> {
+        if let Some(n) = narrow {
+            let pos = match n {
+                Narrowing::Set(NarrowSet { position,  .. }) => *position,
+                _ => out_pos,
+            };
+            return Err(RuleRuntimeError::SubstitutionNarrowing(pos))
+        }
+        
         // X -> Matrix        
         match state {
             &MatchElement::LongSegment(pos, _) => {
