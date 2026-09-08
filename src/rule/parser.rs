@@ -1276,17 +1276,17 @@ impl Parser {
         for choice in choices {
             let ParseItem { kind, position } = choice;
 
-            match kind {
-                &ParseElement::Matrix(mods, None, None) => {
+            match *kind {
+                ParseElement::Matrix(mods, None, None) => {
                     terms.push(NarrowSetChoice::Matrix(mods, *position));
                 }
-                &ParseElement::Matrix(_, Some(_), _) => {
+                ParseElement::Matrix(_, Some(_), _) => {
                     return Err(RuleSyntaxError::Narrowseption(*position))
                 }
-                &ParseElement::Matrix(_, _, Some(_)) => {
+                ParseElement::Matrix(_, _, Some(_)) => {
                     return Err(RuleSyntaxError::NarrowReference(*position));
                 }
-                &ParseElement::Ipa(seg, mods) => {
+                ParseElement::Ipa(seg, mods) => {
                     terms.push(NarrowSetChoice::Segment(seg, mods, *position));
                 } 
                 _ => unreachable!()
