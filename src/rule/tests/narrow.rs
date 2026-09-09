@@ -41,6 +41,7 @@ fn set_segment() {
 
     assert!(run("  n:[-long]  > [+s.g.]", "ka:n:a", "ka:n:a"));
     assert!(run("{ n:[-long]} > [+s.g.]", "ka:n:a", "ka:n:a"));
+    assert!(run("{N:-[+long]} > [+s.g.]", "ka:n:a", "ka:n:a"));
     assert!(run("{-n:[+long]} > [+s.g.]", "ka:n:a", "kʰa̤:n:a̤"));
 
     assert!(run(" n:[-long] > [+s.g.]", "ka:na", "ka:nʱa"));
@@ -96,6 +97,9 @@ fn error() {
     let rule = setup_rule("C > F:-{[-stri], s}").unwrap();
     let res = rule.apply(phr.clone()).unwrap_err();
     assert!(matches!(res, ASCAError::RuleRun(RuleRuntimeError::SubstitutionNarrowing(_))));
+
+    let res = setup_rule("{n:-[+long]} > [+s.g.]").unwrap_err();
+    assert!(matches!(res, RuleSyntaxError::IPACannotBeNarrowed(_)));
 }
 
 #[test]

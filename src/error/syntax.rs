@@ -102,6 +102,7 @@ pub enum RuleSyntaxError {
     ExpectedNumber    (char, GroupIndex, LineIndex, PosIndex),
     ExpectedTokenFeature(Token),
     ExpectedRightBracket(Token),
+    IPACannotBeNarrowed (Token),
     ExpectedStructElem  (Token),
     StructCannotBeRefd  (Token),
     BadNegationOutput   (Token),
@@ -182,6 +183,7 @@ impl fmt::Display for RuleSyntaxError {
             Self::ExpectedNumber    (c, ..) => write!(f, "Expected a number, but received '{c}'"),
             Self::ExpectedTokenFeature(token) => write!(f, "{} cannot be placed inside a matrix. An element inside `[]` must a distinctive feature", token.value),
             Self::ExpectedRightBracket(token) => write!(f, "Expected ')', but received '{}'", token.value),
+            Self::IPACannotBeNarrowed (_)     => write!(f, "IPA literals cannot be narrowed"),
             Self::ExpectedStructElem  (token) => write!(f, "Expected a Segment, Set, Option, or Ellipsis, but received '{}'", token.value),
             Self::StructCannotBeRefd  (_)     => write!(f, "Structs with an underline cannot be assigned to a reference"),
             Self::BadNegationOutput   (_)     => write!(f, "Negation cannot be used in the output"),
@@ -253,6 +255,7 @@ impl RuleSyntaxError {
             Self::OptMathError        (t, ..) | 
             Self::ExpectedTokenFeature(t) | 
             Self::ExpectedRightBracket(t) |
+            Self::IPACannotBeNarrowed (t) |
             Self::ExpectedStructElem  (t) | 
             Self::StructCannotBeRefd  (t) | 
             Self::BadNegationOutput   (t) | 

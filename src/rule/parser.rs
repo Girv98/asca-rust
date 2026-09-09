@@ -1053,6 +1053,10 @@ impl Parser {
             return Err(RuleSyntaxError::IPACannotBeRefd(eq))
         }
 
+        if let Some(narrow) = self.eat_expect(TokenKind::Narrowing) {
+            return Err(RuleSyntaxError::IPACannotBeNarrowed(narrow))
+        }
+
         if !self.expect(TokenKind::Colon) {
             return Ok(ParseItem::new(ParseElement::Ipa(ipa, None), Position::new(self.group, self.line, pos.start, self.token_list[self.pos-1].position.end)))
         }
