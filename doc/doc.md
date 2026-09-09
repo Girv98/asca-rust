@@ -38,6 +38,7 @@ This is documentation regarding the core principles of defining words and sound 
         * [Optionals](#optionals)
         * [References](#references)
         * [Segment Negation](#negation)
+        * [Matrix Narrowing](#matrix-narrowing)
         * [Ellipses](#ellipses)
         * [Syllable Structure Matching](#syllable-structure-matching)
             * [Underline Structures](#underline-structures)
@@ -915,17 +916,24 @@ In the rule above, plosives and nasals cluster only if they are of a different p
 ### Groupings
 
 Groupings can be used as shorthand to match often used phoneme classes.
-<!-- Y -> Nonsyllabics (consonants and glides)           (equiv. to [-syll]) -->
 ```
+Class Groupings
+===============
 C -> Consonants (obstruents and sonorants)          (equiv. to [+cons, -syll])
 O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -syll, -son])
-S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, -syll, +son])
 P -> Plosives                                       (equiv, to [+cons, -syll, -son, -delrel, -cont])
 F -> Fricatives                                     (equiv, to [+cons, -syll, -son, -approx, +cont])
+S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, -syll, +son])
 L -> Liquids                                        (equiv. to [+cons, -syll, +son, +approx])
 N -> Nasals                                         (equiv. to [+cons, -syll, +son, -approx, +nasal])
 G -> Glides                                         (equiv. to [-cons, -syll, +son])
 V -> Vowels                                         (equiv. to [-cons, +syll, +son])
+
+Place Groupings
+===============
+K -> Velar Consonants                               (equiv. to [+cons, -fr, +bk, +hi, -lo])
+Q -> Uvular Consonants                              (equiv. to [+cons, -fr, -bk, +hi, -lo])
+J -> Palatal Consonants                             (equiv. to [+cons, +fr, -bk, +hi, -lo, +dist])
 ```
 Note that glides are considered `[-cons]` and are therefore not captured by `C`. `[-syll]`, `{C,G}` or `-V` can be used to capture both consonants and glides, see [here](#negation) for the latter.
 
@@ -1092,6 +1100,37 @@ Example:
 ;; A syllable gains low tone if preceded by a non-identical syllable
 
 ta5.sa5 => ta5.sa1
+```
+
+### Matrix Narrowing
+
+Segments can be excluded from an otherwise matching matrix or group by modifying it with `:-`.
+
+These "narrowings" can take the form of a single segment:
+```
+Example: Excluding a single segment
+
+O:-s > [+voi]   ;; Obstruents except /s/ become voiced
+
+sa.ta.kam => sa.da.gam
+```
+
+Or of a matrix or group:
+```
+Example: Excluding a class of segments
+
+O:-F > [+voi]   ;; Obstruents that are not fricatives become voiced
+
+sa.ta.kam => sa.da.gam
+```
+
+Multiple narrowings can be applied by using a set:
+```
+Example: Excluding multiple segments, groups, or matrices
+
+O:-{t, [+cont]} => [+voi] ;; Obstruents that are not /t/ or [+cont] become voiced
+
+sa.ta.kam => sa.ta.gam
 ```
 
 ### Ellipses

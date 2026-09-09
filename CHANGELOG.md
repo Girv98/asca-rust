@@ -1,6 +1,6 @@
-NEXT RELEASE
+[0.10.3](https://github.com/Girv98/asca-rust/releases/tag/0.10.3) (2026-09-09)
 ==================
-[0.10.2...master](https://github.com/Girv98/asca-rust/compare/0.10.2...master)
+[0.10.2...0.10.3](https://github.com/Girv98/asca-rust/compare/0.10.2...0.10.3)
 
 Features:
 * Lib: 
@@ -15,14 +15,15 @@ Features:
             * e.g. `O:-{t, [+cont]} => [+voi] ;; Obstruents that are not /t/ or [+cont] become voiced`
                 * `sa.ta.kam => sa.ta.gam`
     * Place Groupings
-        * `K`, `Q`, and `J` to represent Velar, Uvular, and Palatal Consonants respectfully
+        * Introduce `K`, `Q`, and `J` to represent Velar, Uvular, and Palatal Consonants respectfully
 
 Fixes:
 * Cli: Add description to trace command (oops!)
 * Lib:
-    * Prevent "Supra-stealing" in substitution rules with boundaries
+    * Prevent suprasegmentals being stolen by a neighbouring syllable in substitution rules with boundaries
     * Long segments in an input set are skipped correctly if they are not successfully matched
-    * Add error for when a parsed number is too large
+        * e.g. `{n:[-long]} > [+sg]` results in `kanː => kanː` rather than `kanː => kannʱ` in 0.10.2
+    * Add error for when a number is too large to be parsed e.g. exceeding u64::max on 64bit systems
 
 Perf: 20% average reduction in stack and heap usage (measured with example configs)
 
