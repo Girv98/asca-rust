@@ -34,17 +34,17 @@ pub enum RuleRuntimeError {
     InsertionGroupedEnv  (Position),
     AlphaIsNotSuprGroup  (Position),
     StructInsideStruct   (Position),
-    AlphaNodeAssignInv   (Position),
     OverlongPosLongNeg   (Position),
     AlphaIsNotSameNode   (Position),
     SubstitutionMatrix   (Position),
+    AlphaNodeAssignInv   (Position),
+    AlphaNodeApplyInv    (Position),
     BadNegationOutput    (Position),
     InsertionEllipsis    (Position),
     SubstitutionSyll     (Position),
     SubstitutionSet      (Position),
     SubstitutionOpt      (Position),
     SecStrPosStrNeg      (Position),
-    AlphaUnknownInv      (Position),
     InsertionMatrix      (Position),
     AlphaIsNotNode       (Position),
     InsertionNoEnv       (Position),
@@ -93,17 +93,17 @@ impl fmt::Display for RuleRuntimeError {
             Self::AlphaIsNotSuprGroup  (_) => write!(f, "This type of alpha cannot be used on 'length'"),
             Self::StructInsideStruct   (_) => write!(f, "A structure cannot be used inside a structure"),
             Self::InsertionGroupedEnv  (_) => write!(f, "Grouped Environments cannot (yet) be used in insertion rules"),
-            Self::AlphaNodeAssignInv   (_) => write!(f, "Node alphas cannot be assigned inverse. First occurrence of a node alpha must be positive."),
             Self::OverlongPosLongNeg   (_) => write!(f, "A segment cannot be both [+overlong] and [-long]"),
             Self::AlphaIsNotSameNode   (_) => write!(f, "Node alphas must only be used on the same node."),
             Self::SubstitutionMatrix   (_) => write!(f, "A matrix cannot be used inside a structure when substituting"),
+            Self::AlphaNodeAssignInv   (_) => write!(f, "First occurence of a node alpha must not be inverted."),
+            Self::AlphaNodeApplyInv    (_) => write!(f, "Node and Place alphas cannot be applied inverse."),
             Self::BadNegationOutput    (_) => write!(f, "Negation cannot be used in the output"),
             Self::InsertionEllipsis    (_) => write!(f, "An ellipsis cannot be inserted"),
             Self::SubstitutionSyll     (_) => write!(f, "Blank syllables cannot be used in substitution output."),
             Self::SubstitutionSet      (_) => write!(f, "Sets cannot be used in structures the in output"),
             Self::SubstitutionOpt      (_) => write!(f, "Options cannot be used in structures the in output"),
             Self::SecStrPosStrNeg      (_) => write!(f, "A syllable cannot be both [+sec.stress] and [-stress]"),
-            Self::AlphaUnknownInv      (_) => write!(f, "First occurence of a node alpha must not be inverted."),
             Self::InsertionMatrix      (_) => write!(f, "An incomplete matrix cannot be inserted"),
             Self::AlphaIsNotNode       (_) => write!(f, "Node alphas cannot be used on binary features"),
             Self::InsertionNoEnv       (_) => write!(f, "Insertion rules must have a context"),
@@ -157,17 +157,17 @@ impl RuleRuntimeError {
             Self::AlphaIsNotSuprGroup        (pos) |
             Self::StructInsideStruct         (pos) |
             Self::InsertionGroupedEnv        (pos) |
-            Self::AlphaNodeAssignInv         (pos) |
             Self::OverlongPosLongNeg         (pos) |
             Self::AlphaIsNotSameNode         (pos) |
             Self::SubstitutionMatrix         (pos) |
+            Self::AlphaNodeAssignInv         (pos) |
+            Self::AlphaNodeApplyInv          (pos) |
             Self::BadNegationOutput          (pos) |
             Self::InsertionEllipsis          (pos) |
             Self::SubstitutionSyll           (pos) |
             Self::SubstitutionSet            (pos) |
             Self::SubstitutionOpt            (pos) |
             Self::SecStrPosStrNeg            (pos) |
-            Self::AlphaUnknownInv            (pos) |
             Self::InsertionMatrix            (pos) |
             Self::AlphaIsNotNode             (pos) |
             Self::InsertionSet               (pos) |

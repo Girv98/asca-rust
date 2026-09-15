@@ -419,82 +419,103 @@ impl Segment {
         Ok(())
     }
 
+    pub(crate) fn set_node_pos(&mut self, node: NodeKind, err_pos: Position) -> Result<(), RuleRuntimeError> {
+        match node {
+            NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeSome("Root".to_owned(), err_pos)),
+            NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeSome("Manner".to_owned(), err_pos)),
+            NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeSome("Largyneal".to_owned(), err_pos)),
+            NodeKind::Place     => return Err(RuleRuntimeError::NodeCannotBeSome("Place".to_owned(), err_pos)),
+            // preserve node if already positive
+            _ if self.is_node_none(node) => self.set_node(node, Some(0)),
+            _ => { /* Don't override it */ }
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn set_node_neg(&mut self, node: NodeKind, err_pos: Position) -> Result<(), RuleRuntimeError> {
+        match node {
+            NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeNone("Root".to_owned(), err_pos)),
+            NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeNone("Manner".to_owned(), err_pos)),
+            NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeNone("Largyneal".to_owned(), err_pos)),
+            NodeKind::Place     => *self.place = None, // e.g. Debuccalization
+            _ => self.set_node(node, None),
+        }
+        Ok(())
+    }
+
     pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>> , nodes: [Option<ModKind>; NodeKind::count()], feats: [Option<ModKind>; FeatKind::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError>{
         for (i, m) in nodes.iter().enumerate() { 
             let node = NodeKind::from_usize(i);
             if let Some(kind) = m {
                 match kind {
                     ModKind::Binary(bm) => match bm {
-                        BinMod::Negative => match node {
-                            NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeNone("Root".to_owned(), err_pos)),
-                            NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeNone("Manner".to_owned(), err_pos)),
-                            NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeNone("Largyneal".to_owned(), err_pos)),
-                            NodeKind::Place     => *self.place = None, // e.g. Debuccalization
-                            _ => self.set_node(node, None),
-                            
-                        },
-                        BinMod::Positive => match node {
-                            NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeSome("Root".to_owned(), err_pos)),
-                            NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeSome("Manner".to_owned(), err_pos)),
-                            NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeSome("Largyneal".to_owned(), err_pos)),
-                            NodeKind::Place     => return Err(RuleRuntimeError::NodeCannotBeSome("Place".to_owned(), err_pos)),
-                            // preserve node if already positive
-                            _ if self.is_node_none(node) => self.set_node(node, Some(0)),
-                            _ => { /* Don't override it */ }
-                        },
+                        BinMod::Negative => self.set_node_neg(node, err_pos)?,
+                        BinMod::Positive => self.set_node_pos(node, err_pos)?,
                     },
                     ModKind::Alpha(am) => match am {
                         AlphaMod::Alpha(ch) => {
-                        let mut alpha_assigned = false; // needed because of borrow checker weirdness. See: https://github.com/rust-lang/rust/issues/113792
                             if let Some(alpha) = alphas.borrow().get(ch) {
-                                if let Some((n, m)) = alpha.as_node() {
-                                    if n == node {
-                                        self.set_node(n, m);
-                                    } else {
-                                        return Err(RuleRuntimeError::AlphaIsNotSameNode(err_pos))
+                                match alpha {
+                                    &Alpha::Node(n, m) => {
+                                        if n == node {
+                                            self.set_node(n, m);
+                                        } else {
+                                            return Err(RuleRuntimeError::AlphaIsNotSameNode(err_pos))
+                                        }
+                                    },
+                                    Alpha::Place(place) => {
+                                        match node {
+                                            NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeSet("Root".to_owned(), err_pos)),
+                                            NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeSet("Manner".to_owned(), err_pos)),
+                                            NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeSet("Laryngeal".to_owned(), err_pos)),
+                                            NodeKind::Place => {
+                                                self.set_node(NodeKind::Labial    , place.lab);
+                                                self.set_node(NodeKind::Coronal   , place.cor);
+                                                self.set_node(NodeKind::Dorsal    , place.dor);
+                                                self.set_node(NodeKind::Pharyngeal, place.phr);
+                                            },
+                                            // Partial Place application
+                                            NodeKind::Labial     => self.set_node(NodeKind::Labial    , place.lab),
+                                            NodeKind::Coronal    => self.set_node(NodeKind::Coronal   , place.cor),
+                                            NodeKind::Dorsal     => self.set_node(NodeKind::Dorsal    , place.dor),
+                                            NodeKind::Pharyngeal => self.set_node(NodeKind::Pharyngeal, place.phr),
+                                        }
+                                    },
+                                    other => match other.as_binary() {
+                                        false => self.set_node_neg(node, err_pos)?,
+                                        true  => self.set_node_pos(node, err_pos)?,
                                     }
-                                } else if let Some(place) = alpha.as_place() {
-                                    match node {
-                                        NodeKind::Root      => return Err(RuleRuntimeError::NodeCannotBeSet("Root".to_owned(), err_pos)),
-                                        NodeKind::Manner    => return Err(RuleRuntimeError::NodeCannotBeSet("Manner".to_owned(), err_pos)),
-                                        NodeKind::Laryngeal => return Err(RuleRuntimeError::NodeCannotBeSet("Laryngeal".to_owned(), err_pos)),
-                                        NodeKind::Place => {
-                                            self.set_node(NodeKind::Labial    , place.lab);
-                                            self.set_node(NodeKind::Coronal   , place.cor);
-                                            self.set_node(NodeKind::Dorsal    , place.dor);
-                                            self.set_node(NodeKind::Pharyngeal, place.phr);
-                                        },
-                                        // Partial Place application
-                                        NodeKind::Labial     => self.set_node(NodeKind::Labial    , place.lab),
-                                        NodeKind::Coronal    => self.set_node(NodeKind::Coronal   , place.cor),
-                                        NodeKind::Dorsal     => self.set_node(NodeKind::Dorsal    , place.dor),
-                                        NodeKind::Pharyngeal => self.set_node(NodeKind::Pharyngeal, place.phr),
-                                    }
-                                    
-                                } else {
-                                    return Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
                                 }
-                                alpha_assigned = true;
-                            }
-                            if !alpha_assigned {
-                                if is_matching_ipa {
-                                    if node == NodeKind::Place {
-                                        let pm = PlaceMod { 
-                                            lab: self.get_node(NodeKind::Labial), 
-                                            cor: self.get_node(NodeKind::Coronal), 
-                                            dor: self.get_node(NodeKind::Dorsal), 
-                                            phr: self.get_node(NodeKind::Pharyngeal) 
-                                        };
-                                        alphas.borrow_mut().insert(*ch, Alpha::Place(pm));
-                                    } else {
-                                        alphas.borrow_mut().insert(*ch, Alpha::Node(node, self.get_node(node)));
-                                    }
+                            } else if is_matching_ipa {
+                                if node == NodeKind::Place {
+                                    let pm = PlaceMod { 
+                                        lab: self.get_node(NodeKind::Labial), 
+                                        cor: self.get_node(NodeKind::Coronal), 
+                                        dor: self.get_node(NodeKind::Dorsal), 
+                                        phr: self.get_node(NodeKind::Pharyngeal) 
+                                    };
+                                    alphas.borrow_mut().insert(*ch, Alpha::Place(pm));
                                 } else {
-                                    return Err(RuleRuntimeError::AlphaUnknown(err_pos))
+                                    alphas.borrow_mut().insert(*ch, Alpha::Node(node, self.get_node(node)));
                                 }
+                            } else {
+                                return Err(RuleRuntimeError::AlphaUnknown(err_pos))
                             }
                         },
-                        AlphaMod::InvAlpha(_) => return Err(RuleRuntimeError::AlphaNodeAssignInv(err_pos))
+                        AlphaMod::InvAlpha(ch) => {
+                            if let Some(alpha) = alphas.borrow().get(ch) {
+                                match alpha {
+                                    Alpha::Node(..) | Alpha::Place(..) => return Err(RuleRuntimeError::AlphaNodeApplyInv(err_pos)),
+                                    other => match other.as_binary() {
+                                        false => self.set_node_pos(node, err_pos)?,
+                                        true => self.set_node_neg(node, err_pos)?,
+                                    }
+                                }
+                            } else {
+                                return Err(RuleRuntimeError::AlphaNodeAssignInv(err_pos))
+                            }
+                        }
                     },
                 }
             }
@@ -507,44 +528,20 @@ impl Segment {
                         BinMod::Negative => self.set_feat(n, f, false),
                         BinMod::Positive => self.set_feat(n, f, true),
                     },
-                    ModKind::Alpha(am) => match am {
-                        AlphaMod::Alpha(ch) => {
-                            let mut alpha_assigned = false;
-                            if let Some(alpha) = alphas.borrow().get(ch) {
-                                let tp = alpha.as_binary();
-                                self.set_feat(n, f, tp);
-                                alpha_assigned = true;
-                            } 
-                            if !alpha_assigned {
-                                if is_matching_ipa {
-                                    let x = if let Some(feat) = self.get_feat(n, f) {
-                                        feat != 0
-                                    } else {false};
-                                    alphas.borrow_mut().insert(*ch, Alpha::Feature(x));
-                                } else {
-                                    return Err(RuleRuntimeError::AlphaUnknown(err_pos))
-                                }
-                            }
-                        },
-                        AlphaMod::InvAlpha(ch) => {
-                            let mut alpha_assigned = false;
-                            if let Some(alpha) = alphas.borrow().get(ch) {
-                                let tp = alpha.as_binary();
-                                self.set_feat(n, f, !tp);
-                                alpha_assigned = true;
-                            }
-                            if !alpha_assigned {
-                                if is_matching_ipa {
-                                    let x = if let Some(feat) = self.get_feat(n, f) {
-                                        feat != 0
-                                    } else {false};
-                                    alphas.borrow_mut().insert(*ch, Alpha::Feature(!x));
-                                } else {
-                                    return Err(RuleRuntimeError::AlphaUnknown(err_pos))
-                                }
-                            }
-                        },
-                    },
+                    ModKind::Alpha(am) => {
+                        let (invert, ch) = match am {
+                            AlphaMod::Alpha(ch) => (false, ch),
+                            AlphaMod::InvAlpha(ch) => (true, ch),
+                        };
+
+                        if let Some(alpha) = alphas.borrow().get(ch) {
+                            self.set_feat(n, f, alpha.as_binary() ^ invert);
+                        } else if is_matching_ipa {
+                            alphas.borrow_mut().insert(*ch, Alpha::Feature(matches!(self.get_feat(n, f), Some(feat) if feat != 0) ^ invert));
+                        } else {
+                            return Err(RuleRuntimeError::AlphaUnknown(err_pos))
+                        }
+                    }
                 }
             }
         }
