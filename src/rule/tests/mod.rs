@@ -45,11 +45,26 @@ fn setup_output(out_str: &str) -> String {
 }
 
 fn setup_rule(test_str: &str) -> Result<Rule, RuleSyntaxError> {
-    let maybe_lex = Lexer::new(&test_str.chars().collect::<Vec<_>>(),0 ,0).get_line();
-    match maybe_lex {
+    let lexer = match Lexer::new(&test_str.chars().collect::<Vec<_>>(),0 ,0) {
+        Ok(mut lex) => lex.get_line(),
+        Err(e) => {
+            let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
+            println!("{}", e.format(&vec![rg]));
+            return Err(e);
+        },
+    };
+
+    match lexer {
         Ok(lexed) => {
-            match Parser::new(lexed, 0, 0).parse() {
-                Ok(rule) => return Ok(rule.unwrap()),
+            match Parser::new(lexed, 0, 0) {
+                Ok(mut parser) => match parser.parse() {
+                    Ok(rule) => return Ok(rule.unwrap()),
+                    Err(e) => {
+                        let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
+                        println!("{}", e.format(&vec![rg]));
+                        return Err(e);
+                    },
+                },
                 Err(e) => {
                     let rg = RuleGroup { name: String::new(), rule: vec![test_str.to_owned()], description: String::new() };
                     println!("{}", e.format(&vec![rg]));

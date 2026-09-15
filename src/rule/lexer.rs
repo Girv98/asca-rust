@@ -110,14 +110,14 @@ impl Display for TokenKind {
 #[doc(hidden)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Position {
-    pub(crate) group: usize,
-    pub(crate) line: usize,
-    pub(crate) start: usize,
-    pub(crate) end: usize,
+    pub(crate) group: u16,
+    pub(crate) line: u16,
+    pub(crate) start: u16,
+    pub(crate) end: u16,
 }
 
 impl Position {
-    pub(crate) fn new(group: usize, line: usize, start: usize, end: usize) -> Self {
+    pub(crate) fn new(group: u16, line: u16, start: u16, end: u16) -> Self {
         Self {group, line, start, end }
     }
 }
@@ -137,7 +137,7 @@ pub struct Token {
 }
 
 impl Token {
-    pub(crate) fn new(kind: TokenKind, value: &str, group: usize, line: usize, start: usize, end: usize) -> Self {
+    pub(crate) fn new(kind: TokenKind, value: &str, group: u16, line: u16, start: u16, end: u16) -> Self {
         Self { kind, value: Arc::from(value), position: Position::new(group, line, start, end) }
     }
 }
@@ -157,9 +157,9 @@ impl fmt::Debug for Token {
 #[derive(Default)]
 pub(crate) struct Lexer<'a> {
     source: &'a [char],
-    group: usize,
-    line: usize,
-    pos: usize,
+    group: u16,
+    line: u16,
+    pos: u16,
     inside_matrix: bool,
     inside_option: bool,
     inside_syll: bool,
@@ -168,37 +168,49 @@ pub(crate) struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub(crate) fn new(source: &'a [char], group: usize, line: usize) -> Self {
-        Self { 
+    pub(crate) fn new(source: &'a [char], group: usize, line: usize) -> Result<Self, RuleSyntaxError> {
+        if group > u16::MAX as usize {
+            return Err(RuleSyntaxError::GroupTooBig(group))
+        }
+
+        if line > u16::MAX as usize {
+            return Err(RuleSyntaxError::LineTooBig(group, line))
+        }
+
+        if source.len() > u16::MAX as usize {
+            return Err(RuleSyntaxError::LineTooLong(group, line, source.len()))
+        }
+
+        Ok(Self { 
             source, 
-            group, 
-            line, 
+            group: group as u16, 
+            line: line as u16, 
             pos: 0, 
             inside_matrix: false, 
             inside_option: false, 
             inside_syll: false, 
             inside_set: false, 
             inside_env_set: false, 
-        }
+        })
     }
 
-    fn has_more_chars(&self) -> bool { self.pos < self.source.len() }
+    fn has_more_chars(&self) -> bool { self.pos < self.source.len() as u16 }
 
     fn trim_whitespace(&mut self) {
-        while self.has_more_chars() && self.source[self.pos].is_whitespace() {
+        while self.has_more_chars() && self.source[self.pos as usize].is_whitespace() {
             self.advance();
         }
     }
 
-    fn chop(&mut self, n: usize) -> String {
-        let token = &self.source[self.pos..self.pos+n];
+    fn chop(&mut self, n: u16) -> String {
+        let token = &self.source[self.pos.into()..(self.pos+n).into()];
         self.pos += n;
         token.iter().collect()
     }
 
     fn chop_while<P>(&mut self, mut predicate: P) -> String where P: FnMut(&char) -> bool {
         let mut n = 0;
-        while self.pos+n < self.source.len() && predicate(&self.source[self.pos+n]) {
+        while (self.pos as usize) + (n as usize) < self.source.len() && predicate(&self.source[(self.pos+n) as usize]) {
             n += 1;
         }
         self.chop(n)
@@ -206,23 +218,23 @@ impl<'a> Lexer<'a> {
 
     fn curr_char(&self) -> char {
         if self.has_more_chars() {
-            self.source[self.pos]
+            self.source[self.pos as usize]
         } else {
             '\0'
         }
     }
 
     fn next_char(&self) -> char {
-        if self.source.len() > self.pos+1 {
-            self.source[self.pos+1]
+        if self.source.len() > self.pos as usize + 1 {
+            self.source[self.pos as usize + 1]
         } else {
             '\0'
         }
     }
 
     fn next_next_char(&self) -> char {
-        if self.source.len() > self.pos+2 {
-            self.source[self.pos+2]
+        if self.source.len() > self.pos as usize + 2 {
+            self.source[self.pos as usize + 2]
         } else {
             '\0'
         }
@@ -231,7 +243,7 @@ impl<'a> Lexer<'a> {
     fn last_char_eq(&self, ch: char) -> bool {
         if self.pos == 0 { return false }
 
-        self.source[self.pos-1] == ch
+        self.source[self.pos as usize - 1] == ch
     }
 
     fn advance(&mut self) {
@@ -601,17 +613,17 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn string_match(&mut self, buffer: String, start: usize) -> Result<TokenKind, RuleSyntaxError> {
+    fn string_match(&mut self, buffer: String, start: u16) -> Result<TokenKind, RuleSyntaxError> {
         use TokenKind::*;
         use FeatureCategory::*;
         use SupraKind::*;
         match buffer.to_lowercase().as_str() {
             "tone" | "ton" | "tne" | "tn" => Ok(Feature(Supr(Tone))),
-            _ => Err(RuleSyntaxError::UnknownEnbyFeature(buffer.clone(), Position::new(self.group, self.line, start, start+buffer.len())))
+            _ => Err(RuleSyntaxError::UnknownEnbyFeature(buffer.clone(), Position::new(self.group, self.line, start, start+buffer.len() as u16)))
         }
     }
 
-    fn feature_match(&mut self, buffer: &String, start: usize, end: usize) -> Result<TokenKind, RuleSyntaxError> {
+    fn feature_match(&mut self, buffer: &String, start: u16, end: u16) -> Result<TokenKind, RuleSyntaxError> {
         use FeatureCategory::*;
         use NodeKind::*;
         use FeatKind::*;
@@ -790,7 +802,7 @@ mod tests {
         let test_input = "%";
         let expected_result = TokenKind::Syllable;
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_next_token().unwrap();
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_next_token().unwrap();
 
         assert_eq!(result.kind, expected_result);
         assert_eq!(result.value.as_ref(), test_input);
@@ -812,7 +824,7 @@ mod tests {
             Token::new(TokenKind::Eol,         ""   ,0, 0, 18, 19),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         // assert_eq!(result.len(), expected_result.len());
 
@@ -832,7 +844,7 @@ mod tests {
             Token::new(TokenKind::Eol,             "", 0, 0, 7, 8),
         ];
 
-        let res = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();
+        let res = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();
 
         assert_eq!(res.len(), expected_res.len());
 
@@ -861,7 +873,7 @@ mod tests {
             Token::new(TokenKind::Eol,        "", 0, 0, 29, 30),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -882,7 +894,7 @@ mod tests {
             Token::new(TokenKind::Eol,        "", 0, 0, 8, 9),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();  
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();  
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -902,7 +914,7 @@ mod tests {
             Token::new(TokenKind::Eol,          "", 0, 0, 9, 10),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();  
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();  
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -924,7 +936,7 @@ mod tests {
             Token::new(TokenKind::Eol,          "", 0, 0, 13, 14),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -943,7 +955,7 @@ mod tests {
             Token::new(TokenKind::Eol,                   "", 0, 0, 15, 16),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -967,7 +979,7 @@ mod tests {
             Token::new(TokenKind::Eol,                                  "", 0, 0, 19, 20),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -988,7 +1000,7 @@ mod tests {
             Token::new(TokenKind::Eol,                                  "", 0, 0,  9, 10),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1012,7 +1024,7 @@ mod tests {
             Token::new(TokenKind::Eol,                    "", 0, 0, 11, 12),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1033,7 +1045,7 @@ mod tests {
             Token::new(TokenKind::Eol,         "", 0, 0, 6, 7),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1064,7 +1076,7 @@ mod tests {
             Token::new(TokenKind::Eol,          "", 0, 0, 25, 26),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1095,7 +1107,7 @@ mod tests {
             Token::new(TokenKind::Eol,             "", 0, 0, 23, 24),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1131,7 +1143,7 @@ mod tests {
             Token::new(TokenKind::Eol,             "", 0, 0, 28, 29),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1152,7 +1164,7 @@ mod tests {
             Token::new(TokenKind::Eol,              "", 0, 0,  6,  7),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1176,7 +1188,7 @@ mod tests {
         ];
 
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1200,7 +1212,7 @@ mod tests {
             Token::new(TokenKind::Eol,         "", 0, 0,  5,  6),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1227,7 +1239,7 @@ mod tests {
             Token::new(TokenKind::Eol,         "", 0, 0,  8,  9),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -1253,7 +1265,7 @@ mod tests {
             Token::new(TokenKind::Eol,         "", 0, 0, 10, 11),
         ];
 
-        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).get_line().unwrap();        
+        let result = Lexer::new(&test_input.chars().collect::<Vec<_>>(), 0, 0).unwrap().get_line().unwrap();        
 
         assert_eq!(result.len(), expected_result.len());
 

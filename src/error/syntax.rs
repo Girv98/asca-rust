@@ -8,21 +8,22 @@ use crate :: {
 use super::{get_feat_closest, ASCAError, RuleGroup};
 
 type WordString = String;
-type GroupIndex = usize;
-type LineIndex = usize;
-type PosIndex = usize;
+type GroupIndex = u16;
+type LineIndex = u16;
+type PosIndex = u16;
+type PhraseIndex = usize;
 type IsPlus = bool;
 type FeatString = String;
 type NodeString = String;
 
 #[derive(Debug, Clone)]
 pub enum WordSyntaxError {
-    DiacriticDoesNotMeetPreReqsFeat(WordString, PosIndex, FeatString, IsPlus),
-    DiacriticDoesNotMeetPreReqsNode(WordString, PosIndex, NodeString, IsPlus),
-    DiacriticBeforeSegment         (WordString, PosIndex),
-    NoSegmentBeforeColon           (WordString, PosIndex),
-    UnknownChar                    (WordString, PosIndex),
-    ToneTooBig                     (WordString, PosIndex),
+    DiacriticDoesNotMeetPreReqsFeat(WordString, PhraseIndex, FeatString, IsPlus),
+    DiacriticDoesNotMeetPreReqsNode(WordString, PhraseIndex, NodeString, IsPlus),
+    DiacriticBeforeSegment         (WordString, PhraseIndex),
+    NoSegmentBeforeColon           (WordString, PhraseIndex),
+    UnknownChar                    (WordString, PhraseIndex),
+    ToneTooBig                     (WordString, PhraseIndex),
     CouldNotParseEjective          (WordString),
     CouldNotParse                  (WordString),
 }
@@ -160,6 +161,11 @@ pub enum RuleSyntaxError {
     UnbalancedRuleIO (Vec<Vec<ParseItem>>),
     UnexpectedEol(Token, &'static str),
     OptMathError (Token, usize, usize),
+
+    GroupTooBig(usize),
+    LineTooBig(usize, usize),
+    LineTooLong(usize, usize, usize),
+    TokensTooLong(usize, usize, usize),
 }
 
 impl From<RuleSyntaxError> for ASCAError {
@@ -241,6 +247,11 @@ impl fmt::Display for RuleSyntaxError {
             Self::UnbalancedRuleIO (_) => write!(f, "Input or Output has too few elements"),
             Self::UnexpectedEol(_, c) => write!(f, "Expected {c}, but received End of Line"),
             Self::OptMathError (_, lo, hi) => write!(f, "An Optional's second argument '{hi}' must be greater than or equal to it's first argument '{lo}'"),
+
+            Self::TokensTooLong(..) => write!(f, "Exceeded more than 65535 tokens in given line (Seriously, how did you manage that???)"),
+            Self::GroupTooBig(_)  => write!(f, "Cannot have more than 65535 rule groups in a given file  (Seriously, how did you manage that???)"),
+            Self::LineTooLong(..) => write!(f, "Cannot have more than 65535 characters in a given line (Seriously, how did you manage that???)"),
+            Self::LineTooBig (..) => write!(f, "Cannot have more than 65535 lines in a given rule group (Seriously, how did you manage that???)"),
         }
     }
 }
@@ -277,16 +288,16 @@ impl RuleSyntaxError {
             Self::DeleteErr           (t) | 
             Self::MetathErr           (t) | 
             Self::BadSyllableMatrix   (t) => (
-                " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start) + "\n", 
-                t.position.group,
-                t.position.line
+                " ".repeat(t.position.start.into()) + &"^".repeat((t.position.end-t.position.start).into()) + "\n", 
+                t.position.group as usize,
+                t.position.line as usize
             ),
             Self::TooManyUnderlinesStruct(pos) |
             Self::UnknownEnbyFeature  (_, pos) |
             Self::UnknownFeature      (_, pos) => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n", 
-                pos.group,
-                pos.line
+                " ".repeat(pos.start.into()) + &"^".repeat((pos.end-pos.start).into()) + "\n", 
+                pos.group as usize,
+                pos.line as usize
             ),
             Self::FeatCannotBeBinary(_, group, line, pos) | 
             Self::ExpectedAlphabetic(_, group, line, pos) |
@@ -302,15 +313,15 @@ impl RuleSyntaxError {
             Self::EmptyOutput          (group, line, pos) |
             Self::EmptyInput           (group, line, pos) | 
             Self::EmptyEnv             (group, line, pos) => (
-                " ".repeat(*pos) + "^" + "\n", 
-                *group,
-                *line
+                " ".repeat((*pos).into()) + "^" + "\n", 
+                *group as usize,
+                *line as usize
             ),
             Self::InsertDelete(group, line, pos1, pos2) | 
             Self::InsertMetath(group, line, pos1, pos2) => (
-                " ".repeat(*pos1) + "^" + " ".repeat(pos2 - pos1 - 1).as_str() + "^" + "\n", 
-                *group,
-                *line
+                " ".repeat((*pos1).into()) + "^" + " ".repeat((pos2 - pos1 - 1).into()).as_str() + "^" + "\n", 
+                *group as usize,
+                *line as usize
             ),
             Self::UnknownDiacritic  (_, pos) |
             Self::UnknownJoining    (_, pos) |
@@ -323,9 +334,9 @@ impl RuleSyntaxError {
             Self::NarrowReference(pos)       |
             Self::Narrowseption(pos)         |
             Self::NarrowTooMany(pos)         => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n", 
-                pos.group,
-                pos.line
+                " ".repeat(pos.start.into()) + &"^".repeat((pos.end-pos.start).into()) + "\n", 
+                pos.group as usize,
+                pos.line as usize
             ),
             Self::UnbalancedRuleEnv(items) => {
                 let first_item = items.first().expect("Env should not be empty");
@@ -333,17 +344,17 @@ impl RuleSyntaxError {
                 let start = first_item.position.start;
                 let end = last_item.position.end;
                 (
-                    " ".repeat(start) + &"^".repeat(end-start) + "\n", 
-                    first_item.position.group,
-                    first_item.position.line
+                    " ".repeat(start.into()) + &"^".repeat((end-start).into()) + "\n", 
+                    first_item.position.group as usize,
+                    first_item.position.line as usize
                 )
             },
             Self::WordBoundLoc(pos) |
             Self::OptLocError (pos) |
             Self::EmptySet    (pos) => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n",
-                pos.group,
-                pos.line
+                " ".repeat(pos.start.into()) + &"^".repeat((pos.end-pos.start).into()) + "\n",
+                pos.group as usize,
+                pos.line as usize
             ),
             Self::UnbalancedRuleIO(items) => {
                 let first_item = items.first().expect("IO should not be empty").first().expect("IO should not be empty");
@@ -351,9 +362,9 @@ impl RuleSyntaxError {
                 let start = first_item.position.start;
                 let end = last_item.position.end;
                 (
-                    " ".repeat(start) + &"^".repeat(end-start) + "\n", 
-                    first_item.position.group,
-                    first_item.position.line
+                    " ".repeat(start.into()) + &"^".repeat((end-start).into()) + "\n", 
+                    first_item.position.group as usize,
+                    first_item.position.line as usize
                 )
             },
             Self::SupraConflict      (x_pos, y_pos) | 
@@ -363,25 +374,47 @@ impl RuleSyntaxError {
             Self::BadNegation        (x_pos, y_pos) | 
             Self::DiacriticDoesNotMeetPreReqsFeat(x_pos, y_pos, ..) | 
             Self::DiacriticDoesNotMeetPreReqsNode(x_pos, y_pos, ..) => (
-                " ".repeat(x_pos.start) 
-                    + &"^".repeat(x_pos.end - x_pos.start)
-                    + &" ".repeat(y_pos.start - x_pos.end)
-                    + &"^".repeat(y_pos.end - y_pos.start)
+                " ".repeat(x_pos.start.into()) 
+                    + &"^".repeat((x_pos.end - x_pos.start).into())
+                    + &" ".repeat((y_pos.start - x_pos.end).into())
+                    + &"^".repeat((y_pos.end - y_pos.start).into())
                     + "\n", 
-                x_pos.group,
-                x_pos.line
+                x_pos.group as usize,
+                x_pos.line  as usize
+            ),
+
+            Self::GroupTooBig(group) => (
+                String::new(),
+                *group,
+                0
+            ),
+            Self::LineTooBig(group, line) |
+            Self::LineTooLong(group, line, _) |
+            Self::TokensTooLong(group, line, _) => (
+                String::new(),
+                *group,
+                *line
             ),
         };
 
-        result.push_str(&format!("{}{}{}{}    {} Rule {}, Line {}",  
-            MARG.bright_blue().bold(), 
-            rules[group].rule[line],
-            MARG.bright_blue().bold(), 
-            arrows.bright_red().bold(),
-            "@".bright_blue().bold(),
-            group+1,
-            line+1,
-        ));
+        if let Self::TokensTooLong(..) | Self::LineTooLong(..) | Self::LineTooBig(..) | Self::GroupTooBig(..) = self {
+            result.push_str(&format!("{}\n    {} Rule {}, Line {}",  
+                MARG.bright_blue().bold(), 
+                "@".bright_blue().bold(),
+                group+1,
+                line+1,
+            ));
+        } else {
+            result.push_str(&format!("{}{}{}{}    {} Rule {}, Line {}",  
+                MARG.bright_blue().bold(), 
+                rules[group].rule[line],
+                MARG.bright_blue().bold(), 
+                arrows.bright_red().bold(),
+                "@".bright_blue().bold(),
+                group+1,
+                line+1,
+            ));
+        }
 
         result
     }
@@ -418,6 +451,10 @@ pub enum AliasSyntaxError {
     UnexpectedEol(AliasToken, char),
     UnbalancedIO(Vec<AliasItem>),
     PlusInDerom(AliasPosition),
+
+    LineTooLong(AliasKind, usize),
+    LineTooBig(AliasKind, usize),
+    TokensTooLong(AliasKind, usize),
 }
 
 impl From<AliasSyntaxError> for ASCAError {
@@ -460,6 +497,10 @@ impl fmt::Display for AliasSyntaxError {
             Self::UnexpectedEol(_, ch) => write!(f, "Expected `{ch}`, but received 'End of Line'"),
             Self::UnbalancedIO(_) => write!(f, "Input or Output has too few elements "),
             Self::PlusInDerom(_) => write!(f, "Deromaniser rules currently do not support addition"),
+            
+            Self::TokensTooLong (..) => write!(f, "Exceeded more than 65535 tokens in given line (Seriously, how did you manage that???)"),
+            Self::LineTooLong(..) => write!(f, "Cannot have more than 65535 characters in a given line (Seriously, how did you manage that???)"),
+            Self::LineTooBig (..) => write!(f, "Cannot have more than 65535 alias lines (Seriously, how did you manage that???)"),
         }
     }
 }
@@ -486,14 +527,14 @@ impl AliasSyntaxError {
             Self::WrongModTone           (kind, line, pos) |
             Self::EmptyOutput            (kind, line, pos) |
             Self::EmptyInput             (kind, line, pos) => (
-                " ".repeat(*pos) + "^" + "\n", 
+                " ".repeat((*pos).into()) + "^" + "\n", 
                 *kind,
                 *line,
             ),
             Self::PlusInDerom          (pos) |
             Self::UnknownFeature    (_, pos) |
             Self::UnknownEnbyFeature(_, pos) => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n", 
+                " ".repeat(pos.start.into()) + &"^".repeat((pos.end-pos.start).into()) + "\n", 
                 pos.kind,
                 pos.line,
             ),
@@ -504,16 +545,16 @@ impl AliasSyntaxError {
             Self::UnknownGroup        (token) |
             Self::UnknownIPA          (token) |
             Self::UnexpectedEol       (token, _) => (
-                " ".repeat(token.position.start) + &"^".repeat(token.position.end-token.position.start) + "\n", 
+                " ".repeat(token.position.start.into()) + &"^".repeat((token.position.end-token.position.start).into()) + "\n", 
                 token.position.kind,
                 token.position.line
             ),
             Self::DiacriticDoesNotMeetPreReqsFeat(elm_pos, dia_pos, ..) |
             Self::DiacriticDoesNotMeetPreReqsNode(elm_pos, dia_pos, ..) => (
-                " ".repeat(elm_pos.start) 
-                    + &"^".repeat(elm_pos.end - elm_pos.start)
-                    + &" ".repeat(dia_pos.start - elm_pos.end)
-                    + &"^".repeat(dia_pos.end - dia_pos.start)
+                " ".repeat(elm_pos.start.into()) 
+                    + &"^".repeat((elm_pos.end - elm_pos.start).into())
+                    + &" ".repeat((dia_pos.start - elm_pos.end).into())
+                    + &"^".repeat((dia_pos.end - dia_pos.start).into())
                     + "\n", 
                 elm_pos.kind,
                 elm_pos.line
@@ -524,24 +565,39 @@ impl AliasSyntaxError {
                 let start = first_item.position.start;
                 let end = last_item.position.end;
                 (
-                    " ".repeat(start) + &"^".repeat(end-start) + "\n", 
+                    " ".repeat(start.into()) + &"^".repeat((end-start).into()) + "\n", 
                     first_item.position.kind,
                     first_item.position.line
                 )
             },
+            Self::TokensTooLong(kind, _) | 
+            Self::LineTooLong(kind, _)   | 
+            Self::LineTooBig (kind, _)   => (
+                String::new(),
+                *kind,
+                65535
+            )
         };
 
         let (knd, ln) = match kind {
-            AliasKind::Deromaniser => ("deromaniser", &into[line]),
-            AliasKind::Romaniser   => ("romaniser",   &from[line]),
+            AliasKind::Deromaniser => ("deromaniser", &into[line as usize]),
+            AliasKind::Romaniser   => ("romaniser",   &from[line as usize]),
         };
 
-        result.push_str(&format!("{0}{ln}{0}{1}    {2} {knd}, line {3}",  
-            MARG.bright_blue().bold(),
-            arrows.bright_red().bold(),
-            "@".bright_blue().bold(),
-            line+1,
-        ));
+        if let Self::LineTooBig(..) | Self::LineTooLong(..) = self {
+            result.push_str(&format!("{0}\n    {1} {knd}, line {2}",  
+                MARG.bright_blue().bold(),
+                "@".bright_blue().bold(),
+                line+1,
+            ));
+        } else {
+            result.push_str(&format!("{0}{ln}{0}{1}    {2} {knd}, line {3}",  
+                MARG.bright_blue().bold(),
+                arrows.bright_red().bold(),
+                "@".bright_blue().bold(),
+                line+1,
+            ));
+        }
 
         result
     }

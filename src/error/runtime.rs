@@ -129,8 +129,8 @@ impl RuleRuntimeError {
                 let mut asdf = String::new();
                 let mut prev_end = 0;
                 for pos in positions {
-                    asdf += &" ".repeat(pos.start - prev_end);
-                    asdf += &"^".repeat(pos.end-pos.start);
+                    asdf += &" ".repeat((pos.start - prev_end).into());
+                    asdf += &"^".repeat((pos.end-pos.start).into());
                     prev_end = pos.end;
                 }
 
@@ -138,12 +138,12 @@ impl RuleRuntimeError {
             }
             Self::DeletionOnlySyll | Self::DeletionOnlySeg => return result,
             Self::UnknownReference(t) => (
-                " ".repeat(t.position.start) + &"^".repeat(t.position.end-t.position.start), 
+                " ".repeat(t.position.start.into()) + &"^".repeat((t.position.end-t.position.start).into()), 
                 t.position.group,
                 t.position.line
             ),
             Self::InsertionNoEnv(pos) => (
-                " ".repeat(pos.end) + "^", 
+                " ".repeat(pos.end.into()) + "^", 
                 pos.group,
                 pos.line
             ),
@@ -179,7 +179,7 @@ impl RuleRuntimeError {
             Self::NodeCannotBeSome        (_, pos) |
             Self::NodeCannotBeNone        (_, pos) |
             Self::NodeCannotBeSet         (_, pos) => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start),
+                " ".repeat(pos.start.into()) + &"^".repeat((pos.end-pos.start).into()),
                 pos.group,
                 pos.line
             ),
@@ -192,8 +192,8 @@ impl RuleRuntimeError {
             Self::MetathWordBoundary           (a, b) |
             Self::MetathSyllBoundary           (a, b) |
             Self::UnevenSet                    (a, b) => (
-                   " ".repeat(a.start) + &"^".repeat(a.end - a.start) 
-                + &" ".repeat(b.start - a.end) + &"^".repeat(b.end - b.start),
+                   " ".repeat(a.start.into()) + &"^".repeat((a.end - a.start).into()) 
+                + &" ".repeat((b.start - a.end).into()) + &"^".repeat((b.end - b.start).into()),
                 a.group,
                 a.line
             ),
@@ -214,7 +214,7 @@ impl RuleRuntimeError {
             Self::InfiniteLoop(_, phrase, res_phrase) => {
                 result.push_str(&format!("{}{}{}{}phrase before application: {}{}phrase at detection: {}{}Rule {}, Line {}",  
                     MARG.bright_blue().bold(),
-                    rules[group].rule[line],
+                    rules[group as usize].rule[line as usize],
                     MARG.bright_blue().bold(),
                     EMARG.bright_blue().bold(),
                     phrase.render().bright_blue().bold(),
@@ -227,7 +227,7 @@ impl RuleRuntimeError {
             }
             _ => result.push_str(&format!("{}{}{}{}\n    {} Rule {}, Line {}",  
                 MARG.bright_blue().bold(),
-                rules[group].rule[line],
+                rules[group as usize].rule[line as usize],
                 MARG.bright_blue().bold(),
                 arrows.bright_red().bold(),
                 "@".bright_blue().bold(),
@@ -288,15 +288,15 @@ impl AliasRuntimeError {
             Self::LengthNoSegment    (pos) |
             Self::EmptySyllable      (pos) |
             Self::GroupedSupras      (pos) => (
-                " ".repeat(pos.start) + &"^".repeat(pos.end-pos.start) + "\n",
+                " ".repeat(pos.start.into()) + &"^".repeat((pos.end-pos.start).into()) + "\n",
                 pos.kind,
                 pos.line
             ),
         };
 
         let (knd, ln) = match kind {
-            AliasKind::Deromaniser => ("deromaniser", &into[line]),
-            AliasKind::Romaniser   => ("romaniser",   &from[line]),
+            AliasKind::Deromaniser => ("deromaniser", &into[line as usize]),
+            AliasKind::Romaniser   => ("romaniser",   &from[line as usize]),
         };
 
         result.push_str(&format!("{0}{ln}{0}{1}    {2} {knd}, line {3}",  

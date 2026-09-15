@@ -48,35 +48,44 @@ impl AliasItem {
 pub(crate) struct AliasParser {
     kind: AliasKind,
     token_list: Vec<AliasToken>,
-    line: usize,
-    pos: usize,
+    line: u16,
+    pos: u16,
     curr_tkn: AliasToken,
 }
 
 impl AliasParser {
-    pub(crate) fn new(kind: AliasKind, token_list: Vec<AliasToken>, line: usize) -> Self {
+    pub(crate) fn new(kind: AliasKind, token_list: Vec<AliasToken>, line: usize) -> Result<Self, AliasSyntaxError> {
+
+        if line > u16::MAX as usize {
+            return Err(AliasSyntaxError::LineTooBig(kind, line))
+        }
+
+        if token_list.len() > u16::MAX as usize {
+            return Err(AliasSyntaxError::TokensTooLong(kind, line))
+        }
+
         let mut s = Self {
             kind,
             token_list, 
-            line,
+            line: line as u16,
             pos: 0, 
-            curr_tkn: AliasToken { kind: AliasTokenKind::Eol, value: String::new(), position: AliasPosition::new(kind, line, 0, 1 ) },
+            curr_tkn: AliasToken { kind: AliasTokenKind::Eol, value: String::new(), position: AliasPosition::new(kind, line as u16, 0, 1 ) },
         };
-        s.curr_tkn = s.token_list[s.pos].clone();
+        s.curr_tkn = s.token_list[s.pos as usize].clone();
 
-        s
+        Ok(s)
     }
 
     fn advance(&mut self) {
         self.pos += 1;
         self.curr_tkn = if self.has_more_tokens() {
-            self.token_list[self.pos].clone()
+            self.token_list[self.pos as usize].clone()
         } else {
             AliasToken { kind: AliasTokenKind::Eol, value: String::new(), position: AliasPosition::new(self.kind, self.line, self.pos, self.pos+1) }
         }
     }
 
-    fn has_more_tokens(&self) -> bool { self.pos < self.token_list.len() }
+    fn has_more_tokens(&self) -> bool { self.pos < self.token_list.len() as u16 }
 
     fn peek_expect(&self, knd: AliasTokenKind) -> bool { self.curr_tkn.kind == knd }
 
@@ -144,7 +153,7 @@ impl AliasParser {
             }
         }
         if replacements.is_empty() {
-            return Err(AliasSyntaxError::EmptyReplacements(self.kind, self.line, self.token_list[self.pos].position.start))
+            return Err(AliasSyntaxError::EmptyReplacements(self.kind, self.line, self.token_list[self.pos as usize].position.start))
         }
 
         Ok(replacements)
@@ -248,9 +257,9 @@ impl AliasParser {
 
     fn get_params(&mut self) -> Result<(Modifiers, AliasPosition), AliasSyntaxError> {
         // returns PARAMS ← '[' ARG (',' ARG)* ']'  
-        let start = self.token_list[self.pos-1].position.start;
+        let start = self.token_list[self.pos as usize - 1].position.start;
         let args = self.get_param_args()?;
-        let end = self.token_list[self.pos-1].position.end;
+        let end = self.token_list[self.pos as usize - 1].position.end;
 
         Ok((args, AliasPosition::new(self.kind, self.line, start, end)))        
     }
@@ -285,7 +294,7 @@ impl AliasParser {
             }
         }
         if !self.expect(AliasTokenKind::Colon) {
-            return Ok((ipa, None, AliasPosition::new(self.kind, self.line, pos.start, self.token_list[self.pos-1].position.end)))
+            return Ok((ipa, None, AliasPosition::new(self.kind, self.line, pos.start, self.token_list[self.pos as usize - 1].position.end)))
         }
         if !self.expect(AliasTokenKind::LeftSquare) {
             return Err(AliasSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -455,7 +464,7 @@ impl AliasParser {
         }
 
         if inputs.is_empty() {
-            return Err(AliasSyntaxError::EmptyInput(self.kind, self.line, self.token_list[self.pos].position.start))
+            return Err(AliasSyntaxError::EmptyInput(self.kind, self.line, self.token_list[self.pos as usize].position.start))
         }
 
         Ok(inputs)
@@ -491,7 +500,7 @@ impl AliasParser {
         }
 
         if outputs.is_empty() {
-            return Err(AliasSyntaxError::EmptyOutput(self.kind, self.line, self.token_list[self.pos].position.start))
+            return Err(AliasSyntaxError::EmptyOutput(self.kind, self.line, self.token_list[self.pos as usize].position.start))
         }
 
         Ok(outputs)
@@ -588,14 +597,14 @@ mod tests {
 
     use super::*;
 
-    fn setup_derom(test_str: &str) -> Vec<AliasToken> { AliasLexer::new(AliasKind::Deromaniser, &String::from(test_str).chars().collect::<Vec<_>>(),0).get_line().unwrap() }
-    fn setup_roman(test_str: &str) -> Vec<AliasToken> { AliasLexer::new(AliasKind::Romaniser,   &String::from(test_str).chars().collect::<Vec<_>>(),0).get_line().unwrap() }
+    fn setup_derom(test_str: &str) -> Vec<AliasToken> { AliasLexer::new(AliasKind::Deromaniser, &String::from(test_str).chars().collect::<Vec<_>>(),0).unwrap().get_line().unwrap() }
+    fn setup_roman(test_str: &str) -> Vec<AliasToken> { AliasLexer::new(AliasKind::Romaniser,   &String::from(test_str).chars().collect::<Vec<_>>(),0).unwrap().get_line().unwrap() }
 
 
 
     #[test]
     fn romanisation_simple() {
-        let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("ʃ > sh"), 0).parse();
+        let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("ʃ > sh"), 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
         let result = maybe_result.unwrap();
@@ -608,7 +617,7 @@ mod tests {
 
     #[test]
     fn romanisation_mods() {
-        let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("a:[+str] > á"), 0).parse();
+        let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("a:[+str] > á"), 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
         let result = maybe_result.unwrap();
@@ -624,7 +633,7 @@ mod tests {
 
     #[test]
     fn romanisation_unicode() {
-        let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("a:[+str] > a @{acute}"), 0).parse();
+        let maybe_result = AliasParser::new(AliasKind::Romaniser, setup_roman("a:[+str] > a @{acute}"), 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
         let result = maybe_result.unwrap();
@@ -639,7 +648,7 @@ mod tests {
 
     #[test]
     fn deromanisation_simple() {
-        let maybe_result = AliasParser::new(AliasKind::Deromaniser, setup_derom("sh > ʃ"), 0).parse();
+        let maybe_result = AliasParser::new(AliasKind::Deromaniser, setup_derom("sh > ʃ"), 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
         let result = maybe_result.unwrap();

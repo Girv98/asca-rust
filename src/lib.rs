@@ -136,13 +136,19 @@ fn phrases_to_string(phrases: Vec<Phrase>, alias_from: Vec<Transformation>) -> R
 fn parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
     unparsed_rule_groups.iter().enumerate().map(|(rgi, rg)| {
         rg.rule.iter().enumerate().filter_map(|(ri, r)| {
-            match rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line() {
-                Ok(tokens) => {
-                    match rule::Parser::new(tokens, rgi, ri).parse() {
-                        Ok(rule) => rule.map(Ok),
-                        Err(e) => Some(Err(e)),
+            match rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri) {
+                Ok(mut lexer) => match lexer.get_line() {
+                    Ok(tokens) => {
+                        match rule::Parser::new(tokens, rgi, ri) {
+                            Ok(mut parse) => match parse.parse() {
+                                Ok(rule) => rule.map(Ok),
+                                Err(e) => Some(Err(e)),
+                            },
+                            Err(e) => Some(Err(e)),
+                        }
                     }
-                }
+                    Err(e) => Some(Err(e)),
+                    },
                 Err(e) => Some(Err(e)),
             }
         }).collect::<Result<Vec<Rule>, RuleSyntaxError>>()
@@ -233,13 +239,19 @@ pub fn par_run_unparsed(unparsed_rules: &[RuleGroup], unparsed_phrases: &[String
 fn parallel_parse_rule_groups(unparsed_rule_groups: &[RuleGroup]) -> Result<Vec<Vec<Rule>>, RuleSyntaxError> {
     unparsed_rule_groups.par_iter().enumerate().map(|(rgi, rg)| {
         rg.rule.par_iter().enumerate().filter_map(|(ri, r): (usize, &String)| {
-            match rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri).get_line() {
-                Ok(tokens) => {
-                    match rule::Parser::new(tokens, rgi, ri).parse() {
-                        Ok(rule) => rule.map(Ok),
-                        Err(e) => Some(Err(e)),
+            match rule::Lexer::new(&r.chars().collect::<Vec<_>>(), rgi, ri) {
+                Ok(mut lexer) => match lexer.get_line() {
+                    Ok(tokens) => {
+                        match rule::Parser::new(tokens, rgi, ri) {
+                            Ok(mut parse) => match parse.parse() {
+                                Ok(rule) => rule.map(Ok),
+                                Err(e) => Some(Err(e)),
+                            },
+                            Err(e) => Some(Err(e)),
+                        }
                     }
-                }
+                    Err(e) => Some(Err(e)),
+                    },
                 Err(e) => Some(Err(e)),
             }
         }).collect::<Result<Vec<Rule>, RuleSyntaxError>>()

@@ -11,16 +11,24 @@ use super :: { AliasKind, AliasPosition, AliasToken, AliasTokenKind, NamedEscape
 pub(crate) struct AliasLexer<'a> {
     kind: AliasKind,
     source: &'a [char],
-    line: usize,
-    pos: usize,
+    line: u16,
+    pos: u16,
     past_arrow: bool,
     inside_matrix: bool,
     inside_angle: bool,
 }
 
 impl<'a> AliasLexer<'a> {
-    pub(crate) fn new(kind: AliasKind, source: &'a [char], line: usize) -> Self {
-        Self { kind, source, line, pos: 0, past_arrow: false, inside_matrix: false, inside_angle: false}
+    pub(crate) fn new(kind: AliasKind, source: &'a [char], line: usize) -> Result<Self, AliasSyntaxError> {
+        if line > u16::MAX as usize {
+            return Err(AliasSyntaxError::LineTooBig(kind, line))
+        }
+
+        if source.len() > u16::MAX as usize {
+            return Err(AliasSyntaxError::LineTooLong(kind, line))
+        }
+
+        Ok(Self { kind, source, line: line as u16, pos: 0, past_arrow: false, inside_matrix: false, inside_angle: false})
     }
 
     fn has_more_chars(&self) -> bool { !self.source.is_empty() }
@@ -31,9 +39,9 @@ impl<'a> AliasLexer<'a> {
         }
     }
 
-    fn chop(&mut self, n: usize) -> String {
-        let token = &self.source[0..n];
-        self.source = &self.source[n..];
+    fn chop(&mut self, n: u16) -> String {
+        let token = &self.source[0..n.into()];
+        self.source = &self.source[n.into()..];
         self.pos += n;
         token.iter().collect()
     }
@@ -43,7 +51,7 @@ impl<'a> AliasLexer<'a> {
         while n < self.source.len() && predicate(&self.source[n]) {
             n += 1;
         }
-        self.chop(n)
+        self.chop(n as u16)
     }
 
     fn curr_char(&self) -> char {
@@ -369,13 +377,13 @@ impl<'a> AliasLexer<'a> {
         }
     }
 
-    fn string_match(&mut self, buffer: String, start: usize) -> Result<AliasTokenKind, AliasSyntaxError> {
+    fn string_match(&mut self, buffer: String, start: u16) -> Result<AliasTokenKind, AliasSyntaxError> {
         use AliasTokenKind::*;
         use FeatureCategory::*;
         use SupraKind::*;
         match buffer.to_lowercase().as_str() {
             "tone" | "ton" | "tne" | "tn" => Ok(Feature(Supr(Tone))),
-            _ => Err(AliasSyntaxError::UnknownEnbyFeature(buffer.clone(), AliasPosition::new(self.kind, self.line, start, start+buffer.len())))
+            _ => Err(AliasSyntaxError::UnknownEnbyFeature(buffer.clone(), AliasPosition::new(self.kind, self.line, start, start+buffer.len() as u16)))
         }
     }
 
@@ -569,7 +577,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,          String::new(), AliasPosition::new(AliasKind::Deromaniser, 0, 6, 7)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Deromaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Deromaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 
@@ -594,7 +602,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Deromaniser, 0, 12, 13)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Deromaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Deromaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 
@@ -613,7 +621,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,          String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 6, 7)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 
@@ -638,7 +646,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 14, 15)),
         ];
 
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -659,7 +667,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 15, 16)),
         ];
 
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
 
         assert_eq!(result.len(), expected_result.len());
 
@@ -684,7 +692,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 12, 13)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 
@@ -709,7 +717,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 20, 21)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 
@@ -734,7 +742,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 20, 21)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 
@@ -759,7 +767,7 @@ mod tests {
             AliasToken::new(AliasTokenKind::Eol,                     String::new(), AliasPosition::new(AliasKind::Romaniser, 0, 14, 15)),
         ];
         
-        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).get_line().unwrap();  
+        let result = AliasLexer::new(AliasKind::Romaniser, &test_input.chars().collect::<Vec<_>>(),  0).unwrap().get_line().unwrap();  
     
         assert_eq!(result.len(), expected_result.len());
 

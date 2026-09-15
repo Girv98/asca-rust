@@ -768,7 +768,7 @@ impl SubRule {
                             Err(RuleRuntimeError::AlphaIsNotNode(err_pos))
                         }
                     } else {
-                        Err(RuleRuntimeError::AlphaUnknownInv(err_pos))
+                        Err(RuleRuntimeError::AlphaNodeAssignInv(err_pos))
                     }
                 },
             },

@@ -79,12 +79,12 @@ impl AliasTokenKind {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct AliasPosition {
     pub(crate) kind: AliasKind,
-    pub(crate) line: usize,
-    pub(crate) start: usize,
-    pub(crate) end: usize
+    pub(crate) line: u16,
+    pub(crate) start: u16,
+    pub(crate) end: u16
 }
 impl AliasPosition {
-    fn new(kind: AliasKind, line: usize, start: usize, end: usize) -> Self {
+    fn new(kind: AliasKind, line: u16, start: u16, end: u16) -> Self {
         Self { kind, line, start, end }
     }
 }
@@ -227,7 +227,7 @@ fn test_escape_repr() {
 pub(crate) fn parse_into<S: AsRef<str>>(into: &[S]) -> Result<Vec<Transformation>, AliasSyntaxError> {
     let mut into_parsed = Vec::with_capacity(into.len());
     for (line, alias) in into.iter().enumerate() {
-        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.as_ref().chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+        into_parsed.extend(AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(AliasKind::Deromaniser, &alias.as_ref().chars().collect::<Vec<_>>(), line)?.get_line()?, line)?.parse()?);
     }
 
     Ok(into_parsed)
@@ -236,7 +236,7 @@ pub(crate) fn parse_into<S: AsRef<str>>(into: &[S]) -> Result<Vec<Transformation
 pub(crate) fn parse_from(from: &[String]) -> Result<Vec<Transformation>, AliasSyntaxError> {
     let mut from_parsed = Vec::with_capacity(from.len());
     for (line, alias) in from.iter().enumerate() {
-        from_parsed.extend(AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &alias.chars().collect::<Vec<_>>(), line).get_line()?, line).parse()?);
+        from_parsed.extend(AliasParser::new(AliasKind::Romaniser, AliasLexer::new(AliasKind::Romaniser, &alias.chars().collect::<Vec<_>>(), line)?.get_line()?, line)?.parse()?);
     }
     Ok(from_parsed)
 }

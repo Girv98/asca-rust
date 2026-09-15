@@ -476,38 +476,50 @@ impl fmt::Display for ParseItem {
 
 pub(crate) struct Parser {
     token_list: Vec<Token>,
-    group: usize,
-    line: usize,
-    pos: usize,
+    group: u16,
+    line: u16,
+    pos: u16,
     curr_tkn: Token,
     contains_external_in_input: bool,
     contains_external_in_env: bool,
 }
 
 impl Parser {
-    pub(crate) fn new(token_list: Vec<Token>, group: usize, line: usize) -> Self {
+    pub(crate) fn new(token_list: Vec<Token>, group: usize, line: usize) -> Result<Self, RuleSyntaxError> {
+        if group > u16::MAX as usize {
+            return Err(RuleSyntaxError::GroupTooBig(group))
+        }
+        
+        if line > u16::MAX as usize {
+            return Err(RuleSyntaxError::LineTooBig(group, line))
+        }
+
+        if token_list.len() > u16::MAX as usize {
+            return Err(RuleSyntaxError::TokensTooLong(group, line, token_list.len()))
+        }
+
         let curr_tkn = token_list[0].clone();
-        Self { 
+        Ok(Self { 
             token_list, 
-            group,
-            line,
+            group: group as u16,
+            line: line as u16,
             pos: 0, 
             curr_tkn,
             contains_external_in_input: false,
             contains_external_in_env: false,
-        }
+        })
     }
 
     fn advance(&mut self) {
         self.pos += 1;
         self.curr_tkn = if self.has_more_tokens() && self.curr_tkn.kind != TokenKind::Comment {
-            self.token_list[self.pos].clone()
+            self.token_list[self.pos as usize].clone()
         } else {
             Token { kind: TokenKind::Eol, value: Arc::default(), position: Position::new(self.group, self.line, self.pos, self.pos+1) }
         };
     }
 
-    fn has_more_tokens(&self) -> bool { self.pos < self.token_list.len() }
+    fn has_more_tokens(&self) -> bool { usize::from(self.pos) < self.token_list.len() }
 
     fn peek_expect(&self, knd: TokenKind) -> bool { self.curr_tkn.kind == knd }
 
@@ -678,7 +690,7 @@ impl Parser {
             return Err(RuleSyntaxError::TooManyUnderlines(self.curr_tkn.clone()))
         }
 
-        let end = self.token_list[self.pos-1].position.end;
+        let end = self.token_list[self.pos as usize - 1].position.end;
 
         let center = Self::into_underline_struct(&mut before, has_underline_struct);
 
@@ -697,7 +709,7 @@ impl Parser {
         debug_assert_eq!(pstn, self.pos - 1);
         if !self.expect(TokenKind::Comma) {
             self.pos = pstn;
-            self.curr_tkn = self.token_list[self.pos].clone();
+            self.curr_tkn = self.token_list[self.pos as usize].clone();
             return Ok(None)
         }
 
@@ -709,11 +721,11 @@ impl Parser {
 
         if self.expect(TokenKind::Underline) {
             self.pos = pstn;
-            self.curr_tkn = self.token_list[self.pos].clone();
+            self.curr_tkn = self.token_list[self.pos as usize].clone();
             return Ok(None)
         }
 
-        let end = self.token_list[self.pos-1].position.end;
+        let end = self.token_list[self.pos as usize - 1].position.end;
 
         let position = Position::new(self.group, self.line, start, end);
 
@@ -746,7 +758,7 @@ impl Parser {
             envs.push(x);
         }
 
-        let end = self.token_list[self.pos-1].position.end;
+        let end = self.token_list[self.pos as usize - 1].position.end;
 
         Ok(EnvItem { envs, position: Position::new(self.group, self.line, start, end) })
     }
@@ -763,7 +775,7 @@ impl Parser {
                 break
             }
         }
-        if envs.is_empty() { return Err(RuleSyntaxError::EmptyEnv(self.group, self.line, self.token_list[self.pos].position.start)) }
+        if envs.is_empty() { return Err(RuleSyntaxError::EmptyEnv(self.group, self.line, self.token_list[self.pos as usize].position.start)) }
 
         Ok(envs)
     }
@@ -994,9 +1006,9 @@ impl Parser {
 
     fn get_params(&mut self) -> Result<ParseItem, RuleSyntaxError> {
         // Params ← '[' (Argument (','? Argument)*)? ','? ']'
-        let start = self.token_list[self.pos-1].position.start;
+        let start = self.token_list[self.pos as usize - 1].position.start;
         let args = self.get_param_args(false)?;
-        let end = self.token_list[self.pos-1].position.end;
+        let end = self.token_list[self.pos  as usize - 1].position.end;
         
         Ok(ParseItem::new(ParseElement::Matrix(args, None, None), Position::new(self.group, self.line, start, end)))
     }
@@ -1058,7 +1070,7 @@ impl Parser {
         }
 
         if !self.expect(TokenKind::Colon) {
-            return Ok(ParseItem::new(ParseElement::Ipa(ipa, None), Position::new(self.group, self.line, pos.start, self.token_list[self.pos-1].position.end)))
+            return Ok(ParseItem::new(ParseElement::Ipa(ipa, None), Position::new(self.group, self.line, pos.start, self.token_list[self.pos as usize - 1].position.end)))
         }
         if !self.expect(TokenKind::LeftSquare) {
             return Err(RuleSyntaxError::ExpectedMatrix(self.curr_tkn.clone()))
@@ -1236,7 +1248,7 @@ impl Parser {
         }
         // NOTE(girv): with this, (C,) and (C,:) are legal alternatives to (C,0) (bug or feature!)
         if self.expect(TokenKind::RightBracket) {
-            let end_pos = self.token_list[self.pos-1].position.end;
+            let end_pos = self.token_list[self.pos as usize - 1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Optional(segs, 0, 1), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::Comma) {
@@ -1246,7 +1258,7 @@ impl Parser {
             first_bound = Self::parse_number(&number)?;
         }
         if self.expect(TokenKind::RightBracket) {
-            let end_pos = self.token_list[self.pos-1].position.end;
+            let end_pos = self.token_list[self.pos as usize - 1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Optional(segs, 0, first_bound), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::Colon) {
@@ -1259,7 +1271,7 @@ impl Parser {
             }
         }
         if self.expect(TokenKind::RightBracket) {
-            let end_pos = self.token_list[self.pos-1].position.end;
+            let end_pos = self.token_list[self.pos as usize - 1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Optional(segs, first_bound, second_bound), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         Err(RuleSyntaxError::ExpectedRightBracket(self.curr_tkn.clone()))
@@ -1348,7 +1360,7 @@ impl Parser {
             terms.push(choice);
         }
 
-        let end_pos = self.token_list[self.pos-1].position.end;
+        let end_pos = self.token_list[self.pos as usize - 1].position.end;
         let mut pos = Position::new(self.group, self.line, start_pos, end_pos);
 
         if terms.is_empty() {
@@ -1400,7 +1412,7 @@ impl Parser {
             }
         }
 
-        let end_pos = self.token_list[self.pos-1].position.end;
+        let end_pos = self.token_list[self.pos as usize - 1].position.end;
         let mut pos = Position::new(self.group, self.line, start_pos, end_pos);
 
         if terms.is_empty() {
@@ -1437,10 +1449,10 @@ impl Parser {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = Self::parse_number(&number)?;
-                let end_pos = self.token_list[self.pos-1].position.end;
+                let end_pos = self.token_list[self.pos as usize - 1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Syllable(None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
-            let end_pos = self.token_list[self.pos-1].position.end;
+            let end_pos = self.token_list[self.pos as usize - 1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Syllable(None, None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -1448,7 +1460,7 @@ impl Parser {
         }
 
         let mods = self.get_param_args(true)?;
-        let end_pos = self.token_list[self.pos-1].position.end;
+        let end_pos = self.token_list[self.pos as usize - 1].position.end;
                     
         if self.expect(TokenKind::Equals) {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
@@ -1525,16 +1537,16 @@ impl Parser {
                 // TODO: it could be ok to reference this,
                 // e.g. "<C_C>=1 1" if input is "V" would become "<C_C><CVC>"
                 if has_underline.is_some() {
-                    return Err(RuleSyntaxError::StructCannotBeRefd(self.token_list[self.pos - 1].clone()))
+                    return Err(RuleSyntaxError::StructCannotBeRefd(self.token_list[self.pos as usize - 1].clone()))
                 }
                 let Some(number) = self.eat_expect(TokenKind::Number) else {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = Self::parse_number(&number)?;
-                let end_pos = self.token_list[self.pos-1].position.end;
+                let end_pos = self.token_list[self.pos as usize - 1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
-            let end_pos = self.token_list[self.pos-1].position.end;
+            let end_pos = self.token_list[self.pos as usize - 1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -1542,13 +1554,13 @@ impl Parser {
         }
 
         let mods = self.get_param_args(true)?;
-        let end_pos = self.token_list[self.pos-1].position.end;
+        let end_pos = self.token_list[self.pos as usize - 1].position.end;
 
         if self.expect(TokenKind::Equals) {
             // TODO: it could be ok to reference this,
             // e.g. "<C_C>=1 1" if input is "V" would become "<C_C><CVC>"
             if has_underline.is_some() {
-                return Err(RuleSyntaxError::StructCannotBeRefd(self.token_list[self.pos - 1].clone()))
+                return Err(RuleSyntaxError::StructCannotBeRefd(self.token_list[self.pos as usize - 1].clone()))
             }
             let Some(number) = self.eat_expect(TokenKind::Number) else {
                 return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
@@ -1584,10 +1596,10 @@ impl Parser {
                     return Err(RuleSyntaxError::ExpectedReference(self.curr_tkn.clone()))
                 };
                 let num = Self::parse_number(&number)?;
-                let end_pos = self.token_list[self.pos-1].position.end;
+                let end_pos = self.token_list[self.pos as usize - 1].position.end;
                 return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, Some(num)), Position::new(self.group, self.line, start_pos, end_pos))))
             }
-            let end_pos = self.token_list[self.pos-1].position.end;
+            let end_pos = self.token_list[self.pos as usize - 1].position.end;
             return Ok(Some(ParseItem::new(ParseElement::Structure(terms, None, None, None), Position::new(self.group, self.line, start_pos, end_pos))))
         }
         if !self.expect(TokenKind::LeftSquare) {
@@ -1595,7 +1607,7 @@ impl Parser {
         }
 
         let mods = self.get_param_args(true)?;
-        let end_pos = self.token_list[self.pos-1].position.end;
+        let end_pos = self.token_list[self.pos as usize - 1].position.end;
                     
         if self.expect(TokenKind::Equals) {
             let Some(number) = self.eat_expect(TokenKind::Number) else {
@@ -1739,7 +1751,7 @@ impl Parser {
             }
         }
         if inputs.is_empty() {
-            return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.token_list[self.pos].position.start))
+            return Err(RuleSyntaxError::EmptyInput(self.group, self.line, self.token_list[self.pos as usize].position.start))
         }
 
         Ok(inputs)
@@ -1795,7 +1807,7 @@ impl Parser {
             }
         }
         if outputs.is_empty() {
-            return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.token_list[self.pos].position.start))
+            return Err(RuleSyntaxError::EmptyOutput(self.group, self.line, self.token_list[self.pos as usize].position.start))
         }
         Ok(outputs)
     }
@@ -1856,7 +1868,7 @@ mod tests {
     use crate::{rule::Lexer, CARDINALS_MAP};
 
     fn setup(test_str: &str) -> Vec<Token> { 
-        match Lexer::new(&String::from(test_str).chars().collect::<Vec<_>>(),0,0).get_line() {
+        match Lexer::new(&String::from(test_str).chars().collect::<Vec<_>>(),0,0).unwrap().get_line() {
             Ok(r) => r,
             Err(e) => {
                 println!("{}", e.to_string());
@@ -1868,14 +1880,14 @@ mod tests {
     
     #[test]
     fn floating_diacritic() {
-        let maybe_result = Parser:: new(setup("a, \"H > \"h"), 0, 0).parse();
+        let maybe_result = Parser:: new(setup("a, \"H > \"h"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::FloatingDiacritic(..) = maybe_result.unwrap_err() {true} else {false} );
     }
 
     #[test]
     fn trailing_comma() {
-        let maybe_result = Parser:: new(setup("a, > e"), 0, 0).parse();
+        let maybe_result = Parser:: new(setup("a, > e"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
@@ -1885,7 +1897,7 @@ mod tests {
         assert!(result.context.is_empty());
         assert!(result.except.is_empty());
 
-        let maybe_result = Parser:: new(setup("a, b, > e"), 0, 0).parse();
+        let maybe_result = Parser:: new(setup("a, b, > e"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
@@ -1898,7 +1910,7 @@ mod tests {
 
     #[test]
     fn multi_rule() {
-        let maybe_result = Parser:: new(setup("%:[+stress], % > [-stress], [+stress] / _ , #_"), 0, 0).parse();
+        let maybe_result = Parser:: new(setup("%:[+stress], % > [-stress], [+stress] / _ , #_"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
 
@@ -1941,7 +1953,7 @@ mod tests {
 
     #[test]
     fn metathesis() {
-        let maybe_result = Parser::new(setup("t͡ɕ...b͡β > &"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("t͡ɕ...b͡β > &"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
 
@@ -1978,7 +1990,7 @@ mod tests {
 
         let _v = ParseItem::new(ParseElement::Matrix(y, None, Some(2)), Position::new(0, 0, 4, 5));
 
-        let maybe_result = Parser:: new(setup("C=1 V=2 > 2 1 / _C"), 0, 0).parse();
+        let maybe_result = Parser:: new(setup("C=1 V=2 > 2 1 / _C"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
 
@@ -1993,7 +2005,7 @@ mod tests {
     #[test] 
     fn tone() {
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
@@ -2010,7 +2022,7 @@ mod tests {
 
     #[test]
     fn comments() {
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] ;; hello"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] ;; hello"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
@@ -2023,45 +2035,45 @@ mod tests {
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);
     
-        let maybe_result = Parser::new(setup(";; %:[tone: 123] > [tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup(";; %:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
         assert!(maybe_result.unwrap().is_none());
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
-        let maybe_result = Parser:: new(setup("ə > * / _ ;; unstressed schwa deletes"), 0, 0).parse();
+        let maybe_result = Parser:: new(setup("ə > * / _ ;; unstressed schwa deletes"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
 
-        let maybe_result = Parser::new(setup("%;;:[tone: 123] > [tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%;;:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedArrow(_) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:;;[tone: 123] > [tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:;;[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedMatrix(_) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] ;; > [tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] ;; > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedArrow(_) = maybe_result.unwrap_err() {true} else {false} );
         
-        let maybe_result = Parser::new(setup("%:[tone: 123] > ;; [tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] > ;; [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::EmptyOutput(..) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [;;tone: 321]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [;;tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
     }
 
     #[test]
     fn spec_struct() {
-        let maybe_result = Parser::new(setup("a > e / <sn_sns>"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("a > e / <sn_sns>"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         let result = maybe_result.unwrap().unwrap();
 
@@ -2090,23 +2102,23 @@ mod tests {
 
     #[test]
     fn spec_struct_bef() {
-        let maybe_result = Parser::new(setup("a > e / <s_n><sin>=1"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("a > e / <s_n><sin>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_ok());
 
-        let maybe_result = Parser::new(setup("a > e / <sin>=1<s_n>"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("a > e / <sin>=1<s_n>"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_ok());
 
-        let maybe_result = Parser::new(setup("a > e / <sin>=1<s_n>=1"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("a > e / <sin>=1<s_n>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_err());
 
-        let maybe_result = Parser::new(setup("a > e / <s_n>=1<sin>=1"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("a > e / <s_n>=1<sin>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_err());
 
-        let maybe_result = Parser::new(setup("a > e / <s_n>=1"), 0, 0).parse();
+        let maybe_result = Parser::new(setup("a > e / <s_n>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_err());
     }
@@ -2115,7 +2127,7 @@ mod tests {
     fn exceptions() {
 
         // Double Slash
-        let maybe_res = Parser::new(setup("a > e / _ // _u"), 0, 0).parse();
+        let maybe_res = Parser::new(setup("a > e / _ // _u"), 0, 0).unwrap().parse();
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
@@ -2127,7 +2139,7 @@ mod tests {
         assert_eq!(result.except[0] , exp_expt);
 
         // Pipe
-        let maybe_res = Parser::new(setup("a > e / _ | _u"), 0, 0).parse();
+        let maybe_res = Parser::new(setup("a > e / _ | _u"), 0, 0).unwrap().parse();
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
@@ -2139,7 +2151,7 @@ mod tests {
         assert_eq!(result.except[0] , exp_expt);
 
         // No Context
-        let maybe_res = Parser::new(setup("a > e | _u"), 0, 0).parse();
+        let maybe_res = Parser::new(setup("a > e | _u"), 0, 0).unwrap().parse();
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
@@ -2152,7 +2164,7 @@ mod tests {
 
     #[test]
     fn error() {
-        let maybe_res = Parser::new(setup("> e"), 0, 0).parse();
+        let maybe_res = Parser::new(setup("> e"), 0, 0).unwrap().parse();
         assert!(matches!(maybe_res, Err(RuleSyntaxError::EmptyInput(..))));
     }
 }
