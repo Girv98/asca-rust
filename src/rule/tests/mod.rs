@@ -56,7 +56,7 @@ fn setup_rule(test_str: &str) -> Result<Rule, RuleSyntaxError> {
 
     match lexer {
         Ok(lexed) => {
-            match Parser::new(lexed, 0, 0) {
+            match Parser::from_tokens(lexed, 0, 0) {
                 Ok(mut parser) => match parser.parse() {
                     Ok(rule) => return Ok(rule.unwrap()),
                     Err(e) => {

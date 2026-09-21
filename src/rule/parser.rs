@@ -485,7 +485,12 @@ pub(crate) struct Parser {
 }
 
 impl Parser {
-    pub(crate) fn new(token_list: Vec<Token>, group: usize, line: usize) -> Result<Self, RuleSyntaxError> {
+    pub (crate) fn from_str(source: &str, group: usize, line: usize) -> Result<Self, RuleSyntaxError> {
+        let tokens = super::Lexer::new(&source.chars().collect::<Vec<_>>(), group, line)?.get_line()?;
+        Self::from_tokens(tokens, group, line)
+    }
+
+    pub(crate) fn from_tokens(token_list: Vec<Token>, group: usize, line: usize) -> Result<Self, RuleSyntaxError> {
         if group > u16::MAX as usize {
             return Err(RuleSyntaxError::GroupTooBig(group))
         }
@@ -1880,14 +1885,14 @@ mod tests {
     
     #[test]
     fn floating_diacritic() {
-        let maybe_result = Parser:: new(setup("a, \"H > \"h"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a, \"H > \"h"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::FloatingDiacritic(..) = maybe_result.unwrap_err() {true} else {false} );
     }
 
     #[test]
     fn trailing_comma() {
-        let maybe_result = Parser:: new(setup("a, > e"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a, > e"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
@@ -1897,7 +1902,7 @@ mod tests {
         assert!(result.context.is_empty());
         assert!(result.except.is_empty());
 
-        let maybe_result = Parser:: new(setup("a, b, > e"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a, b, > e"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
@@ -1910,7 +1915,7 @@ mod tests {
 
     #[test]
     fn multi_rule() {
-        let maybe_result = Parser:: new(setup("%:[+stress], % > [-stress], [+stress] / _ , #_"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[+stress], % > [-stress], [+stress] / _ , #_"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
 
@@ -1953,7 +1958,7 @@ mod tests {
 
     #[test]
     fn metathesis() {
-        let maybe_result = Parser::new(setup("t͡ɕ...b͡β > &"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("t͡ɕ...b͡β > &"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
 
@@ -1990,7 +1995,7 @@ mod tests {
 
         let _v = ParseItem::new(ParseElement::Matrix(y, None, Some(2)), Position::new(0, 0, 4, 5));
 
-        let maybe_result = Parser:: new(setup("C=1 V=2 > 2 1 / _C"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("C=1 V=2 > 2 1 / _C"), 0, 0).unwrap().parse();
 
         assert!(maybe_result.is_ok());
 
@@ -2005,7 +2010,7 @@ mod tests {
     #[test] 
     fn tone() {
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
@@ -2022,7 +2027,7 @@ mod tests {
 
     #[test]
     fn comments() {
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] ;; hello"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] > [tone: 321] ;; hello"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
         let result = maybe_result.unwrap().unwrap();
 
@@ -2035,45 +2040,45 @@ mod tests {
         assert_eq!(result.input[0][0], exp_input);
         assert_eq!(result.output[0][0], exp_output);
     
-        let maybe_result = Parser::new(setup(";; %:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup(";; %:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
         assert!(maybe_result.unwrap().is_none());
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] > [tone: 321] | a_ ;; test"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
-        let maybe_result = Parser:: new(setup("ə > * / _ ;; unstressed schwa deletes"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("ə > * / _ ;; unstressed schwa deletes"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_ok());
 
 
-        let maybe_result = Parser::new(setup("%;;:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%;;:[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedArrow(_) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:;;[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:;;[tone: 123] > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedMatrix(_) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] ;; > [tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] ;; > [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedArrow(_) = maybe_result.unwrap_err() {true} else {false} );
         
-        let maybe_result = Parser::new(setup("%:[tone: 123] > ;; [tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] > ;; [tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::EmptyOutput(..) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [;;tone: 321]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] > [;;tone: 321]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
 
-        let maybe_result = Parser::new(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("%:[tone: 123] > [tone: 321;;]"), 0, 0).unwrap().parse();
         assert!(maybe_result.is_err());
         assert!(if let RuleSyntaxError::ExpectedTokenFeature(..) = maybe_result.unwrap_err() {true} else {false} );
     }
 
     #[test]
     fn spec_struct() {
-        let maybe_result = Parser::new(setup("a > e / <sn_sns>"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a > e / <sn_sns>"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         let result = maybe_result.unwrap().unwrap();
 
@@ -2102,23 +2107,23 @@ mod tests {
 
     #[test]
     fn spec_struct_bef() {
-        let maybe_result = Parser::new(setup("a > e / <s_n><sin>=1"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a > e / <s_n><sin>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_ok());
 
-        let maybe_result = Parser::new(setup("a > e / <sin>=1<s_n>"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a > e / <sin>=1<s_n>"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_ok());
 
-        let maybe_result = Parser::new(setup("a > e / <sin>=1<s_n>=1"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a > e / <sin>=1<s_n>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_err());
 
-        let maybe_result = Parser::new(setup("a > e / <s_n>=1<sin>=1"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a > e / <s_n>=1<sin>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_err());
 
-        let maybe_result = Parser::new(setup("a > e / <s_n>=1"), 0, 0).unwrap().parse();
+        let maybe_result = Parser::from_tokens(setup("a > e / <s_n>=1"), 0, 0).unwrap().parse();
         eprintln!("{:?}", maybe_result);
         assert!(maybe_result.is_err());
     }
@@ -2127,7 +2132,7 @@ mod tests {
     fn exceptions() {
 
         // Double Slash
-        let maybe_res = Parser::new(setup("a > e / _ // _u"), 0, 0).unwrap().parse();
+        let maybe_res = Parser::from_tokens(setup("a > e / _ // _u"), 0, 0).unwrap().parse();
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
@@ -2139,7 +2144,7 @@ mod tests {
         assert_eq!(result.except[0] , exp_expt);
 
         // Pipe
-        let maybe_res = Parser::new(setup("a > e / _ | _u"), 0, 0).unwrap().parse();
+        let maybe_res = Parser::from_tokens(setup("a > e / _ | _u"), 0, 0).unwrap().parse();
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
@@ -2151,7 +2156,7 @@ mod tests {
         assert_eq!(result.except[0] , exp_expt);
 
         // No Context
-        let maybe_res = Parser::new(setup("a > e | _u"), 0, 0).unwrap().parse();
+        let maybe_res = Parser::from_tokens(setup("a > e | _u"), 0, 0).unwrap().parse();
         assert!(maybe_res.is_ok());
         let result = maybe_res.unwrap().unwrap();
 
@@ -2164,7 +2169,7 @@ mod tests {
 
     #[test]
     fn error() {
-        let maybe_res = Parser::new(setup("> e"), 0, 0).unwrap().parse();
+        let maybe_res = Parser::from_tokens(setup("> e"), 0, 0).unwrap().parse();
         assert!(matches!(maybe_res, Err(RuleSyntaxError::EmptyInput(..))));
     }
 }
