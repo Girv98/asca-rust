@@ -261,6 +261,7 @@ impl Word {
     fn as_ipa(txt: &[char], index: &mut usize) -> char {
         let ch = txt[*index];
         match ch {
+            '@' => 'ə',
             'S' => 'ʃ',
             'Z' => 'ʒ',
             'C' => 'ɕ',
@@ -318,8 +319,8 @@ impl Word {
                     'y' | 'ɥ' => { *index += 1; 'ᶣ' },
                     'X' | 'χ' => { *index += 1; 'ᵡ' },
                     'R' | 'ʁ' => { *index += 1; 'ʶ' },
-                    'e' | 'ə' => { *index += 1; 'ᵊ' },
                     '?' | 'ʔ' => { *index += 1; 'ˀ' },
+                    '@' | 'e' | 'ə' => { *index += 1; 'ᵊ' },
 
                     _ => '"'
                 },
@@ -1347,8 +1348,8 @@ mod tests {
 
     #[test]
     fn render_aliases() {
-        match Word::new("'\"NGAN;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a\"r") {
-            Ok(w) => assert_eq!(w.render(), "ˈᶰɢɐɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼaʵ"),
+        match Word::new("'\"NGA@N;CEUN!eB\"g.gRǝ:S!^q.φ\"hXOI?,HYZ\"wq^ʘ'p\"'a\"rC\"@") {
+            Ok(w) => assert_eq!(w.render(), "ˈᶰɢɐəɴː.ɕɛʊɴǃeʙˠ.ɡʀəːʃǃq.ɸʰχɔɪʔˌʜʏʒʷqʘˈpʼaʵɕᵊ"),
             Err(e) => {
                 println!("{}", e.format_word_error());
                 assert!(false);
