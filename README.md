@@ -10,13 +10,13 @@ Repo for the web UI is [here](https://github.com/Girv98/asca)
 - Manipulation of Syllables, Stress, and Tone
 - Digraph and Diacritic Support
 - Syntax which adheres to conventional notation
-- [Romanisation/Deromanisation](./doc/doc.md#custom-aliasing--deromanisation)
-- [Metathesis and Hyperthesis (Long Range Metathesis)](./doc/doc.md#metathesis-rules)
-- [Cross Word-Boundary Interactions](./doc/doc.md#cross-word-boundary-operations)
-- [Syllable Structure Matching](./doc/doc.md#syllable-structure-matching)
-- [Left-to-Right and Right-to-Left Propagation](./doc/doc.md#propagation)
-- [Optional/Repeating Segments](./doc/doc.md#optionals)
-- [References](./doc/doc.md#references)
+- Romanisation/Deromanisation [↗](./doc/doc.md#custom-aliasing--deromanisation)
+- Metathesis and Hyperthesis (Long Range Metathesis) [↗](./doc/doc.md#metathesis-rules)
+- Cross Word-Boundary Interactions [↗](./doc/doc.md#cross-word-boundary-operations)
+- Syllable Structure Matching [↗](./doc/doc.md#syllable-structure-matching)
+- Left-to-Right and Right-to-Left Propagation [↗](./doc/doc.md#propagation)
+- Optional/Repeating Segments [↗](./doc/doc.md#optionals)
+- Segment and Syllable References [↗](./doc/doc.md#references)
 
 User guide can be found [here](./doc/doc.md).
 
