@@ -14,8 +14,7 @@
   {
     "name": "approximant",
     "diacrit": "\u031e",
-    "prereqs": null,
-    "payload": { "Approximant": true }
+    "payload": { "Sonorant": true, "Approximant": true, "Continuant": true }
   },
   {
     "name": "atr",
