@@ -6,20 +6,22 @@
 - Cli
     - [ ] Better rule file `.rsca` syntax
         - [ ] Rule toggling in rule files with `!`
-    - [x] `trace` command
     - [ ] `sketch` (?) command
 - Web
     - Reverse rule tracing
         - i.e. see which words have been effected by a give rule, rather than which rules have been applied to a given word
 - Internal Changes:
-    - Join Root, Manner, and Voice (like with place) in order to allow for more Manner DFs    
+    - Join Root, Manner, and Voice (like with place) in order to allow for more Manner DFs   
+- Segments:
+    - [x] `f,v => [-strid]`
+    - [ ] Add prenasalised implosives
+    - [ ] Add prenasalised fricatives
+    - [ ] Add rhotic affricates i.e. `/d͡r/`
+    - [ ] Encode voiceless segments with tails or place diacritics with `U+030A Combining Ring Above` rather than `U+0325 Combining Ring Below`
 - Rules
     - Allow sets to be negated 
     - Allow syllables to be negated 
-    - [x] Set Narrowing using negation
-        - [x] i.e. `S:-N ;; Sonorants but not nasals`
-        - [x] i.e. `C:-{s, t} ;; Consonants but not s and t`
-        - [x] i.e. `[+strid]:-z ;; Stridents but not z`
+    - Allow boundaries to be negated i.e. `i > j / _ -$ V` equiv. to `i > j / _ <(..)_V(..)>`
 
 
 ᶴ for post-alveolar? 
