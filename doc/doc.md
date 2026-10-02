@@ -338,7 +338,7 @@ context   -> the specificity of the surrounding environment
 exception -> the exclusivity of the surrounding environment
 ```
 These blocks are divided by specific separators so that a given rule looks like this:
-```wasm
+```
 input ARROW output / context PIPE exception
 ;; e.g. ei > ie | c_ (/ei/ changes to /ie/, except when directly after /c/)
 ```
@@ -577,7 +577,7 @@ ASCA defines the features it uses as follows:
 │ MANNER │                   │      prenasalised stops     │                            │
 │        │  delayed release  │     affricate consonants    │       Plosives, etc.       │
 │        │     strident      │    f, v, s, z, ʃ, ʒ etc.    │   ɸ, β, θ, ð, ç, ʝ, etc.   │
-│        │      rhotic       │    r-like trills & flaps    │             -              │
+│        │      rhotic       │    r-like trills, flaps,    │            ...             │
 │        │                   │ rhoticised vowels and cons. │                            │
 │        │       click       │       click consonants      │     non click segments     │
 ├────────┼───────────────────┼─────────────────────────────┼────────────────────────────┤
@@ -786,7 +786,7 @@ Length also has a 3-way distinction; allowing for the overlong vowels of languag
 ├──────────────┼──────────────┤   [-overlong]   │
 │     Long     │              │                 │
 ├──────────────┤   [+ long]   ├─────────────────┤
-│   Overlong   │              │  [+ overlong]   │
+│   Overlong   │              │   [+overlong]   │
 └──────────────┴──────────────┴─────────────────┘
 ```
 
@@ -1107,7 +1107,7 @@ ta5.sa5 => ta5.sa1
 Segments can be excluded from an otherwise matching matrix or group by modifying it with `:-`.
 
 These "narrowings" can take the form of a single segment:
-```
+```wasm
 Example: Excluding a single segment
 
 O:-s > [+voi]   ;; Obstruents except /s/ become voiced
@@ -1116,7 +1116,7 @@ sa.ta.kam => sa.da.gam
 ```
 
 Or of a matrix or group:
-```
+```wasm
 Example: Excluding a class of segments
 
 O:-F > [+voi]   ;; Obstruents that are not fricatives become voiced
@@ -1125,7 +1125,7 @@ sa.ta.kam => sa.da.gam
 ```
 
 Multiple narrowings can be applied by using a set:
-```
+```wasm
 Example: Excluding multiple segments, groups, or matrices
 
 O:-{t, [+cont]} => [+voi] ;; Obstruents that are not /t/ or [+cont] become voiced
