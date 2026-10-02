@@ -22,7 +22,28 @@ pub struct Segment {
     pub laryngeal : u8,
     pub place: Place,
 }
- 
+
+//                             FBHLTR
+//                               1111_00
+//11111111111111_   1111_11_11_110011_11
+// 011_11000000_100_1010_00_00_000100_00
+// -++|++------|+-- |--|00|---+--|00
+
+// V:[+front, +tense, -rnd, -red]
+
+impl From<Segment> for u32 {
+    /// Top 2 bits not used
+    fn from(val: Segment) -> Self {
+        let mut res = val.place.as_u16() as u32;
+
+        res |= (val.laryngeal as u32) << 16;
+        res |= (val.manner    as u32) << 19;
+        res |= (val.root      as u32) << 27;
+
+        res
+    }
+}
+
 impl fmt::Display for Segment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.get_as_grapheme().unwrap_or("�".to_owned()))

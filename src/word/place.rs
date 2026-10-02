@@ -87,6 +87,10 @@ impl Place {
     const DOR_MSK: u16 = 0x3F;
     const PHR_MSK: u16 = 0x03;
 
+    pub fn as_u16(&self) -> u16 {
+        self.0.map(|p| p.get()).unwrap_or(0)
+    }
+
     /// Returns whether place is a `Some` value
     pub fn is_some(&self) -> bool {
         self.0.is_some()

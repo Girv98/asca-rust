@@ -331,3 +331,125 @@ fn parse_error_web(err: &ASCAError, unparsed_rules: &[RuleGroup], unparsed_into:
 
     WasmResult { input: unparsed_phrases.to_vec(), output: vec![output], unknowns: vec![], trace_rules: vec![], was_ok: false }
 }
+
+
+pub fn get_common_bits(segments: &[Segment]) -> u32 {
+
+    let mut and = u32::MAX;
+    let mut or = 0;
+
+    for &s in segments {
+        let s: u32 = s.into();
+        and &= s;
+        or |= s;
+    }
+
+    let mut common = and | !or;
+
+    common = common << 2 >> 2;
+
+
+    // let zxcv = get_unique_bits(segments);
+
+    // println!("\n{:030b} -- c&z\n", (common & !zxcv) << 2 >> 2);
+
+    common
+}
+
+pub fn get_unique_bits(segments: &[Segment]) -> u32 {
+
+    let mut excluded = Vec::new();
+    'outer: for (_, &c) in CARDINALS_MAP.iter() {
+        for &s in segments {
+            if s == c { continue 'outer }
+        }
+
+        // if c.feat_match(NodeKind::Root, 1, false) {
+        //     continue 'outer
+        // }
+        // let n: u32 = c.into();
+
+        // println!("{:030b} -- {}", n, c.get_nearest_grapheme());
+
+        // zxcv &= n;
+        excluded.push(c);
+    }
+
+    let common = get_common_bits(segments);
+
+    let common_exclusive = get_common_bits(&excluded);
+
+    // println!("\n{:030b} -- c&z\n", (common & !zxcv) << 2 >> 2);
+
+    (common & !common_exclusive) << 2 >> 2
+}
+
+// C -> Consonants (obstruents and sonorants)          (equiv. to [+cons, -syll])
+// O -> Obstruents (plosives, fricatives, affricates)  (equiv. to [+cons, -son, -syll])
+// S -> Sonorants  (nasals and liquids)                (equiv. to [+cons, +son, -syll])
+// P -> Plosives                                       (equiv, to [+cons, -son, -syll, -delrel, -cont])
+// F -> Fricatives                                     (equiv, to [+cons, -son, -syll, -approx, +cont])
+// L -> Liquids                                        (equiv. to [+cons, +son, -syll, +approx])
+// N -> Nasals                                         (equiv. to [+cons, +son, -syll, -approx, +nasal])
+// G -> Glides                                         (equiv. to [-cons, +son, -syll])
+// V -> Vowels                                         (equiv. to [-cons, +son, +syll])
+
+pub fn zxcvbnm(segments: &[Segment]) {
+
+    if segments.is_empty() { return }
+
+    let unique = get_unique_bits(segments);
+
+    let unique_rut = (unique &   7u32 << 27) >> 27;
+    let unique_man = (unique & 255u32 << 19) >> 19;
+    let unique_lar = (unique &   7u32 << 16) >> 16;
+    let unique_plc =  unique &    65_535u32;
+
+    println!("- {:03b}", unique_rut);
+    println!("- {:08b}", unique_man);
+    println!("- {:03b}", unique_lar);
+    println!("- {:016b}", unique_plc);
+
+    // cons, son, syll   
+    match unique_rut {
+        0b111 => {
+            // we can use a 
+            let root = segments[0].root;
+            println!("{}", root);
+        }
+        0b110 => {
+            // [-cons, -son] => should be unreachable, as root cannot be zero, therefore syll can only be plus, ergo unique root should be 111
+            // [-cons, +son] => Vowels or glides
+            // [+cons, -son] => Obstruents or syllabic obstruents, O:[+- syll]
+            // [+cons, +son] => sonorants and syllabic sonorants,  S:[+- syll]
+        }
+        0b101 => {
+            // [-cons, -syll] => should be unreachable, same reason as above
+            // [-cons, +syll] => should be unreachable as [-cons, -son, +syll] is not valid
+            // [+cons, -syll] => C
+            // [+cons, +syll] => C:[+syll]
+        }
+        0b100 => {
+            // [-cons]
+            // [+cons]
+        }
+        0b011 => {
+            // [-son, -syll] => should be unreachable, same reason as above
+            // [-son, +syll] => should be unreachable as [-cons, -son, +syll] is not valid
+            // [+son, -syll] => Glides or sonorants
+            // [+son, +syll] => vowels and syllabic consonants
+        }
+        0b010 => {
+            // [-son]
+            // [+son]
+        }
+        0b001 => {
+            // [-syll] => consonants and glides
+            // [+syll] => syllabic consonants and vowels
+        }
+        0b000 => {
+            // *shrugs*
+        }
+        _ => unreachable!()
+    }
+}
