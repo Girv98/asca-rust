@@ -1,10 +1,12 @@
 mod diacritic;
 mod phrase;
+mod class;
 mod place;
 mod seg;
 mod syll;
 mod feature;
 
+pub use class::*;
 pub use feature::*;
 pub(crate) use diacritic::*;
 pub use phrase::*;
@@ -769,7 +771,7 @@ impl Word {
         }
     }
 
-    fn alias_match_seg_kind(&self, kind: &ModKind, seg: Segment, node: NodeKind, mask: u8) -> bool {
+    fn alias_match_seg_kind(&self, kind: &ModKind, seg: Segment, node: NodeKind, mask: u16) -> bool {
         match kind {
             ModKind::Binary(bt) => match bt {
                 BinMod::Negative => seg.feat_match(node, mask, false),

@@ -26,37 +26,39 @@ def set_features(d):
 
     # Set Root Features
     if d['cons']:
-        root += 0b100
+        root += 0b100_000_0000_0000_00
     if d['son']:
-        root += 0b010
+        root += 0b010_000_0000_0000_00
     if d['syll']:
-        root += 0b001
+        root += 0b001_000_0000_0000_00
 
     # Set Manner Features
     if d['cont']:
-        manner += 0b10000000
+        manner += 0b1000_0000_00
     if d['app']:
-        manner += 0b01000000
+        manner += 0b0100_0000_00
     if d['lat']:
-        manner += 0b00100000
+        manner += 0b0010_0000_00
     if d['nas']:
-        manner += 0b00010000
+        manner += 0b0001_0000_00
     if d['dr']:
-        manner += 0b00001000
+        manner += 0b0000_1000_00
     if d['stri']:
-        manner += 0b00000100
+        manner += 0b0000_0100_00
     if d['rho']:
-        manner += 0b00000010
+        manner += 0b0000_0010_00
     if d['clk']:
-        manner += 0b00000001
+        manner += 0b0000_0001_00
+    # if d['dbl']:
+    #     manner += 0b0000_0000_10
 
     # Set Laryngeal Features
     if d['voi']:
-        laryngeal += 0b100
+        laryngeal += 0b100_0000_0000_00
     if d['sg']:
-        laryngeal += 0b010
+        laryngeal += 0b010_0000_0000_00
     if d['cg']:
-        laryngeal += 0b001
+        laryngeal += 0b001_0000_0000_00
 
     # Set Labial Features
     if d['LAB'] == True:
@@ -98,17 +100,17 @@ def set_features(d):
         if d['rtr']:
             pharyngeal += 0b01
 
-    place = None
 
+    class_val = (root | laryngeal | manner)
+
+    place = None
     if place_head != 0:
         place = 0
         place = (place_head | labial | coronal | dorsal | pharyngeal)
 
     return {
         'grapheme': grapheme,
-        'root': root,
-        'manner': manner,
-        'laryngeal': laryngeal,
+        'class': class_val,
         'place': place
     }
 

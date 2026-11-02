@@ -175,20 +175,21 @@ impl FeatKind {
     }
 
     /// Returns the node and bitmask of the feature
-    pub const fn as_node_mask(&self) -> (NodeKind, u8) {
+    pub const fn as_node_mask(&self) -> (NodeKind, u16) {
         match self {
             Self::Consonantal         => (NodeKind::Root, 0b100),
             Self::Sonorant            => (NodeKind::Root, 0b010),
             Self::Syllabic            => (NodeKind::Root, 0b001),
             
-            Self::Continuant          => (NodeKind::Manner, 0b10000000),
-            Self::Approximant         => (NodeKind::Manner, 0b01000000),
-            Self::Lateral             => (NodeKind::Manner, 0b00100000),
-            Self::Nasal               => (NodeKind::Manner, 0b00010000),
-            Self::DelayedRelease      => (NodeKind::Manner, 0b00001000),
-            Self::Strident            => (NodeKind::Manner, 0b00000100),
-            Self::Rhotic              => (NodeKind::Manner, 0b00000010),
-            Self::Click               => (NodeKind::Manner, 0b00000001),
+            Self::Continuant          => (NodeKind::Manner, 0b1000_0000_00),
+            Self::Approximant         => (NodeKind::Manner, 0b0100_0000_00),
+            Self::Lateral             => (NodeKind::Manner, 0b0010_0000_00),
+            Self::Nasal               => (NodeKind::Manner, 0b0001_0000_00),
+            Self::DelayedRelease      => (NodeKind::Manner, 0b0000_1000_00),
+            Self::Strident            => (NodeKind::Manner, 0b0000_0100_00),
+            Self::Rhotic              => (NodeKind::Manner, 0b0000_0010_00),
+            Self::Click               => (NodeKind::Manner, 0b0000_0001_00),
+            // Self::Double               => (NodeKind::Manner, 0b0000_0000_10),
             
             Self::Voice               => (NodeKind::Laryngeal, 0b100),
             Self::SpreadGlottis       => (NodeKind::Laryngeal, 0b010),

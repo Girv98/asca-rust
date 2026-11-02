@@ -36,21 +36,21 @@ pub(crate) enum RuleType {
 
 #[derive(Debug, Clone)]
 pub(crate) struct PlaceMod {
-    pub(crate) lab: Option<u8>,
-    pub(crate) cor: Option<u8>,
-    pub(crate) dor: Option<u8>,
-    pub(crate) phr: Option<u8>,
+    pub(crate) lab: Option<u16>,
+    pub(crate) cor: Option<u16>,
+    pub(crate) dor: Option<u16>,
+    pub(crate) phr: Option<u16>,
 }
 
 impl PlaceMod {
-    pub(crate) fn new(lab: Option<u8>, cor: Option<u8>, dor: Option<u8>, phr: Option<u8>) -> Self {
+    pub(crate) fn new(lab: Option<u16>, cor: Option<u16>, dor: Option<u16>, phr: Option<u16>) -> Self {
         Self { lab, cor, dor, phr }
     }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Alpha {
-    Node(NodeKind, Option<u8>),
+    Node(NodeKind, Option<u16>),
     Place(PlaceMod),
     Feature(bool),
     Supra(bool),
@@ -58,7 +58,7 @@ pub(crate) enum Alpha {
 }
 
 impl Alpha {
-    pub(crate) fn as_node(&self) -> Option<(NodeKind, Option<u8>)> {
+    pub(crate) fn as_node(&self) -> Option<(NodeKind, Option<u16>)> {
         if let Self::Node(n, m) = self {
             Some((*n, *m))
         } else {

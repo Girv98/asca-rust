@@ -775,7 +775,7 @@ impl SubRule {
         }
     }
 
-    fn match_seg_kind(&self, kind: &ModKind, seg: Segment, node: NodeKind, mask: u8) -> Result<bool, RuleRuntimeError> {
+    fn match_seg_kind(&self, kind: &ModKind, seg: Segment, node: NodeKind, mask: u16) -> Result<bool, RuleRuntimeError> {
         match kind {
             ModKind::Binary(bt) => match bt {
                 BinMod::Negative => Ok(seg.feat_match(node, mask, false)),
