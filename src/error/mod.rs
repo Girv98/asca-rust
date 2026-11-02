@@ -59,7 +59,7 @@ impl ASCAError {
     }
 }
 
-const FEAT_VARIANTS: [&str; 184] = [ 
+const FEAT_VARIANTS: [&str; 189] = [ 
     "root", "rut", "rt", 
     "consonantal", "consonant", "cons" , "cns",          
     "sonorant", "sonor", "son" , "snrt", "sn",
@@ -74,6 +74,7 @@ const FEAT_VARIANTS: [&str; 184] = [
     "strident", "strid", "stri", "stridnt",
     "rhotic", "rhot", "rho", "rhtc", "rh",
     "click", "clik", "clk", "clck",
+    "double", "dub", "dubl", "dbl", "doubl", 
     // Laryngeal Node Features
     "laryngeal", "laryng", "laryn", "lar",
     "voice", "voi", "vce", "vc",

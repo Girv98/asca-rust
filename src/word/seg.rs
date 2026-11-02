@@ -457,7 +457,7 @@ impl Segment {
         Ok(())
     }
 
-    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>> , nodes: [Option<ModKind>; NodeKind::count()], feats: [Option<ModKind>; FeatKind::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError>{
+    pub(crate) fn apply_seg_mods(&mut self, alphas: &RefCell<HashMap<AlphaChar, Alpha>> , nodes: [Option<ModKind>; NodeKind::count()], feats: [Option<ModKind>; FeatKind::count()], err_pos: Position, is_matching_ipa: bool) -> Result<(), RuleRuntimeError> {
         for (i, m) in nodes.iter().enumerate() { 
             let node = NodeKind::from_usize(i);
             if let Some(kind) = m {

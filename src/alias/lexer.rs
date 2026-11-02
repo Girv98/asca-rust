@@ -109,22 +109,29 @@ impl<'a> AliasLexer<'a> {
             "manner"         | "mann"   | "man"  | "mnnr" | "mnr" => Some(Feature(Node(Manner))),
             "continuant"     | "contin" | "cont" | "cnt"          => Some(Feature(Feat(Continuant))),
             "approximant"    | "approx" | "appr" | "app"          => Some(Feature(Feat(Approximant))),
-            "lateral"        | "latrl"  | "ltrl" | "lat"          => Some(Feature(Feat(Lateral))),
-            "nasal"          | "nsl"    | "nas"                   => Some(Feature(Feat(Nasal))),
+            "lateral"        | "latrl"  | "ltrl" | "lat"  | "lt"  => Some(Feature(Feat(Lateral))),
+            "nasal"          | "nsl"    | "nas"  | "ns"   | "nl"  => Some(Feature(Feat(Nasal))),
+            
             "delayedrelease" | "delrel" | "d.r." | "del.rel." | 
-            "delayed" | "dl" | "dlrl"   | "dr"   | "delay"    |
-            "drelease"       | "del.rel"| "drel"                  => Some(Feature(Feat(DelayedRelease))),
-            "strident"       | "strid"  | "stri" | "stridnt"      => Some(Feature(Feat(Strident))),
-            "rhotic"         | "rhot"   | "rho"  | "rhtc" | "rh"  => Some(Feature(Feat(Rhotic))),
-            "click"          | "clik"   | "clk"  | "clck"         => Some(Feature(Feat(Click))),
+            "delayed" | "dl" | "dlrl"   | "dr"   | "delay"    | 
+            "drelease"       | "del.rel"| "drel" | "d.r" | "dr."  => Some(Feature(Feat(DelayedRelease))),
+            
+            "strident"       | "strid"  | "stri" | "stridnt"  | 
+            "strdent"        | "strdnt"                           => Some(Feature(Feat(Strident))),
+           
+            "rhotic" | "rho" | "rhot"   | "rhtc" | "rh" | 
+            "rht"    | "rhc"                                      => Some(Feature(Feat(Rhotic))),
+            "click"          | "clik" | "clk"  | "clck"           => Some(Feature(Feat(Click))),
+            "double" | "dub" | "dubl" | "dbl"  | "doubl"          => Some(Feature(Feat(Double))),
             // Laryngeal Node Features
             "laryngeal"      | "laryng"     | "laryn"  | "lar"    => Some(Feature(Node(Laryngeal))),
             "voice"          | "voi"        | "vce"    | "vc"     => Some(Feature(Feat(Voice))),
-            "spreadglottis"  | "spreadglot" | 
-            "spread"         | "s.g."       | "s.g"    | "sg"     => Some(Feature(Feat(SpreadGlottis))),
-            "constrictedglottis"            | "constricted"  |
-            "constglot"      | "constr"     | "c.g." | "c.g" | 
-            "cg"                                                  => Some(Feature(Feat(ConstrGlottis))),
+            
+            "spreadglottis" | "spreadglot" | "spread" | "sprd" |
+            "spr" | "s.g."  | "s.g"        | "sg."    | "sg"      => Some(Feature(Feat(SpreadGlottis))),
+            
+            "constricted"   | "constglot"  | "constr" | "c.g." | 
+            "c.g" | "cg."   | "cg"         | "constrictedglottis" => Some(Feature(Feat(ConstrGlottis))),
             // Place Node Feature
             "place"       | "plce"    | "plc"                     => Some(Feature(Node(Place))),
             // Labial Place Node Features
@@ -145,17 +152,16 @@ impl<'a> AliasLexer<'a> {
             "tense"   | "tens"  | "tns"  | "ten"                  => Some(Feature(Feat(Tense))),
             "reduced" | "reduc" | "redu" | "rdcd" | "red"         => Some(Feature(Feat(Reduced))),
             // Pharyngeal Place Node Features
-            "pharyngeal" | "pharyng" | "pharyn"  |
-            "phar"       | "phr"                                  => Some(Feature(Node(Pharyngeal))),
-            "advancedtongueroot"     | "a.t.r."  | "a.t.r" | 
+            "pharyngeal" | "pharyng" | "pharyn" | "phar"  | "phr" => Some(Feature(Node(Pharyngeal))),
+            "advancedtongueroot"     | "a.t.r." | "a.t.r" | 
             "a.tr" | "at.r" | "atr"                               => Some(Feature(Feat(AdvancedTongueRoot))),
-            "retractedtongueroot"    | "r.t.r."  | "r.t.r" | 
+            "retractedtongueroot"    | "r.t.r." | "r.t.r" | 
             "r.tr" | "rt.r" | "rtr"                               => Some(Feature(Feat(RetractedTongueRoot))),
             // Suprasegmental Features
             "long"     | "lng"                                    => Some(Feature(Supr(Long))),
             "overlong" | "overlng" | "ovrlng" | "vlong" | 
-            "olong" | "vlng" | "olng"                             => Some(Feature(Supr(Overlong))),
-            "stress"   | "str"                                    => Some(Feature(Supr(Stress))),
+            "olong"    | "vlng" | "olng"                          => Some(Feature(Supr(Overlong))),
+            "stress"   | "strs" | "str"                           => Some(Feature(Supr(Stress))),
             "secondarystress"| "sec.stress" | "secstress" |
             "sec.str."       | "sec.str"    | "secstr"    | "sec" => Some(Feature(Supr(SecStress))),
             

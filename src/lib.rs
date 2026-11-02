@@ -27,12 +27,12 @@ lazy_static! {
         #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
         pub enum DiaFeatType {
             Root, Manner, Laryngeal, Place, Labial, Coronal, Dorsal, Pharyngeal, 
-            /*RUT*/ Consonantal, Sonorant, Syllabic,      
-            /*MAN*/ Continuant, Approximant, Lateral, Nasal, DelayedRelease, Strident, Rhotic, Click,          
-            /*LAR*/ Voice, SpreadGlottis, ConstrGlottis,   
-            /*LAB*/ Labiodental, Round,          
-            /*COR*/ Anterior, Distributed,     
-            /*DOR*/ Front, Back, High, Low, Tense, Reduced,        
+            /*RUT*/ Consonantal, Sonorant, Syllabic, 
+            /*MAN*/ Continuant, Approximant, Lateral, Nasal, DelayedRelease, Strident, Rhotic, Click, Double,
+            /*LAR*/ Voice, SpreadGlottis, ConstrGlottis, 
+            /*LAB*/ Labiodental, Round, 
+            /*COR*/ Anterior, Distributed, 
+            /*DOR*/ Front, Back, High, Low, Tense, Reduced, 
             /*PHR*/ AdvancedTongueRoot, RetractedTongueRoot, 
         }
         

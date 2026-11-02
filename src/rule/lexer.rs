@@ -651,6 +651,7 @@ impl<'a> Lexer<'a> {
             "rhotic" | "rho" | "rhot"   | "rhtc" | "rh" | 
             "rht"    | "rhc"                                      => Feat(Rhotic),
             "click"          | "clik" | "clk"  | "clck"           => Feat(Click),
+            "double" | "dub" | "dubl" | "dbl"  | "doubl"          => Feat(Double),
             // Laryngeal Node Features
             "laryngeal"     | "laryng"     | "laryn"  | "lar"     => Node(Laryngeal),
             "voice"         | "voi"        | "vce"    | "vc"      => Feat(Voice),

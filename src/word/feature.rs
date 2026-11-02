@@ -84,7 +84,7 @@ impl fmt::Display for NodeKind {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
 pub enum FeatKind { 
     /*RUT*/ Consonantal, Sonorant, Syllabic,      
-    /*MAN*/ Continuant, Approximant, Lateral, Nasal, DelayedRelease, Strident, Rhotic, Click,          
+    /*MAN*/ Continuant, Approximant, Lateral, Nasal, DelayedRelease, Strident, Rhotic, Click, Double,          
     /*LAR*/ Voice, SpreadGlottis, ConstrGlottis,   
     // PLACE Node
     /*LAB*/ Labiodental, Round,          
@@ -100,7 +100,7 @@ impl fmt::Display for FeatKind {
 }
 
 impl FeatKind {
-    pub(crate) const fn count() -> usize { 26 }
+    pub(crate) const fn count() -> usize { 27 }
 
     pub(crate) fn from_usize(value: usize) -> Self {
         match value {
@@ -117,27 +117,28 @@ impl FeatKind {
              8 => Self::Strident,
              9 => Self::Rhotic,
             10 => Self::Click,
+            11 => Self::Double,
             // LAR node
-            11 => Self::Voice,
-            12 => Self::SpreadGlottis,
-            13 => Self::ConstrGlottis,
+            12 => Self::Voice,
+            13 => Self::SpreadGlottis,
+            14 => Self::ConstrGlottis,
             // PLACE Node
             // LABIAL subnode
-            14 => Self::Labiodental,
-            15 => Self::Round,
+            15 => Self::Labiodental,
+            16 => Self::Round,
             // CORONAL subnode
-            16 => Self::Anterior,
-            17 => Self::Distributed,
+            17 => Self::Anterior,
+            18 => Self::Distributed,
             // DORSAL subnode
-            18 => Self::Front,
-            19 => Self::Back,
-            20 => Self::High,
-            21 => Self::Low,
-            22 => Self::Tense,
-            23 => Self::Reduced,
+            19 => Self::Front,
+            20 => Self::Back,
+            21 => Self::High,
+            22 => Self::Low,
+            23 => Self::Tense,
+            24 => Self::Reduced,
             // PHAR subnode
-            24 => Self::AdvancedTongueRoot,
-            25 => Self::RetractedTongueRoot,
+            25 => Self::AdvancedTongueRoot,
+            26 => Self::RetractedTongueRoot,
             _  => unreachable!("\nOut of Range Error converting `usize` to `FeatType`\nThis is a bug!\n")
         }
 
@@ -156,6 +157,7 @@ impl FeatKind {
             FeatKind::Strident            => "strident",
             FeatKind::Rhotic              => "rhotic",
             FeatKind::Click               => "click",
+            FeatKind::Double              => "double",
             FeatKind::Voice               => "voice",
             FeatKind::SpreadGlottis       => "s.g.",
             FeatKind::ConstrGlottis       => "c.g.",
@@ -189,7 +191,8 @@ impl FeatKind {
             Self::Strident            => (NodeKind::Manner, 0b0000_0100_00),
             Self::Rhotic              => (NodeKind::Manner, 0b0000_0010_00),
             Self::Click               => (NodeKind::Manner, 0b0000_0001_00),
-            // Self::Double               => (NodeKind::Manner, 0b0000_0000_10),
+            Self::Double              => (NodeKind::Manner, 0b0000_0000_10),
+            // UNUSED => (NodeKind::Manner, 0b0000_0000_01),
             
             Self::Voice               => (NodeKind::Laryngeal, 0b100),
             Self::SpreadGlottis       => (NodeKind::Laryngeal, 0b010),
