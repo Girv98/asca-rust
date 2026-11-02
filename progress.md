@@ -11,12 +11,13 @@
     - Reverse rule tracing
         - i.e. see which words have been effected by a give rule, rather than which rules have been applied to a given word
 - Internal Changes:
-    - Join Root, Manner, and Voice (like with place) in order to allow for more Manner DFs   
+    - [x] Join Root, Manner, and Voice (like with place) in order to allow for more Manner DFs   
 - Segments:
     - [x] `f,v => [-strid]`
     - [ ] Add prenasalised implosives
     - [ ] Add prenasalised fricatives
     - [ ] Add rhotic affricates i.e. `/d͡r/`
+    - [ ] Add coarticulated segments with `[± double]`
     - [ ] Encode voiceless segments with tails or place diacritics with `U+030A Combining Ring Above` rather than `U+0325 Combining Ring Below`
 - Rules
     - Allow sets to be negated 
