@@ -216,24 +216,48 @@ def get_sub_graphemes(gl: str, pattern_indices: list[Tuple[int, int]]) -> list[s
 
     return res
 
+def render(gl: str, line_num: int) -> str:
+    res = []
+    i = 0
+
+    while i < len(gl):
+        start = gl.find('{', i)
+        if start == -1:
+            res.append(gl[i:]); break
+        
+        res.append(gl[i:start])
+
+        end = gl.find('}', start)
+        if end == -1:
+            print(f"Error(ln {line_num}): '{{' has no matching '}}'"); sys.exit(1)
+
+        hex_str = gl[start + 1 : end]
+
+        try:
+            res.append(chr(int(hex_str, 16)))
+        except ValueError:
+            print(f"Error(ln {line_num}): '{hex_str}' is not a valid hexidecimal number"); sys.exit(1)
+
+        i = end + 1
+
+    return "".join(res)
 
 def get_graphemes(gl: str, line_num: int) -> list[str]:
 
+    gl = render(gl, line_num)
+
     p = []
 
-    start_i = 0
-    while (lf_i := gl.find("[", start_i)) >= 0:
-        if (rt_i := gl.find("]", lf_i)) < 0: print(f"Error(ln {line_num}): '[' has no matching ']'"); sys.exit(1)
+    i = 0
+    while (start := gl.find("[", i)) >= 0:
+        if (end := gl.find("]", start)) < 0: print(f"Error(ln {line_num}): '[' has no matching ']'"); sys.exit(1)
 
-        if lf_i+1 == rt_i: print(f"Warning(ln {line_num}): empty pattern")
+        if start + 1 == end: 
+            print(f"Warning(ln {line_num}): empty pattern")
         else: 
-            p.append((lf_i+1, rt_i))
+            p.append((start+1, end))
         
-        start_i = rt_i
-
-    for (lf_i, rt_i) in p:
-        pat = gl[lf_i:rt_i]
-        print(pat)
+        i = end
     
     return get_sub_graphemes(gl, p)
     
