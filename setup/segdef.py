@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+import json
 import os
 import sys
+
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -45,14 +47,90 @@ def get_section_advance(line: str, line_num: int, line_len: int, i: int, sep: st
 
     return rut, i
 
+
+
+def get_binary_str(s: str) -> str | None:
+    if '0' in s:
+        if len(set(s)) == 1:
+            return None
+        else:
+            print("Error: if section contains '0', all must be '0'")
+            sys.exit(1)
+
+    return s.replace('+', '1').replace('-', '0')
+
+def get_binary_str_not_null(s: str, node: str) -> str:
+    val = get_binary_str(s)
+    if val is None: 
+        print(f"Error: {node} node can't be null")
+        sys.exit(1)
+
+    return val
+
 @dataclass
-class SegmentRep: 
+class SegmentRepr: 
     glyphs: list[str]
     rut: str; man: str; lar: str
     lab: str; cor: str; dor: str; phr: str
 
-def read_file(file_path: str):
-    seg_reps: list[SegmentRep] = []
+    def get_class(self) -> int:
+        rut = get_binary_str_not_null(self.rut, "root")
+        lar = get_binary_str_not_null(self.lar, "laryngeal")
+        man = get_binary_str_not_null(self.man, "manner")
+
+        # NOTE: last manner digit is currently unused and unrepresented 
+        # and so must be manually appended
+        return int(f"{rut}{lar}{man}0", base=2) 
+
+    def get_place(self) -> int:
+        head = ""
+
+        lab = get_binary_str(self.lab)
+        cor = get_binary_str(self.cor)
+        dor = get_binary_str(self.dor)
+        phr = get_binary_str(self.phr)
+
+        if lab is not None:   head += '1'
+        else:   lab = '00';   head += '0'
+
+        if cor is not None:   head += '1'
+        else:   cor = '00';   head += '0'
+
+        if dor is not None:   head += '1'
+        else: dor = '000000'; head += '0'
+
+        if phr is not None:   head += '1'
+        else:   phr = '00';   head += '0'
+
+        return int(f"{head}{lab}{cor}{dor}{phr}", base=2)
+
+    def get_vals(self) -> Tuple[int, int]:
+        return self.get_class(), self.get_place()
+        
+    def __eq__(self, other):
+        return (self.rut == other.rut
+        and self.man == other.man
+        and self.lar == other.lar
+        and self.lar == other.lar
+        and self.cor == other.cor
+        and self.dor == other.dor
+        and self.phr == other.phr)
+
+    def __hash__(self):
+        return hash((
+            self.rut, self.man, self.lar,
+            self.lab, self.cor, self.dor, self.phr
+        ))
+    
+    def __str__(self):
+        return f"{self.rut}|{self.man}|{self.lar}|{self.lab}|{self.cor}|{self.dor}|{self.phr} = {self.glyphs}"
+
+    def __repr__(self):
+        return self.__str__()
+
+        
+def read_file(file_path: str) -> list[SegmentRepr]:
+    seg_reps: list[SegmentRepr] = []
     with open(file_path, "r") as file:
         for line_num, line in enumerate(file):
             line = line.strip(); line_num += 1
@@ -83,7 +161,7 @@ def read_file(file_path: str):
     
             # print(f"{rut}|{man}|{lar}|{lab}|{cor}|{dor}|{phr} = {glyphs}")
 
-            sr = SegmentRep(
+            sr = SegmentRepr(
                 glyphs=glyphs, 
                 rut=rut, man=man, lar=lar, 
                 lab=lab, cor=cor, dor=dor, phr=phr
@@ -92,6 +170,21 @@ def read_file(file_path: str):
             seg_reps.append(sr)
 
     return seg_reps
+
+
+def check_dups(reprs: list[SegmentRepr]):
+    seen = set(); duplicates = []
+
+    for i, r in enumerate(reprs):
+        if r in seen:
+            duplicates.append(f"{i+1}: {r}")
+        else:
+            seen.add(r)
+
+    if len(duplicates):
+        print("Error: Duplicates found\n"); [print(dup) for dup in duplicates]
+        sys.exit(1)
+    
 
 def main():
     if len(sys.argv) <= 1:
@@ -103,11 +196,24 @@ def main():
     
     reprs = read_file(file_path)
 
-    print("TODO")
-    # print(reprs)
+    check_dups(reprs)
+    
+    lst = []
 
+    for r in reprs:
+        clss, place = r.get_vals()
+        if place == 0: place = "null"
+        for gl in r.glyphs:
+            lst.append(f'"{gl}": {{"class": {clss}, "place": {place}}}')
 
+    
+    res = ", ".join(lst)
+    res = f"{{{res}}}"
 
+    with open('cardinals.json', 'w', encoding='utf8') as file:
+        file.write(res)
+    
+    print("Done")
 
 if __name__ == "__main__":
     main()
