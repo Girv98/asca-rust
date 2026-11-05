@@ -132,34 +132,43 @@ class SegmentRepr:
 def read_file(file_path: str) -> list[SegmentRepr]:
     seg_reps: list[SegmentRepr] = []
     with open(file_path, "r") as file:
-        for line_num, line in enumerate(file):
-            line = line.strip(); line_num += 1
+        for line_n, line in enumerate(file):
+            line = line.strip(); line_n += 1
 
             if not line or line[0] == '#': continue
 
             line_len = len(line)
             i = 0
             
-            rut, i = get_section_advance(line, line_num, line_len, i)
-            man, i = get_section_advance(line, line_num, line_len, i)
-            lar, i = get_section_advance(line, line_num, line_len, i)
+            rut, i = get_section_advance(line, line_n, line_len, i)
+            man, i = get_section_advance(line, line_n, line_len, i)
+            lar, i = get_section_advance(line, line_n, line_len, i)
             
-            lab, i = get_section_advance(line, line_num, line_len, i)
-            cor, i = get_section_advance(line, line_num, line_len, i)
-            dor, i = get_section_advance(line, line_num, line_len, i)
-            phr, i =         get_section(line, line_num, line_len, i)
+            lab, i = get_section_advance(line, line_n, line_len, i)
+            cor, i = get_section_advance(line, line_n, line_len, i)
+            dor, i = get_section_advance(line, line_n, line_len, i)
+            phr, i =         get_section(line, line_n, line_len, i)
 
             i = skip_space(line, line_len, i)
-            i = expect_char(line, line_num, i, '=')
+            i = expect_char(line, line_n, i, '=')
             i = skip_space(line, line_len, i)
 
             glyphs = line[i:].strip().split()
 
             if not glyphs: 
-                print(f"Error(ln {line_num}): Expected glyph(s), got end of line")
+                print(f"Error(ln {line_n}): Expected glyph(s), got end of line")
                 sys.exit(1)
     
             # print(f"{rut}|{man}|{lar}|{lab}|{cor}|{dor}|{phr} = {glyphs}")
+
+            if len(rut) != 3: print(f"Error(ln {line_n}): root node must be length 3");       sys.exit(1)
+            if len(man) != 9: print(f"Error(ln {line_n}): manner node must be length 9");     sys.exit(1)
+            if len(lar) != 3: print(f"Error(ln {line_n}): laryngeal node must be length 3");  sys.exit(1)
+
+            if len(lab) != 2: print(f"Error(ln {line_n}): labial node must be length 2");     sys.exit(1)
+            if len(cor) != 2: print(f"Error(ln {line_n}): coronal node must be length 2");    sys.exit(1)
+            if len(dor) != 6: print(f"Error(ln {line_n}): dorsal node must be length 6");     sys.exit(1)
+            if len(phr) != 2: print(f"Error(ln {line_n}): pharyngeal node must be length 2"); sys.exit(1)
 
             sr = SegmentRepr(
                 glyphs=glyphs, 
