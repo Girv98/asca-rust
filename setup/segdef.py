@@ -69,7 +69,7 @@ def get_binary_str_not_null(s: str, node: str) -> str:
 
 @dataclass
 class SegmentRepr: 
-    glyphs: list[str]
+    glyphs: list[str]; line_num: int;
     rut: str; man: str; lar: str
     lab: str; cor: str; dor: str; phr: str
 
@@ -172,7 +172,7 @@ def read_file(file_path: str) -> list[SegmentRepr]:
             if len(phr) != 2: print(f"Error(ln {line_n}): pharyngeal node must be length 2"); sys.exit(1)
 
             sr = SegmentRepr(
-                glyphs=glyphs, 
+                glyphs=glyphs, line_num=line_n,
                 rut=rut, man=man, lar=lar, 
                 lab=lab, cor=cor, dor=dor, phr=phr
             )
@@ -185,9 +185,9 @@ def read_file(file_path: str) -> list[SegmentRepr]:
 def check_dups(reprs: list[SegmentRepr]):
     seen = set(); duplicates = []
 
-    for i, r in enumerate(reprs):
+    for r in reprs:
         if r in seen:
-            duplicates.append(f"{i+1}: {r}")
+            duplicates.append(f"{r.line_num}: {r}")
         else:
             seen.add(r)
 
