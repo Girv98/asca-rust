@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import itertools
 import json
 import os
 import sys
@@ -196,6 +197,47 @@ def check_dups(reprs: list[SegmentRepr]):
         sys.exit(1)
     
 
+def get_sub_graphemes(gl: str, pattern_indices: list[Tuple[int, int]]) -> list[str]:
+    if not pattern_indices: return [gl]
+
+    patterns = [gl[l:r] for (l, r) in pattern_indices]
+    products = list(itertools.product(*patterns))
+
+    res = []
+
+    for prod in products:
+        chars = []
+        i = 0
+        for x, (start, end) in enumerate(pattern_indices):
+            chars.append(gl[i:start-1] + prod[x])
+            i = end+1
+        chars.append(gl[end+1:])
+        res.append(''.join(chars))
+
+    return res
+
+
+def get_graphemes(gl: str, line_num: int) -> list[str]:
+
+    p = []
+
+    start_i = 0
+    while (lf_i := gl.find("[", start_i)) >= 0:
+        if (rt_i := gl.find("]", lf_i)) < 0: print(f"Error(ln {line_num}): '[' has no matching ']'"); sys.exit(1)
+
+        if lf_i+1 == rt_i: print(f"Warning(ln {line_num}): empty pattern")
+        else: 
+            p.append((lf_i+1, rt_i))
+        
+        start_i = rt_i
+
+    for (lf_i, rt_i) in p:
+        pat = gl[lf_i:rt_i]
+        print(pat)
+    
+    return get_sub_graphemes(gl, p)
+    
+
 def main():
     if len(sys.argv) <= 1:
         print("No file provided.")
@@ -208,16 +250,17 @@ def main():
 
     check_dups(reprs)
     
-    lst = []
+    seg_lst = []
 
     for r in reprs:
         clss, place = r.get_vals()
         if place == 0: place = "null"
         for gl in r.glyphs:
-            lst.append(f'"{gl}": {{"class": {clss}, "place": {place}}}')
+            for grapheme in get_graphemes(gl, r.line_num):
+                seg_lst.append(f'"{grapheme}": {{"class": {clss}, "place": {place}}}')
 
     
-    res = ", ".join(lst)
+    res = ", ".join(seg_lst)
     res = f"{{{res}}}"
 
     with open('cardinals.json', 'w', encoding='utf8') as file:
