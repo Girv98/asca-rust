@@ -153,7 +153,8 @@ def read_file(file_path: str) -> list[SegmentRepr]:
             i = expect_char(line, line_n, i, '=')
             i = skip_space(line, line_len, i)
 
-            glyphs = line[i:].strip().split()
+            glyph_comment = line[i:].split("#")
+            glyphs = glyph_comment[0].split()
 
             if not glyphs: 
                 print(f"Error(ln {line_n}): Expected glyph(s), got end of line")
