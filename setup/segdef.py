@@ -1,6 +1,6 @@
 #!/usr/bin/env python
+import argparse
 import itertools
-import json
 import os
 import sys
 
@@ -263,16 +263,27 @@ def get_graphemes(gl: str, line_num: int) -> list[str]:
     
 
 def main():
-    if len(sys.argv) <= 1:
-        print("No file provided.")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        prog='segdef',
+    )
+    parser.add_argument('file')
+    parser.add_argument(
+        '-f', '--format', 
+        action='store_true',
+        help='formatted output instead of default compact output'
+    ) 
+
+    args = parser.parse_args()
     
-    file_name = sys.argv[1]
+    file_name = args.file
     file_path = os.path.join(os.path.dirname(__file__), file_name)
     
     reprs = read_file(file_path)
 
     check_dups(reprs)
+
+    print(f"{len(reprs)} segments parsed")
+
     
     seg_lst = []
 
@@ -281,11 +292,18 @@ def main():
         if place == 0: place = "null"
         for gl in r.glyphs:
             for grapheme in get_graphemes(gl, r.line_num):
-                seg_lst.append(f'"{grapheme}": {{"class": {clss}, "place": {place}}}')
+                if args.format:
+                    seg_lst.append(f'"{grapheme}": {{"class": {clss}, "place": {place}}}')
+                else:
+                    seg_lst.append(f'"{grapheme}":{{"class":{clss},"place":{place}}}')
 
-    
-    res = ", ".join(seg_lst)
-    res = f"{{{res}}}"
+    sep =  ", \n    " if args.format else ","
+    res = sep.join(seg_lst)
+
+    if args.format:
+        res = f"{{\n    {res}\n}}"
+    else:
+        res = f"{{{res}}}"
 
     with open('cardinals.json', 'w', encoding='utf8') as file:
         file.write(res)
