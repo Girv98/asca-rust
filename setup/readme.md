@@ -8,7 +8,6 @@ Simple-ish python script to convert a human readable/editable segment format int
 Each line defines a new segment as follows:
 ```
 FEATURES = GRAPHEMES
-
 ```
 Single line comments are delimited by `#` These comments can appear at the end of a line or take up the full line.
 
@@ -23,14 +22,14 @@ Each node is then represented by a series of plusses and minuses of a set length
 ```
 Length of each node:
 
-ROOT       = 3  [cons, son, syll]
-MANNER     = 9  [cont, approx, lateral, nasal, delrel, strident, rhotic, click, double]     # Double coming next release
-LARYNGEAL  = 3  [voice, sg, cg]
+ROOT       = 3 [cons, son, syll]
+MANNER     = 9 [cont, approx, lateral, nasal, delrel, strident, rhotic, click, double]     # Double coming next release
+LARYNGEAL  = 3 [voice, sg, cg]
 
-LABIAL     = 2  [labiodental, round]
-CORONAL    = 2  [anterior, distributed]
-DORSAL     = 6  [front, back, high, low, tense, reduced]
-PHARYNGEAL = 2  [atr, rtr]
+LABIAL     = 2 [labiodental, round]
+CORONAL    = 2 [anterior, distributed]
+DORSAL     = 6 [front, back, high, low, tense, reduced]
+PHARYNGEAL = 2 [atr, rtr]
 ```
 
 The first 3 nodes (ROOT, MANNER, LARYNGEAL) are the so called "class" nodes and each define the segment's
