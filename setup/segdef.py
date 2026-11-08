@@ -263,6 +263,9 @@ def get_graphemes(gl: str, line_num: int) -> list[str]:
     
     return get_sub_graphemes(gl, p)
     
+def error(s: str):
+    print(s, file=sys.stderr)
+    sys.exit(1)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -284,20 +287,23 @@ def main():
 
     check_dups(reprs)
 
-    print(f"{len(reprs)} segments parsed")
-
-    
     seg_lst = []
+    grapheme_set  = set()
 
     for r in reprs:
         clss, place = r.get_vals()
         if place == 0: place = "null"
         for gl in r.glyphs:
             for grapheme in get_graphemes(gl, r.line_num):
+                if grapheme in grapheme_set:
+                    error(f"Error(ln {r.line_num}): grapheme {grapheme} is already defined") # TODO: where is it previously defined?
+                grapheme_set.add(grapheme)
                 if args.format:
                     seg_lst.append(f'"{grapheme}": {{"class": {clss}, "place": {place}}}')
                 else:
                     seg_lst.append(f'"{grapheme}":{{"class":{clss},"place":{place}}}')
+
+    print(f"{len(reprs)} unique segments parsed, {len(seg_lst)} total variants created", file=sys.stderr)
 
     sep =  ", \n    " if args.format else ","
     res = sep.join(seg_lst)
