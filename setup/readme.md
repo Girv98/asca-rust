@@ -45,10 +45,12 @@ The first grapheme in the list is canonical: each subsequent grapheme is accepte
 
 #### Unicode Escapes
 Unicode character escapes can be used to insert valid unicode scalar characters such as diacritics.
-
-These take the form of `{....}` where `....` are hex digits `0-F`.
+These take the form of `{....}` where `....` are hex digits `0-F`. Leading zero(es) can be omitted.
 
 For example, `r{325}` becomes `r̥`
+
+Combining diacritic marks of unicode block `03__` can represented just by the meaningful bit. 
+Therefore, `r{25}` is equal to `r{325}`.
 
 #### Character Sets
 A choice of several characters can be defined within square brackets.
@@ -60,9 +62,9 @@ Multiple sets can be used in a grapheme, for example `= [bd]a[bd]` which renders
 
 Unicode escapes can be used inside a character set. This is useful for diacritic alternatives:
 ```
-p[{32A}{346}]   => p̪ p͆
+p[{2A}{46}]  => p̪ p͆
 
-p[{361}{35C}]ɸ  => p͡ɸ p͜ɸ
+p[{61}{5C}]ɸ => p͡ɸ p͜ɸ
 
-[ᵐⁿᶯᶮᵑᶰ]b       => ᵐb ⁿb ᶯb ᶮb ᵑb ᶰb
+[ᵐⁿᶯᶮᵑᶰ]b    => ᵐb ⁿb ᶯb ᶮb ᵑb ᶰb
 ```
