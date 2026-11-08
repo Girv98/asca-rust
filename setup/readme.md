@@ -68,3 +68,12 @@ p[{61}{5C}]ɸ => p͡ɸ p͜ɸ
 
 [ᵐⁿᶯᶮᵑᶰ]b    => ᵐb ⁿb ᶯb ᶮb ᵑb ᶰb
 ```
+
+An asterisk `*` can be used inside a character set to allow for optional diacritics. The precedence of the "none"
+option works the same as any other character:
+
+```
+p[{2A}{46}*]  => p̪ p͆ p
+p[{2A}*{46}]  => p̪ p p͆
+p[*{2A}{46}]  => p p̪ p͆
+```
