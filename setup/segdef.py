@@ -200,7 +200,7 @@ def get_sub_graphemes(gl: str, pattern_indices: list[Tuple[int, int]]) -> list[s
     patterns = [gl[l:r] for (l, r) in pattern_indices]
     products = list(itertools.product(*patterns))
 
-    res = []
+    res: list[str] = []
 
     for prod in products:
         chars = []
@@ -211,6 +211,8 @@ def get_sub_graphemes(gl: str, pattern_indices: list[Tuple[int, int]]) -> list[s
         chars.append(gl[end+1:])
         res.append(''.join(chars))
 
+    for i, r in enumerate(res):
+        res[i] = r.replace("*", "")
     return res
 
 def render(gl: str, line_num: int) -> str:
