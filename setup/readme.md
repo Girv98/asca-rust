@@ -47,7 +47,7 @@ The first grapheme in the list is canonical: each subsequent grapheme is accepte
 Unicode character escapes can be used to insert valid unicode scalar characters such as diacritics.
 These take the form of `{....}` where `....` are hex digits `0-F`. Leading zero(es) can be omitted.
 
-For example, `r{325}` becomes `r̥`
+For example, `r{325}` is a sequence of `r U+0325` which becomes `r̥`
 
 Combining diacritic marks of unicode block `03__` can represented just by the meaningful bit. 
 Therefore, `r{25}` is equal to `r{325}`.
