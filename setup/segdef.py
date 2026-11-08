@@ -233,6 +233,8 @@ def render(gl: str, line_num: int) -> str:
 
         hex_str = gl[start + 1 : end]
 
+        if len(hex_str) == 2:
+            hex_str = "3" + hex_str
         try:
             res.append(chr(int(hex_str, 16)))
         except ValueError:
