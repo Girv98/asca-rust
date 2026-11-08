@@ -18,7 +18,8 @@
     - [ ] Add prenasalised fricatives
     - [ ] Add rhotic affricates i.e. `/d͡r/`
     - [ ] Add coarticulated segments with `[± double]`
-    - [ ] Encode voiceless segments with tails or place diacritics with `U+030A Combining Ring Above` rather than `U+0325 Combining Ring Below`
+    - [ ] Approx Diacritic should be `[+cons, +son]`
+    - [ ] Rename `strident` to `sibilant`
 - Rules
     - Allow sets to be negated 
     - Allow syllables to be negated 
