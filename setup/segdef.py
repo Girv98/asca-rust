@@ -31,8 +31,7 @@ def expect_char(line: str, line_num: int, i: int, char: str) -> int:
     if line[i] == char: 
         i += 1 
     else: 
-        print(f"Error(ln {line_num}): expected 'char' got '{line[i]}'")
-        sys.exit(1)
+        error(f"Error(ln {line_num}): expected '{char}' got '{line[i]}'")
     return i
     
 def skip_space(line: str, line_len: int, i: int) -> int:
@@ -55,16 +54,14 @@ def get_binary_str(s: str) -> str | None:
         if len(set(s)) == 1:
             return None
         else:
-            print("Error: if section contains '0', all must be '0'")
-            sys.exit(1)
+            error("Error: if section contains '0', all must be '0'")
 
     return s.replace('+', '1').replace('-', '0')
 
 def get_binary_str_not_null(s: str, node: str) -> str:
     val = get_binary_str(s)
     if val is None: 
-        print(f"Error: {node} node can't be null")
-        sys.exit(1)
+        error(f"Error: {node} node can't be null")
 
     return val
 
@@ -163,14 +160,14 @@ def read_file(file_path: str) -> list[SegmentRepr]:
     
             # print(f"{rut}|{man}|{lar}|{lab}|{cor}|{dor}|{phr} = {glyphs}")
 
-            if len(rut) != 3: print(f"Error(ln {line_n}): root node must be length 3");       sys.exit(1)
-            if len(man) != 9: print(f"Error(ln {line_n}): manner node must be length 9");     sys.exit(1)
-            if len(lar) != 3: print(f"Error(ln {line_n}): laryngeal node must be length 3");  sys.exit(1)
+            if len(rut) != 3: error(f"Error(ln {line_n}): root node must be length 3")
+            if len(man) != 9: error(f"Error(ln {line_n}): manner node must be length 9")
+            if len(lar) != 3: error(f"Error(ln {line_n}): laryngeal node must be length 3")
 
-            if len(lab) != 2: print(f"Error(ln {line_n}): labial node must be length 2");     sys.exit(1)
-            if len(cor) != 2: print(f"Error(ln {line_n}): coronal node must be length 2");    sys.exit(1)
-            if len(dor) != 6: print(f"Error(ln {line_n}): dorsal node must be length 6");     sys.exit(1)
-            if len(phr) != 2: print(f"Error(ln {line_n}): pharyngeal node must be length 2"); sys.exit(1)
+            if len(lab) != 2: error(f"Error(ln {line_n}): labial node must be length 2")
+            if len(cor) != 2: error(f"Error(ln {line_n}): coronal node must be length 2")
+            if len(dor) != 6: error(f"Error(ln {line_n}): dorsal node must be length 6")
+            if len(phr) != 2: error(f"Error(ln {line_n}): pharyngeal node must be length 2")
 
             sr = SegmentRepr(
                 glyphs=glyphs, line_num=line_n,
@@ -229,7 +226,7 @@ def render(gl: str, line_num: int) -> str:
 
         end = gl.find('}', start)
         if end == -1:
-            print(f"Error(ln {line_num}): '{{' has no matching '}}'"); sys.exit(1)
+            error(f"Error(ln {line_num}): '{{' has no matching '}}'")
 
         hex_str = gl[start + 1 : end]
 
@@ -238,7 +235,7 @@ def render(gl: str, line_num: int) -> str:
         try:
             res.append(chr(int(hex_str, 16)))
         except ValueError:
-            print(f"Error(ln {line_num}): '{hex_str}' is not a valid hexidecimal number"); sys.exit(1)
+            error(f"Error(ln {line_num}): '{hex_str}' is not a valid hexidecimal number")
 
         i = end + 1
 
@@ -252,7 +249,8 @@ def get_graphemes(gl: str, line_num: int) -> list[str]:
 
     i = 0
     while (start := gl.find("[", i)) >= 0:
-        if (end := gl.find("]", start)) < 0: print(f"Error(ln {line_num}): '[' has no matching ']'"); sys.exit(1)
+        if (end := gl.find("]", start)) < 0: 
+            error(f"Error(ln {line_num}): '[' has no matching ']'")
 
         if start + 1 == end: 
             print(f"Warning(ln {line_num}): empty pattern")
