@@ -192,28 +192,6 @@ def check_dups(reprs: list[SegmentRepr]):
     if len(duplicates):
         print("Error: Duplicates found\n"); [print(dup) for dup in duplicates]
         sys.exit(1)
-    
-
-def get_sub_graphemes(gl: str, pattern_indices: list[Tuple[int, int]]) -> list[str]:
-    if not pattern_indices: return [gl]
-
-    patterns = [gl[l:r] for (l, r) in pattern_indices]
-    products = list(itertools.product(*patterns))
-
-    res: list[str] = []
-
-    for prod in products:
-        chars = []
-        i = 0
-        for x, (start, end) in enumerate(pattern_indices):
-            chars.append(gl[i:start-1] + prod[x])
-            i = end+1
-        chars.append(gl[end+1:])
-        res.append(''.join(chars))
-
-    for i, r in enumerate(res):
-        res[i] = r.replace("*", "")
-    return res
 
 def render(gl: str, line_num: int) -> str:
     res = []
@@ -243,25 +221,74 @@ def render(gl: str, line_num: int) -> str:
 
     return "".join(res)
 
-def get_graphemes(gl: str, line_num: int) -> list[str]:
-
-    gl = render(gl, line_num)
-
-    p = []
-
-    i = 0
-    while (start := gl.find("[", i)) >= 0:
-        if (end := gl.find("]", start)) < 0: 
-            error(f"Error(ln {line_num}): '[' has no matching ']'")
-
-        if start + 1 == end: 
-            print(f"Warning(ln {line_num}): empty pattern")
-        else: 
-            p.append((start+1, end))
-        
-        i = end
+def evaluate(expr):
+    if isinstance(expr, str): return [expr]
     
-    return get_sub_graphemes(gl, p)
+    if isinstance(expr, list):
+        if not expr: return [""]
+        
+        match expr[0]:
+            case 'SET':
+                result = []
+                for sub_expr in expr[1:]:
+                    result.extend(evaluate(sub_expr))
+                return result
+            
+            case 'SEQ':
+                sub_evals = [evaluate(sub) for sub in expr[1:]]
+                combos = list(itertools.product(*sub_evals))
+
+                result = []
+                for i in range(len(sub_evals)):
+                    for combo in combos:
+                        perm = list(itertools.permutations(combo))[i]
+                        result.append("".join(perm))
+                return result
+
+            case _:
+                sub_evals = [evaluate(sub) for sub in expr]
+                prod = itertools.product(*sub_evals)
+                return ["".join(combo) for combo in prod]
+
+
+def parse_cluster(cluster:str, line_num: int) -> list[str | ...]:
+    stack = [[]]
+
+    for ch in cluster:
+        match ch:
+            case '[': 
+                stack[-1].append(["SET"])
+                stack.append(stack[-1][-1])
+            case ']': 
+                if stack[-1][0] != "SET":
+                    error(f"Error(ln {line_num}): ASDASDs")
+                stack.pop()
+                if not stack:
+                    error(f"Error(ln {line_num}): ASDASDs")
+            case '<': 
+                stack[-1].append(["SEQ"])
+                stack.append(stack[-1][-1])
+            case '>': 
+                if stack[-1][0] != "SEQ":
+                    error(f"Error(ln {line_num}): ASDASDs")
+                stack.pop()
+                if not stack:
+                    error(f"Error(ln {line_num}): ASDASDs")
+            case _:
+                stack[-1].append(ch)
+    if len(stack) > 1:
+        error(f"Error(ln {line_num}): ASDADASDASSDs")
+
+    return stack.pop()
+
+def get_graphemes(cluster: str, line_num: int) -> list[str]:
+    cluster = render(cluster, line_num)
+    ast = parse_cluster(cluster, line_num)
+    output = evaluate(ast)
+
+    for i, r in enumerate(output):
+        output[i] = r.replace("*", "")
+    return output
     
 def error(s: str):
     print(s, file=sys.stderr)
