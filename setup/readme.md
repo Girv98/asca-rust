@@ -69,6 +69,11 @@ p[{61}{5C}]ɸ => p͡ɸ p͜ɸ
 [ᵐⁿᶯᶮᵑᶰ]b    => ᵐb ⁿb ᶯb ᶮb ᵑb ᶰb
 ```
 
+Nested set are allowed but, by their nature, they are often unnecessary:
+```
+[1[2[3[4[5]]]]] == [12345]
+```
+
 An asterisk `*` can be used inside a character set to allow for optional diacritics. The precedence of the "none"
 option works the same as any other character:
 
@@ -76,4 +81,17 @@ option works the same as any other character:
 p[{2A}{46}*]  => p̪ p͆ p
 p[{2A}*{46}]  => p̪ p p͆
 p[*{2A}{46}]  => p p̪ p͆
+```
+
+#### Permutations
+
+Characters can be placed inside angle brackets `<>` to produce all permutations:
+
+```
+d<na> => dna dan
+```
+
+Character sets can be used inside a permutation, and vice versa:
+```
+n<{20}[{0A}{25}]>  =>  n{20}{0A} n{20}{25} n{0A}{20} n{25}{20}
 ```
