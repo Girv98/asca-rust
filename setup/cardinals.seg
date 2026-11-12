@@ -344,7 +344,7 @@
                                                                                         # V  Lateral Trill
                                                                                         # Vl Lateral Trilled Affricate
                                                                                         # V  Lateral Trilled Affricate
-++-|--+- ---- -|---|00|--|000000|00 = ɭ<[{06}{2E}][{25}{0A}]>                           # Vl Lateral Tap
+++-|--+- ---- -|---|00|--|000000|00 = ɭ<[{25}{0A}][{06}{2E}]>                           # Vl Lateral Tap
 ++-|--+- ---- -|+--|00|--|000000|00 = ɭ[{06}{2E}]                                       # V  Lateral Tap
 +--|+-+- ---- -|---|00|--|000000|00 = ꞎ                                                # Vl Lateral Fricative
 +--|+-+- ---- -|+--|00|--|000000|00 = 𝼅                                                 # V  Lateral Fricative
@@ -408,12 +408,12 @@
                                                                                         # V  Lateral Trill
                                                                                         # Vl Lateral Trilled Affricate
                                                                                         # V  Lateral Trilled Affricate
-++-|--+- ---- -|---|00|-+|+-+---|00 = ʎ<[{06}{2E}][{25}{0A}]>                           # Vl Lateral Tap
+++-|--+- ---- -|---|00|-+|+-+---|00 = ʎ<[{25}{0A}][{06}{2E}]>                           # Vl Lateral Tap
 ++-|--+- ---- -|+--|00|-+|+-+---|00 = ʎ[{06}{2E}]                                       # V  Lateral Tap
 +--|+-+- ---- -|---|00|-+|+-+---|00 = 𝼆                                                 # Vl Lateral Fricative
 +--|+-+- ---- -|+--|00|-+|+-+---|00 = 𝼆{2C}                                             # V  Lateral Fricative
 +--|--+- +--- -|---|00|-+|+-+---|00 = c[{61}{5C}]𝼆                                      # Vl Lateral Affricate
-+--|--+- +--- -|+--|00|-+|+-+---|00 = ɟ[{61}{5C}]𝼆{2C}                                  # V  Lateral Affricate
++--|--+- +--- -|+--|00|-+|+-+---|00 = ɟ[{61}{5C}]𝼆[{2C}*]                                  # V  Lateral Affricate
 ++-|+++- ---- -|---|00|-+|+-+---|00 = ʎ[{25}{0A}]                                       # Vl Lateral Approx
 ++-|+++- ---- -|+--|00|-+|+-+---|00 = ʎ                                                 # V  Lateral Approx
 
@@ -455,12 +455,12 @@
                                                                                         # V  Lateral Trill
                                                                                         # Vl Lateral Trilled Affricate
                                                                                         # V  Lateral Trilled Affricate
-++-|--+- ---- -|---|00|00|-++---|00 = ʟ<[{06}{2E}][{25}{0A}]>                           # Vl Lateral Tap
+++-|--+- ---- -|---|00|00|-++---|00 = ʟ<[{25}{0A}][{06}{2E}]>                           # Vl Lateral Tap
 ++-|--+- ---- -|+--|00|00|-++---|00 = ʟ[{06}{2E}]                                       # V  Lateral Tap
 +--|+-+- ---- -|---|00|00|-++---|00 = 𝼄                                                 # Vl Lateral Fricative
 +--|+-+- ---- -|+--|00|00|-++---|00 = 𝼄{2C}                                             # V  Lateral Fricative
 +--|--+- +--- -|---|00|00|-++---|00 = k[{61}{5C}]𝼄                                      # Vl Lateral Affricate
-+--|--+- +--- -|+--|00|00|-++---|00 = ɡ[{61}{5C}]𝼄{2C}                                  # V  Lateral Affricate
++--|--+- +--- -|+--|00|00|-++---|00 = ɡ[{61}{5C}]𝼄[{2C}*]                                  # V  Lateral Affricate
 ++-|+++- ---- -|---|00|00|-++---|00 = ʟ[{25}{0A}]                                       # Vl Lateral Approx
 ++-|+++- ---- -|+--|00|00|-++---|00 = ʟ                                                 # V  Lateral Approx
 
