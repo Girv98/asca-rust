@@ -107,20 +107,17 @@ impl SetChoice {
         false
     }
 
-    // TODO: Should this be allowed if there are multiple items? 
-    fn join_params(&mut self, matrix: &Modifiers, matrix_pos: Position) -> Result<(), RuleSyntaxError> {
-        
-        let node_mods: Vec<(usize, &Option<ModKind>)> = matrix.nodes.iter().enumerate().filter(|(_, nk)| nk.is_some()).collect();
-        let feat_mods: Vec<(usize, &Option<ModKind>)> = matrix.feats.iter().enumerate().filter(|(_, fk)| fk.is_some()).collect();
-        
-        // item = Reference | Segment | Boundary | Syll
-        for item in &mut self.items {
-            match &mut item.kind {
+    fn join_params_item( 
+        node_mods: &Vec<(usize, &Option<ModKind>)>,
+        feat_mods: &Vec<(usize, &Option<ModKind>)>,
+        item: &mut ParseItem, matrix: &Modifiers, matrix_pos: Position
+    ) -> Result<(), RuleSyntaxError> {
+        match &mut item.kind {
                 ParseElement::Reference(_, m @ None) | ParseElement::Ipa(_, m @ None) => *m = Some(*matrix),
                 
                 ParseElement::Reference(_, Some(m)) | ParseElement::Ipa(_, Some(m)) | ParseElement::Matrix(m, _, _) => {
-                    for (ni, nk) in &node_mods { m.nodes[*ni] = **nk; }
-                    for (fi, fk) in &feat_mods { m.feats[*fi] = **fk; }
+                    for (ni, nk) in node_mods { m.nodes[*ni] = **nk; }
+                    for (fi, fk) in feat_mods { m.feats[*fi] = **fk; }
 
                     if let Some(stress) = matrix.suprs.stress {
                         m.suprs.stress = Some(stress)
@@ -151,11 +148,29 @@ impl SetChoice {
                     }
                 },
                 
-                ParseElement::ExtlBound | // => unimplemented!(),
-                ParseElement::SyllBound | ParseElement::WordBound => return Err(RuleSyntaxError::SetSyllBoundMods(item.position, matrix_pos)),
+                ParseElement::Negation(item) => Self::join_params_item(node_mods, feat_mods, item, matrix, matrix_pos)?,
+                
+                ParseElement::ExtlBound | 
+                ParseElement::SyllBound | 
+                ParseElement::WordBound => return Err(RuleSyntaxError::SetSyllBoundMods(item.position, matrix_pos)),
 
-                _ => unreachable!()
+
+                ParseElement::EmptySet | ParseElement::Metathesis | ParseElement::MetaOrdered | 
+                ParseElement::Ellipsis | ParseElement::OptEllipsis | ParseElement::Optional(..) | ParseElement::Set(..) => unreachable!()
             }
+
+            Ok(())
+    }
+
+    // TODO: Should this be allowed if there are multiple items? 
+    fn join_params(&mut self, matrix: &Modifiers, matrix_pos: Position) -> Result<(), RuleSyntaxError> {
+        
+        let node_mods: Vec<(usize, &Option<ModKind>)> = matrix.nodes.iter().enumerate().filter(|(_, nk)| nk.is_some()).collect();
+        let feat_mods: Vec<(usize, &Option<ModKind>)> = matrix.feats.iter().enumerate().filter(|(_, fk)| fk.is_some()).collect();
+        
+        // item = Reference | Segment | Boundary | Syll
+        for item in &mut self.items {
+            Self::join_params_item(&node_mods, &feat_mods, item, matrix, matrix_pos)?;
         }
         
         Ok(())
@@ -1628,14 +1643,14 @@ impl Parser {
     fn get_neg_term(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
         let Some(neg) = self.eat_expect(TokenKind::Negation) else { return Ok(None) };
 
-        if let Some(x) = self.get_seg()?    { 
+        if let Some(x) = self.get_seg()? { 
             let mut pos = x.position;
             pos.start -= 1;
             let y = ParseItem::new(ParseElement::Negation(Box::new(x)), pos);
             return Ok(Some(y))
         }
         
-        if let Some(x) = self.get_ref()?    { 
+        if let Some(x) = self.get_ref()? { 
             let mut pos = x.position;
             pos.start -= 1;
             let y = ParseItem::new(ParseElement::Negation(Box::new(x)), pos);
