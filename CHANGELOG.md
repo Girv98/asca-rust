@@ -1,3 +1,35 @@
+NEXT RELEASE
+==================
+[0.10.3...master](https://github.com/Girv98/asca-rust/compare/0.10.3...master)
+
+Breaking Changes:
+* Lib: 
+    * Labiodentals `p͡f`, `b͡v`, `f`, `v` are now `[-strident]`
+        * This makes ɸ > f just a change of [+labiodental]
+    * `[+nasal]` to fricatives, trills, and implosives to produce pre-nasalisation instead of nasalisation
+
+Non-breaking Changes:
+* Lib:
+    * `strident` feature to be renamed `sibilant`
+        * As `strident` now only encodes s-like segments, this new name is more accurate
+        * `strident` and its variants will still be valid, so this is a non-breaking change
+
+Features:
+* Lib:
+    * Doubly articulated and heterorganic consonants
+        * New `double` feature to encode doubly articulated stops, implosives, fricatives etc. such as `t͡p`, `q͜ʡ`, and `ʃ͜x`
+    * Trilled affricates, rhotic fricatives, and rhotic affricates such as `d͡r` and `d͡ɻ̝`
+    * Non-rhotic taps such as `t̆`
+
+Fixes:
+* Lib:
+    * `ᵐp̪` is no longer wrongly [+voice] and clashing with `ᵐb̪`
+    * Approximant diacritic now has a payload of `[+son, +approx, +cont]` from just `[+approx]`
+
+Meta: 
+* New `.seg` file format to allow for easier additions/changes to inbuild segments. 
+    * Allows for alternative graphemes to be easily mapped to the same segment
+
 [0.10.3](https://github.com/Girv98/asca-rust/releases/tag/0.10.3) (2026-09-09)
 ==================
 [0.10.2...0.10.3](https://github.com/Girv98/asca-rust/compare/0.10.2...0.10.3)
