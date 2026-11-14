@@ -107,12 +107,12 @@ class SegmentRepr:
         
     def __eq__(self, other):
         return (self.rut == other.rut
-        and self.man == other.man
-        and self.lar == other.lar
-        and self.lar == other.lar
-        and self.cor == other.cor
-        and self.dor == other.dor
-        and self.phr == other.phr)
+            and self.man == other.man
+            and self.lar == other.lar
+            and self.lar == other.lar
+            and self.cor == other.cor
+            and self.dor == other.dor
+            and self.phr == other.phr)
 
     def __hash__(self):
         return hash((
