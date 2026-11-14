@@ -577,8 +577,10 @@ mod tests {
     #[test]
     fn edge_cases() {
         let word = Word::new("i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ".to_owned()).unwrap();
-
-        assert_eq!(&word.render(), "i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ")
+        assert_eq!(&word.render(), "i̯.y̯.ɯ̯.u̯.æ̯ʷ.ɐ̯ʷ.i̯ᵊ.y̯ᵊ.ɯ̯ᵊ.u̯ᵊ.æ̯ʷᵊ.ɐ̯ʷᵊ.nˡ");
+        
+        let word = Word::new("\"Nb.ɸ̞̃".to_owned()).unwrap();
+        assert_eq!(&word.render(), "ᵐb.ɸ̞̃");
     }
     
     #[test]
