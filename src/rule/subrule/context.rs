@@ -708,7 +708,7 @@ impl SubRule {
         Ok(false)
     }
 
-    fn context_match_set_choice_item(&self, s: &ParseItem, phrase: &Phrase, pos: &mut SegPos, forwards: bool, within_struct: Option<usize>) -> Result<bool, RuleRuntimeError> {
+    fn context_match_set_choice_item(&self, s: &ParseItem, phrase: &Phrase, pos: &mut SegPos, forwards: bool, within_struct: Option<usize>, negate: bool) -> Result<bool, RuleRuntimeError> {
         match &s.kind {
                 ParseElement::SyllBound if within_struct.is_some() => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
                 ParseElement::WordBound if within_struct.is_some() => Err(RuleRuntimeError::BoundaryInsideStruct(s.position)),
@@ -718,17 +718,21 @@ impl SubRule {
 
                 ParseElement::Structure(items, stress, tone, refr) => self.context_match_structure(items, stress, tone, refr, phrase, pos, forwards, s.position),
 
-                ParseElement::Reference(vt, mods) => self.context_match_ref(vt, mods, phrase, pos, forwards, s.position, within_struct, false), // TODO
-                ParseElement::Ipa(seg, mods) => if self.context_match_ipa(seg, mods, phrase, *pos, s.position, false)? { // TODO
+                ParseElement::Reference(vt, mods) => self.context_match_ref(vt, mods, phrase, pos, forwards, s.position, within_struct, negate),
+                ParseElement::Ipa(seg, mods) => if self.context_match_ipa(seg, mods, phrase, *pos, s.position, negate)? { 
                     self.matrix_increment(phrase, pos);
                     pos.increment(phrase);
                     Ok(true)
                 } else {Ok(false)},
-                ParseElement::Matrix(mods, narrow, refr) => self.context_match_matrix(mods, narrow, refr, phrase, pos, s.position, false), // TODO
+                ParseElement::Matrix(mods, narrow, refr) => self.context_match_matrix(mods, narrow, refr, phrase, pos, s.position, negate),
                 ParseElement::Syllable(stress, tone, refr) => self.context_match_syll(stress, tone, refr, phrase, pos, forwards, s.position),
                 ParseElement::WordBound => Ok(phrase[pos.word_index].out_of_bounds(*pos)),
                 ParseElement::SyllBound => Ok(pos.at_syll_start()),
-                _ => unimplemented!(),
+
+                ParseElement::Negation(item) => self.context_match_set_choice_item(item, phrase, pos, forwards, within_struct, true),
+                
+                ParseElement::EmptySet | ParseElement::Metathesis  | ParseElement::MetaOrdered | ParseElement::ExtlBound |
+                ParseElement::Ellipsis | ParseElement::OptEllipsis | ParseElement::Set(..) | ParseElement::Optional(..) => unimplemented!(),
         }
     }
 
@@ -738,7 +742,7 @@ impl SubRule {
         let back_refs = self.references.borrow().clone();
 
         for item in &choice.items {
-            if !self.context_match_set_choice_item(item, phrase, pos, forwards, within_struct)? {
+            if !self.context_match_set_choice_item(item, phrase, pos, forwards, within_struct, false)? {
                 *pos = back_pos;
                 *self.alphas.borrow_mut() = back_alphas.clone();
                 *self.references.borrow_mut() = back_refs.clone();

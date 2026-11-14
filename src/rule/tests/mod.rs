@@ -1518,6 +1518,14 @@ fn negation_set() {
 }
 
 #[test]
+fn negation_set_env() {
+    assert!(run("%=1 > [tone: 1] / {-1} _", "ta5.sa5", "ta5.sa1"));
+    assert!(run("h > * / _{-V,V:[+hi]}", "ahk", "ak"));
+    assert!(run("h > * / _{-V,V:[+hi]}", "ahi", "ai"));
+}
+
+
+#[test]
 fn negation_opt() {
     assert!(run("[] > [+hi] / (-V, 1:)_",   "fa.ne", "faʲ.ni"));
 }
