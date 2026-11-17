@@ -1490,7 +1490,15 @@ fn negation() {
 }
 
 #[test]
-fn negation_syll_context() {
+fn negation_syll_ref_input() {
+    assert!(run("%=1 -1 > [+str] [+str]", "ka.ka", "ka.ka"));
+    assert!(run("%=1 -1 > [+str] [+str]", "ka.me", "'ka'me"));
+    assert!(run("%=1 -1:[tone:5] > [+str] [+str]", "ka.ka", "'ka'ka"));
+    assert!(run("%=1 -1:[tone:5] > [+str] [+str]", "ka.ka5", "ka.ka5"));
+}
+
+#[test]
+fn negation_syll_ref_context() {
     assert!(run("%=1 > [+str] / -1_", "ka.ka", "ka.ka"));
 
     assert!(run("%=1 > [+str] / -1:[tone:5]_", "ka5.ka", "ka5.ka"));
@@ -1502,8 +1510,6 @@ fn negation_syll_context() {
     assert!(run("%=1 > [+str] / -1:[+str]_", "ka.ka", "ka'ka"));
     assert!(run("%=1 > [+str] / -1:[+str]_", "ke.ka", "ke'ka"));
     assert!(run("%=1 > [+str] / -1:[+str]_", "'ke.ka", "'ke'ka"));
-
-
 }
 
 #[test]

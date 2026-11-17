@@ -859,7 +859,7 @@ impl SubRule {
         let mut match_stress = cur_syll.stress == syll_to_match.stress;
         let mut match_tone = cur_syll.tone == syll_to_match.tone;
         
-        if let Some(Modifiers { nodes: _, feats: _, suprs }) = mods {
+        if let Some(Modifiers { suprs , .. }) = mods {
             if suprs.stress.is_some() {
                 match_stress = self.match_stress(&suprs.stress, cur_syll, err_pos)?
             }

@@ -505,20 +505,24 @@ impl SubRule {
         let csi = pos.syll_index;
         let cur_syll = &phrase[cwi].syllables[csi];
 
-        if let Some(m) = mods {
-            if !self.match_stress(&m.suprs.stress, cur_syll, err_pos)? && !negate {
-                return Ok(false) 
-            } 
-            if let Some(t) = &m.suprs.tone.as_ref() && !self.match_tone(t, cur_syll) && !negate {
-                return Ok(false) 
+        let match_segs = cur_syll.segments == syll_to_match.segments;
+        let mut match_stress = cur_syll.stress == syll_to_match.stress;
+        let mut match_tone = cur_syll.tone == syll_to_match.tone;
+        
+        if let Some(Modifiers { suprs , .. }) = mods {
+            if suprs.stress.is_some() {
+                match_stress = self.match_stress(&suprs.stress, cur_syll, err_pos)?
             }
-            if cur_syll.segments != syll_to_match.segments && !negate {
-                return Ok(false)
+
+            if let Some(t) = suprs.tone.as_ref() {
+                match_tone = self.match_tone(t, cur_syll)
             }
-            
-        } else if (!negate && *cur_syll != *syll_to_match) || (negate && *cur_syll == *syll_to_match) {
+        } 
+        
+        if !negate ^ (match_segs && match_stress && match_tone) {
             return Ok(false)
         }
+
         captures.push(MatchElement::Syllable(cwi, csi, err_pos));
 
         *state_index += 1;
