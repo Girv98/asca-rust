@@ -24,8 +24,8 @@ impl fmt::Debug for Place {
         fn u8_to_str(f: &mut fmt::Formatter<'_>, num: u16, len: u8) -> fmt::Result {
             for i in (0..len).rev() {
                 match num & (1 << i) != 0 {
-                    true => write!(f, "+", )?,
-                    false => write!(f, "-", )?,
+                    true => write!(f, "+")?,
+                    false => write!(f, "-")?
                 }
             }
             Ok(())
@@ -57,7 +57,7 @@ impl std::ops::Deref for Place {
     type Target = Option<NonZeroU16>;
 
     fn deref(&self) -> &Self::Target {
-       &self.0
+        &self.0
     }
 }
 
@@ -68,10 +68,10 @@ impl std::ops::DerefMut for Place {
 }
 
 impl Place {
-    const LAB_BIT: u16 =0x8000;
-    const COR_BIT: u16 =0x4000;
-    const DOR_BIT: u16 =0x2000;
-    const PHR_BIT: u16 =0x1000;
+    const LAB_BIT: u16 = 0x8000;
+    const COR_BIT: u16 = 0x4000;
+    const DOR_BIT: u16 = 0x2000;
+    const PHR_BIT: u16 = 0x1000;
 
     const LAB_LOW: u16 = 0xc00;
     const COR_LOW: u16 = 0x300;
@@ -130,12 +130,12 @@ impl Place {
             None => false,
         }
     }
-    
+
     /// Returns whether the dorsal subnode is a `None` value
     pub fn dorsal_is_none(&self) -> bool {
         !self.dorsal_is_some()
     }
-    
+
     /// Returns whether the pharyngeal subnode is a `Some` value
     pub fn pharyngeal_is_some(&self) -> bool {
         match self.0 {
@@ -143,7 +143,7 @@ impl Place {
             None => false,
         }
     }
-    
+
     /// Returns whether the pharyngeal subnode is a `None` value
     pub fn pharyngeal_is_none(&self) -> bool {
         !self.pharyngeal_is_some()
@@ -185,12 +185,12 @@ impl Place {
         }
     }
 
-    /// Sets the labial subnode to the input value 
+    /// Sets the labial subnode to the input value
     /// # Panics
     /// Mask values above 3 `0b11` are not used and will panic in debug
     pub fn set_labial(&mut self, bits: Option<u16>) {
         debug_assert!(bits <= Some(Self::LAB_MSK), "Only lower two bits are used");
-        
+
         self.0 = NonZeroU16::new(match bits {
             Some(bts) => match &self.0 {
                 Some(num) => ((num.get() | Self::LAB_BIT) & !Self::LAB_LOW) | (bts << Self::LAB_OFF),
@@ -203,7 +203,7 @@ impl Place {
         });
     }
 
-    /// Sets the coronal subnode to the input value 
+    /// Sets the coronal subnode to the input value
     /// # Panics
     /// Mask values above 3 `0b11` are not used and will panic in debug
     pub fn set_coronal(&mut self, bits: Option<u16>) {
@@ -221,12 +221,12 @@ impl Place {
         });
     }
 
-    /// Sets the dorsal subnode to the input value 
+    /// Sets the dorsal subnode to the input value
     /// # Panics
-    /// Mask values above 63 `0b111111` are not used and will panic in debug 
+    /// Mask values above 63 `0b111111` are not used and will panic in debug
     pub fn set_dorsal(&mut self, bits: Option<u16>) {
         debug_assert!(bits <= Some(Self::DOR_MSK), "Only lower six bits are used");
-        
+
         self.0 = NonZeroU16::new(match bits {
             Some(bts) => match &self.0 {
                 Some(num) => ((num.get() | Self::DOR_BIT) & !Self::DOR_LOW) | (bts << Self::DOR_OFF),
@@ -238,13 +238,13 @@ impl Place {
             },
         });
     }
-    
-    /// Sets the pharyngeal subnode to the input value 
+
+    /// Sets the pharyngeal subnode to the input value
     /// # Panics
     /// Mask values above 3 `0b11` are not used and will panic in debug
     pub fn set_pharyngeal(&mut self, bits: Option<u16>) {
         debug_assert!(bits <= Some(Self::PHR_MSK), "Only lower two bits are used");
-        
+
         self.0 = NonZeroU16::new(match bits {
             Some(bts) => match &self.0 {
                 Some(num) => ((num.get() | Self::PHR_BIT) & !Self::PHR_LOW) | bts,
