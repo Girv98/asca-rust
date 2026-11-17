@@ -854,20 +854,25 @@ impl SubRule {
             segs.make_contiguous().reverse();
             segs
         };
+
+        let match_segs = cur_syll.segments == segs_to_match;
+        let mut match_stress = cur_syll.stress == syll_to_match.stress;
+        let mut match_tone = cur_syll.tone == syll_to_match.tone;
         
         if let Some(Modifiers { nodes: _, feats: _, suprs }) = mods {
-            if !self.match_stress(&suprs.stress, cur_syll, err_pos)? && !negate {
-                return Ok(false)
+            if suprs.stress.is_some() {
+                match_stress = self.match_stress(&suprs.stress, cur_syll, err_pos)?
             }
-            if let Some(t) = suprs.tone.as_ref() && !self.match_tone(t, cur_syll) && !negate {
-                return Ok(false)
+
+            if let Some(t) = suprs.tone.as_ref() {
+                match_tone = self.match_tone(t, cur_syll)
             }
-            if cur_syll.segments != syll_to_match.segments && !negate {
-                return Ok(false)
-            }
-        } else if (cur_syll.segments != segs_to_match || cur_syll.stress != syll_to_match.stress || cur_syll.tone != syll_to_match.tone) && !negate {
+        } 
+        
+        if !negate ^ (match_segs && match_stress && match_tone) {
             return Ok(false)
         }
+
         pos.syll_index += 1;
         pos.seg_index = 0;
         Ok(true)

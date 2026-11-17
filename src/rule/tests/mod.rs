@@ -1487,7 +1487,33 @@ fn negation() {
     assert!(run("V > [+long] / <(..)_-G>", "saj.nam", "saj.na:m"));
 
     assert!(run("%=1 > [tone: 1] / -1 _", "ta5.sa5", "ta5.sa1"));
+}
 
+#[test]
+fn negation_syll_context() {
+    assert!(run("%=1 > [+str] / -1_", "ka.ka", "ka.ka"));
+
+    assert!(run("%=1 > [+str] / -1:[tone:5]_", "ka5.ka", "ka5.ka"));
+    assert!(run("%=1 > [+str] / -1:[tone:5]_", "ka4.ka", "ka4'ka"));
+    assert!(run("%=1 > [+str] / -1:[tone:5]_", "ke4.ka", "ke4'ka"));
+    assert!(run("%=1 > [+str] / -1:[tone:5]_", "ke5.ka", "ke5'ka"));
+
+    assert!(run("%=1 > [+str] / -1:[+str]_", "'ka.ka", "'ka.ka"));
+    assert!(run("%=1 > [+str] / -1:[+str]_", "ka.ka", "ka'ka"));
+    assert!(run("%=1 > [+str] / -1:[+str]_", "ke.ka", "ke'ka"));
+    assert!(run("%=1 > [+str] / -1:[+str]_", "'ke.ka", "'ke'ka"));
+
+
+}
+
+#[test]
+fn negation_matrix_context() {
+    assert!(run("% > [+str] / -[tone:5]_", "ka5.ka", "ka5.ka"));
+    assert!(run("% > [+str] / -[tone:5]_", "ka4.ka", "ka4'ka"));
+
+    assert!(run("% > [+str] / -[+str]_", "'ka.ka", "'ka.ka"));
+    assert!(run("% > [+str] / -[+str]_", "ka.ka", "ka'ka"));
+    assert!(run("% > [+str] / -[+str]_", "ke.ka", "ke'ka"));
 }
 
 #[test]
