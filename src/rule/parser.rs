@@ -1065,17 +1065,15 @@ impl Parser {
             if let Err((mod_index, is_node)) = ipa.check_and_apply_diacritic(&DIACRITS[*d as usize]) {
                 if !is_node {
                     let ft = FeatKind::from_usize(mod_index);
-                    let positive = match &DIACRITS[*d as usize].prereqs.feats[mod_index].unwrap() {
-                        ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
-                        _ => unreachable!(),
-                    };
+                    let positive = if let Some(bin_mod) = DIACRITS[*d as usize].prereqs.feats[mod_index] {
+                        bin_mod == BinMod::Positive
+                    } else { unreachable!() };
                     return Err(RuleSyntaxError::DiacriticDoesNotMeetPreReqsFeat(pos, dia.position, ft.to_string(), positive))
                 } else {
                     let nt = NodeKind::from_usize(mod_index);
-                    let positive = match &DIACRITS[*d as usize].prereqs.nodes[mod_index].unwrap() {
-                        ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
-                        _ => unreachable!(),
-                    };
+                    let positive = if let Some(bin_mod) = DIACRITS[*d as usize].prereqs.nodes[mod_index] {
+                        bin_mod == BinMod::Positive
+                    } else { unreachable!() };
                     return Err(RuleSyntaxError::DiacriticDoesNotMeetPreReqsNode(pos, dia.position, nt.to_string(), positive))
                 };
             }
@@ -1192,13 +1190,13 @@ impl Parser {
 
         for diacritic in diacrits {
             for (ni, node) in diacritic.payload.nodes.iter().enumerate() {
-                if node.is_some() {
-                    args.nodes[ni] = *node;
+                if let Some(n) = node {
+                    args.nodes[ni] = Some(ModKind::Binary(*n));
                 }
             }
             for (fi, feat) in diacritic.payload.feats.iter().enumerate() {
-                if feat.is_some() {
-                    args.feats[fi] = *feat;
+                if let Some(f) = feat {
+                    args.feats[fi] = Some(ModKind::Binary(*f));
                 }
             }
         }

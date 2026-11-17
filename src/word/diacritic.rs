@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::rule::{AlphaMod, BinMod, ModKind};
+use crate::rule::BinMod;
 use super::{FeatKind, NodeKind};
 
 #[derive(Debug, Clone)]
@@ -14,8 +14,8 @@ pub(crate) struct Diacritic {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DiaMods {
-    pub(crate) nodes: [Option<ModKind>; NodeKind::Pharyngeal as usize + 1],
-    pub(crate) feats: [Option<ModKind>; FeatKind::RetractedTongueRoot as usize + 1],
+    pub(crate) nodes: [Option<BinMod>; NodeKind::Pharyngeal as usize + 1],
+    pub(crate) feats: [Option<BinMod>; FeatKind::RetractedTongueRoot as usize + 1],
 }
 
 impl DiaMods {
@@ -34,17 +34,8 @@ impl fmt::Debug for DiaMods {
         for val in self.nodes.iter() {
             match val {
                 Some(v) => match v {
-                    ModKind::Binary(b) => match b {
-                        BinMod::Negative => nodes.push('-'),
-                        BinMod::Positive => nodes.push('+'),
-                    },
-                    ModKind::Alpha(am) => match am {
-                        AlphaMod::Alpha(a) => nodes.push(a.as_char()),
-                        AlphaMod::InvAlpha(ia) => {
-                            nodes.push('-');
-                            nodes.push(ia.as_char());
-                        },
-                    },
+                    BinMod::Negative => nodes.push('-'),
+                    BinMod::Positive => nodes.push('+'),
                 },
                 None => nodes.push('0'),
             }
@@ -54,17 +45,8 @@ impl fmt::Debug for DiaMods {
         for val in self.feats.iter() {
             match val {
                 Some(v) => match v {
-                    ModKind::Binary(b) => match b {
-                        BinMod::Negative => feats.push('-'),
-                        BinMod::Positive => feats.push('+'),
-                    },
-                    ModKind::Alpha(am) => match am {
-                        AlphaMod::Alpha(a) => feats.push(a.as_char()),
-                        AlphaMod::InvAlpha(ia) => {
-                            feats.push('-');
-                            feats.push(ia.as_char());
-                        },
-                    },
+                    BinMod::Negative => feats.push('-'),
+                    BinMod::Positive => feats.push('+'),
                 },
                 None => feats.push('0'),
             }

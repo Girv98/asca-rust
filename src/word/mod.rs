@@ -593,15 +593,15 @@ impl Word {
                             Err((mod_index, is_node)) => {
                                 if !is_node {
                                     let ft = FeatKind::from_usize(mod_index);
-                                    let pos = match d.prereqs.feats[mod_index].unwrap() {
-                                        ModKind::Binary(bin_mod) => bin_mod == BinMod::Positive,
+                                    let pos = match d.prereqs.feats[mod_index] {
+                                        Some(b) => b == BinMod::Positive,
                                         _ => unreachable!(),
                                     };
                                     return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsFeat(input_txt.as_ref().to_owned(), *i, ft.to_string(), pos).into())
                                 } else {
                                     let nt = NodeKind::from_usize(mod_index);
-                                    let pos = match d.prereqs.nodes[mod_index].unwrap() {
-                                        ModKind::Binary(bin_mod) => bin_mod == BinMod::Positive,
+                                    let pos = match d.prereqs.nodes[mod_index] {
+                                        Some(b) => b == BinMod::Positive,
                                         _ => unreachable!(),
                                     };
                                     return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsNode(input_txt.as_ref().to_owned(), *i, nt.to_string(), pos).into())

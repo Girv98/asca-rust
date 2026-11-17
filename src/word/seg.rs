@@ -157,7 +157,7 @@ impl Segment {
             let mut current_segment = candidate_segment;
             let mut buffer = cand_graph.clone();
             for d in DIACRITS.iter() {
-                if self.match_modifiers(&d.prereqs).is_ok() && self.match_modifiers(&d.payload).is_ok() {
+                if self.match_diacritic_modifiers(&d.prereqs).is_ok() && self.match_diacritic_modifiers(&d.payload).is_ok() {
                     let before = current_segment;
                     current_segment.apply_diacritic_payload(&d.payload);
                     if current_segment == before || current_segment == candidate_segment {
@@ -174,44 +174,30 @@ impl Segment {
         None
     }
 
-    pub(crate) fn match_modifiers(&self, mods: &DiaMods) -> Result<(), (usize, bool)> {
+    pub(crate) fn match_diacritic_modifiers(&self, mods: &DiaMods) -> Result<(), (usize, bool)> {
         for (i, m) in mods.feats.iter().enumerate() {
-            if !self.match_feat_mod(m, i) { return Err((i, false)) }
+            if !self.match_diacritic_feat_mod(m, i) { return Err((i, false)) }
         }
         for (i, m) in mods.nodes.iter().enumerate() {
-            if !self.match_node_mod(m, i) { return Err((i, true)) }
+            if !self.match_diacritic_node_mod(m, i) { return Err((i, true)) }
         }
         Ok(())
     }
 
-    pub(crate) fn match_node_mod(&self, md: &Option<ModKind>, node_index: usize) -> bool {
-        let Some(kind) = md else { return true };
-        self.match_node_mod_kind(kind, NodeKind::from_usize(node_index))
-    }
-
-    pub(crate) fn match_feat_mod(&self, md: &Option<ModKind>, feat_index: usize) -> bool {
-        let Some(kind) = md else { return true };
-        let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
-        self.match_feat_mod_kind(kind, node, mask)
-    }
-
-    pub(crate) fn match_node_mod_kind(&self, kind: &ModKind, node: NodeKind) -> bool {
-        // NOTE: Alphas don't make sense here
-        // this is a consequence of using ModKind
-        let ModKind::Binary(bt) = kind else { unreachable!() };
-        match bt {
-            BinMod::Negative => self.is_node_none(node),
-            BinMod::Positive => self.is_node_some(node),
+    pub(crate) fn match_diacritic_node_mod(&self, md: &Option<BinMod>, node_index: usize) -> bool {
+        match md {
+            Some(BinMod::Negative) => self.is_node_none(NodeKind::from_usize(node_index)),
+            Some(BinMod::Positive) => self.is_node_some(NodeKind::from_usize(node_index)),
+            _ => true
         }
     }
 
-    pub(crate) fn match_feat_mod_kind(&self, kind: &ModKind, node: NodeKind, mask: u16) -> bool {
-        // NOTE: Alphas don't make sense here
-        // this is a consequence of using ModKind
-        let ModKind::Binary(bt) = kind else { unreachable!() };
-        match bt {
-            BinMod::Negative => self.feat_match(node, mask, false),
-            BinMod::Positive => self.feat_match(node, mask, true),
+    pub(crate) fn match_diacritic_feat_mod(&self, md: &Option<BinMod>, feat_index: usize) -> bool {
+        let (node, mask) = FeatKind::from_usize(feat_index).as_node_mask();
+        match md {
+            Some(BinMod::Negative) => self.feat_match(node, mask, false),
+            Some(BinMod::Positive) => self.feat_match(node, mask, true),
+            _ => true
         }
     }
 
@@ -403,12 +389,9 @@ impl Segment {
                 let node = NodeKind::from_usize(i);
                 debug_assert_ne!(node, NodeKind::Place);
                 match kind {
-                    ModKind::Binary(b) => match b {
-                        BinMod::Negative => self.set_node(node, None),
-                        BinMod::Positive if self.is_node_none(node) => self.set_node(node, Some(0)),
-                        BinMod::Positive => { /* Don't override it */ },
-                    },
-                    ModKind::Alpha(_) => unreachable!(),
+                    BinMod::Negative => self.set_node(node, None),
+                    BinMod::Positive if self.is_node_none(node) => self.set_node(node, Some(0)),
+                    BinMod::Positive => { /* Don't override it */ },
                 }
             }
         }
@@ -416,18 +399,15 @@ impl Segment {
             if let Some(kind) = m {
                 let (n,f) = FeatKind::from_usize(i).as_node_mask();
                 match kind {
-                    ModKind::Binary(b) => match b {
-                        BinMod::Negative => self.set_feat(n, f, false),
-                        BinMod::Positive => self.set_feat(n, f, true),
-                    },
-                    ModKind::Alpha(_) => unreachable!(),
+                    BinMod::Negative => self.set_feat(n, f, false),
+                    BinMod::Positive => self.set_feat(n, f, true),
                 }
             }
         }
     }
 
     pub(crate) fn check_and_apply_diacritic(&mut self, d: &Diacritic) -> Result<(), (usize, bool)> {
-        self.match_modifiers(&d.prereqs)?;
+        self.match_diacritic_modifiers(&d.prereqs)?;
         self.apply_diacritic_payload(&d.payload);
         Ok(())
     }

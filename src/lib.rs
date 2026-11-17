@@ -15,7 +15,7 @@ use alias :: Transformation;
 use trie  :: *;
 use word  :: { DiaMods, Diacritic, * };
 use error :: { ASCAError,  * };
-use rule  :: { trace::Change, BinMod, ModKind, Rule, RuleGroup };
+use rule  :: { trace::Change, BinMod, Rule, RuleGroup };
 
 const CARDINALS_FILE: &str = include_str!("cardinals.json");
 const DIACRITIC_FILE: &str = include_str!("diacritics.json");
@@ -47,19 +47,16 @@ lazy_static! {
         impl DT {
             pub fn hm_to_mod(&self, hm: &Option<HashMap<DiaFeatType, bool>>) -> DiaMods {
                 let mut args = DiaMods::new();
-                // if hm.is_none() {return args};
-                let Some(s) = hm else {return args};
+                let Some(s) = hm else { return args };
+                debug_assert!(DiaFeatType::Consonantal as usize == args.nodes.len());
                 for (key, value) in s.iter() {
-                    let x = *key as usize;
+                    let k = *key as usize;
                     match value {
-                        true =>{
-                            if x > 7 { args.feats[x - 8] = Some(ModKind::Binary(BinMod::Positive)) }
-                            else { args.nodes[x] = Some(ModKind::Binary(BinMod::Positive)) };
-                        },
-                        false => {
-                            if x > 7 { args.feats[x - 8] = Some(ModKind::Binary(BinMod::Negative)) } 
-                            else { args.nodes[x] = Some(ModKind::Binary(BinMod::Negative)) };
-                        }
+                        true  if k >= args.nodes.len() => args.feats[k - args.nodes.len()] = Some(BinMod::Positive),
+                        false if k >= args.nodes.len() => args.feats[k - args.nodes.len()] = Some(BinMod::Negative),
+                    
+                        true  => args.nodes[k] = Some(BinMod::Positive),
+                        false => args.nodes[k] = Some(BinMod::Negative),
                     }
                 }
                 args
@@ -80,9 +77,9 @@ lazy_static! {
         dt.iter().map(|x| x.to_diacritic()).collect()
     };
     static ref CARDINALS_TRIE: Trie = {
-        let mut m = Trie::new();
-        CARDINALS_MAP.keys().for_each(|k| m.insert(k.as_str()));
-        m
+        let mut trie = Trie::new();
+        CARDINALS_MAP.keys().for_each(|key| trie.insert(key.as_str()));
+        trie
     };    
 }
 
