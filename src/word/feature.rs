@@ -178,6 +178,7 @@ impl FeatKind {
 
     /// Returns the node and bitmask of the feature
     pub const fn as_node_mask(&self) -> (NodeKind, u16) {
+        #[allow(clippy::unusual_byte_groupings)]
         match self {
             Self::Consonantal         => (NodeKind::Root, 0b100),
             Self::Sonorant            => (NodeKind::Root, 0b010),

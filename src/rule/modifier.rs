@@ -116,6 +116,7 @@ impl AlphaChar {
         }
     }
     
+    #[allow(unused)]
     pub(crate) fn as_char(&self) -> char {
         match self {
             AlphaChar::A => 'A', AlphaChar::Alpha       => 'α',

@@ -698,7 +698,7 @@ impl Parser {
         // EnvStat ← WordBound? EnvElem* EnvCenter EnvElem* WordBound?
         let start = self.curr_tkn.position.start;
 
-        let (mut before, has_underline_struct)  = self.get_env_elements(false)?;
+        let (mut before, has_underline_struct) = self.get_env_elements(false)?;
 
         if has_underline_struct.is_none() && !self.expect(TokenKind::Underline) {
             return Err(RuleSyntaxError::ExpectedUnderline(self.curr_tkn.clone()))
@@ -947,12 +947,12 @@ impl Parser {
                     return Err(RuleSyntaxError::BadSyllableMatrix(self.curr_tkn.clone()))
                 }
                 match ft {
-                    FeatureCategory::Node(t)   => args.nodes[t as usize] = match mk {
+                    FeatureCategory::Node(t) => args.nodes[t as usize] = match mk {
                         Mods::Binary(b) => Some(ModKind::Binary(b)),
                         Mods::Alpha(a)  => Some(ModKind::Alpha(a)),
                         Mods::Number(_) => unreachable!(),
                     },
-                    FeatureCategory::Feat(t)   => args.feats[t as usize] = match mk {
+                    FeatureCategory::Feat(t) => args.feats[t as usize] = match mk {
                         Mods::Binary(b) => Some(ModKind::Binary(b)),
                         Mods::Alpha(a)  => Some(ModKind::Alpha(a)),
                         Mods::Number(_) => unreachable!(),
@@ -1135,10 +1135,9 @@ impl Parser {
             _ => return Err(RuleSyntaxError::NarrowWrongKind(self.curr_tkn.position))
         };
 
-        match &mut item.kind {
-            ParseElement::Matrix(_, maybe_narrow, _) => *maybe_narrow = Some(narrow),
-            _ => unreachable!()
-        }
+        if let ParseElement::Matrix(_, maybe_narrow, _) = &mut item.kind {
+            *maybe_narrow = Some(narrow);
+        } else { unreachable!("Narrowing is only applicable to matrices") }
 
         item.position.end = pos.end;
 
@@ -1239,7 +1238,7 @@ impl Parser {
         let matrix = params.kind.as_matrix().expect("params should be matrix as set in `self.get_params`");
         pos.end = params.position.end;
 
-        Ok(Some(ParseItem::new(ParseElement::Reference(refr, Some(*matrix)), pos)))    
+        Ok(Some(ParseItem::new(ParseElement::Reference(refr, Some(*matrix)), pos)))
     }
 
     fn get_opt(&mut self) -> Result<Option<ParseItem>, RuleSyntaxError> {
@@ -1337,7 +1336,7 @@ impl Parser {
                 ParseElement::Ipa(seg, mods) => {
                     terms.push(NarrowSetChoice::Segment(seg, mods, *position));
                 } 
-                _ => unreachable!()
+                _ => unreachable!("Narrowing sets can only contain segments or matrices")
             }
         }
 

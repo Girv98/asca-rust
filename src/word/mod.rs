@@ -993,8 +993,8 @@ impl Word {
                                 AliasParseElement::Replacement(repl, plus) => {
                                     if *plus {
                                         if !plus_match_len {
-                                            for ind in back_pos..j {
-                                                buffer.push_str(&syll.segments[ind].get_nearest_grapheme());
+                                            for seg in syll.segments.iter().take(j).skip(back_pos) {
+                                                buffer.push_str(&seg.get_nearest_grapheme());
                                             }
                                         } else {
                                             buffer.push_str(&syll.segments[j-1].get_nearest_grapheme());
@@ -1110,8 +1110,8 @@ impl Word {
                                 AliasParseElement::Replacement(repl, plus) => {
                                     if *plus {
                                         if !plus_match_len {
-                                            for ind in back_pos..j {
-                                                buffer.push_str(&syll.segments[ind].get_nearest_grapheme());
+                                            for seg in syll.segments.iter().take(j).skip(back_pos) {
+                                                buffer.push_str(&seg.get_nearest_grapheme());
                                             }
                                         } else {
                                             buffer.push_str(&syll.segments[j-1].get_nearest_grapheme());

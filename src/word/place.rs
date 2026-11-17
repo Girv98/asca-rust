@@ -152,7 +152,7 @@ impl Place {
     /// Returns value of the labial subnode
     pub fn get_labial(&self) -> Option<u16> {
         if self.labial_is_some() {
-            Some(((unsafe { self.0.unwrap_unchecked().get() } >> Self::LAB_OFF) & Self::LAB_MSK) as u16)
+            Some((unsafe { self.0.unwrap_unchecked().get() } >> Self::LAB_OFF) & Self::LAB_MSK)
         } else {
             None
         }
@@ -179,7 +179,7 @@ impl Place {
     /// Returns value of the pharyngeal subnode
     pub fn get_pharyngeal(&self) -> Option<u16> {
         if self.pharyngeal_is_some() {
-            Some((unsafe { self.0.unwrap_unchecked().get() } & Self::PHR_MSK))
+            Some(unsafe { self.0.unwrap_unchecked().get() } & Self::PHR_MSK)
         } else {
             None
         }
