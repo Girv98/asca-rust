@@ -8,8 +8,9 @@ use indexmap::IndexMap;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::Deserialize;
 use std::collections::HashMap;
-use lazy_static::lazy_static;
 use wasm_bindgen::prelude::*;
+use std::sync::LazyLock;
+
 
 use alias :: Transformation;
 use trie  :: *;
@@ -19,12 +20,19 @@ use rule  :: { trace::Change, BinMod, Rule, RuleGroup };
 
 const CARDINALS_FILE: &str = include_str!("cardinals.json");
 const DIACRITIC_FILE: &str = include_str!("diacritics.json");
-lazy_static! {
-    static ref CARDINALS_MAP: IndexMap<String, Segment> = serde_json::from_str(CARDINALS_FILE).unwrap();
-    static ref DIACRITS: Vec<Diacritic> = {
-        // this seems very unnecessary, but I don't know enough about serde
-        // at least it works
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
+
+static CARDINALS_MAP: LazyLock<IndexMap<String, Segment>> = LazyLock::new(|| {
+    serde_json::from_str(CARDINALS_FILE).expect("cardinals.json is not malformed")
+});
+
+static CARDINALS_TRIE: LazyLock<Trie> = LazyLock::new(|| {
+    let mut trie = Trie::new();
+    CARDINALS_MAP.keys().for_each(|key| trie.insert(key.as_str()));
+    trie
+});
+
+static DIACRITS: LazyLock<Vec<Diacritic>> = LazyLock::new(|| {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
         pub enum DiaFeatType {
             Root, Manner, Laryngeal, Place, Labial, Coronal, Dorsal, Pharyngeal, 
             /*RUT*/ Consonantal, Sonorant, Syllabic, 
@@ -75,13 +83,7 @@ lazy_static! {
         let dt: Vec<DT> = serde_json::from_str(DIACRITIC_FILE).unwrap();
 
         dt.iter().map(|x| x.to_diacritic()).collect()
-    };
-    static ref CARDINALS_TRIE: Trie = {
-        let mut trie = Trie::new();
-        CARDINALS_MAP.keys().for_each(|key| trie.insert(key.as_str()));
-        trie
-    };    
-}
+});
 
 fn apply_rule_groups(rules: &[Vec<Rule>], phrases: &[Phrase]) -> Result<Vec<Phrase>, ASCAError> {
     let mut transformed_phrases: Vec<Phrase> = Vec::with_capacity(phrases.len());

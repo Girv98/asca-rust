@@ -278,15 +278,15 @@ impl AliasParser {
             if let Err((mod_index, is_node)) = ipa.check_and_apply_diacritic(&DIACRITS[*d as usize]) {
                 if !is_node {
                     let ft = FeatKind::from_usize(mod_index);
-                    let positive = match &DIACRITS[*d as usize].prereqs.feats[mod_index].unwrap() {
-                        ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
+                    let positive = match DIACRITS[*d as usize].prereqs.feats[mod_index] {
+                        Some(b) => b == BinMod::Positive,
                         _ => unreachable!(),
                     };
                     return Err(AliasSyntaxError::DiacriticDoesNotMeetPreReqsFeat(pos, dia.position, ft.to_string(), positive))
                 } else {
                     let nk = NodeKind::from_usize(mod_index);
-                    let positive = match &DIACRITS[*d as usize].prereqs.nodes[mod_index].unwrap() {
-                        ModKind::Binary(bin_mod) => *bin_mod == BinMod::Positive,
+                    let positive = match DIACRITS[*d as usize].prereqs.nodes[mod_index] {
+                         Some(b) => b == BinMod::Positive,
                         _ => unreachable!(),
                     };
                     return Err(AliasSyntaxError::DiacriticDoesNotMeetPreReqsNode(pos, dia.position, nk.to_string(), positive))
