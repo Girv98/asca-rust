@@ -183,7 +183,6 @@ impl Syllable {
                                 match group {
                                     (true, true) => if old_len < 3 {
                                         len_change = 3 - old_len as i8; 
-                                        println!("{old_len} {len_change}");
                                     },
                                     (true, false) => if old_len > 2 {
                                         len_change = 2 - old_len as i8; 
