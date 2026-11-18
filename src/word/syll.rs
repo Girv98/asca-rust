@@ -216,11 +216,11 @@ impl Syllable {
         let new_len = Self::calc_new_length(alphas, mods, cur_len, err_pos)?;
 
         if new_len > cur_len {
-            for _ in 1..new_len {
+            for _ in 0..(new_len-cur_len) {
                 self.segments.insert(pos, seg);
             }
         } else if new_len < cur_len {
-            for _ in 1..new_len {
+            for _ in 0..(new_len-cur_len) {
                 self.segments.remove(pos);
             }
         }
