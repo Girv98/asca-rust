@@ -991,7 +991,7 @@ impl SubRule {
         }
 
 
-        if !elements.len().is_power_of_two() && self.rule_type != RuleType::MetaOrdered {
+        if elements.len() % 2 != 0 && self.rule_type != RuleType::MetaOrdered {
             let middle_group = &elements[elements.len()/2];
 
             for z in 0..(middle_group.len()/2) {
