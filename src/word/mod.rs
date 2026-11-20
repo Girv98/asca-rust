@@ -434,195 +434,111 @@ impl Word {
         Ok(())
     }
 
-    fn fill_segments<S: AsRef<str>>(&mut self, input_txt: S, txt: &mut Vec<char>, i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<bool, ASCAError> {
-        for alias in aliases {
-            if let AliasParseElement::Replacement(string, plus) = &alias.input.kind {
-                let back_pos = *i;
-                let mut is_match = true;
-                for ch in string.chars() {
-                    if *i >= txt.len() || ch != txt[*i] {
-                        is_match = false;
-                    }
-                    *i += 1;
-                }
-                if is_match {
-                    match &alias.output.kind {
-                        AliasParseElement::Segments(vec) => for segtype in vec {
-                            match segtype {
-                                SegType::Ipa(seg, modifiers) => {
-                                    let mut seg = *seg;
-                                    let mut length = 1;
-                                    if let Some(mods) = modifiers {
-                                        self.alias_apply_mods(&mut seg, mods, alias.output.position)?;
-                                        self.alias_apply_stress(sy, mods, alias.output.position)?;
-                                        
-                                        length = self.alias_apply_length(mods, alias.output.position)?.unwrap_or(1);
+    fn apply_alias(&mut self, sy: &mut Syllable, alias: &Transformation, plus: bool) -> Result<(), ASCAError> {
+        let out_pos = alias.output.position;
 
-                                        if let Some(tn) = &mods.suprs.tone {
-                                            sy.tone = *tn;
-                                        }
-                                    }
+        match &alias.output.kind {
+            AliasParseElement::Segments(segs) => {
+                for segtype in segs {
+                    match segtype {
+                        SegType::Ipa(seg, modifiers) => {
+                            let mut seg = *seg;
+                            let mut length = 1;
+                            if let Some(mods) = modifiers {
+                                self.alias_apply_mods(&mut seg, mods, out_pos)?;
+                                self.alias_apply_stress(sy, mods, out_pos)?;
 
-                                    for _ in 0..length {
-                                        sy.segments.push_back(seg);
-                                    }
-                                },
-                                SegType::Matrix(mods) => if *plus {
+                                length = self.alias_apply_length(mods, out_pos)?.unwrap_or(1);
 
-                                    let seg_indices = sy.seg_indices();
-                                    let Some(pos) = seg_indices.last() else {
-                                        Err(AliasRuntimeError::EmptySyllable(alias.input.position))?
-                                    };
-
-                                    self.alias_apply_stress(sy, mods, alias.output.position)?;
-                                    if let Some(tn) = &mods.suprs.tone {
-                                        sy.tone = *tn;
-                                    }
-                                    
-                                    let cur_length = sy.segments.len() - pos;
-                                    let maybe_new_length = self.alias_apply_length(mods, alias.output.position)?;
-                                    let seg = {
-                                        let seg = sy.segments.get_mut(*pos).unwrap();
-                                        self.alias_apply_mods(seg, mods, alias.output.position)?;
-                                        *seg
-                                    };
-                                    if let Some(new_length) = maybe_new_length {
-                                        match new_length.cmp(&cur_length) {
-                                            std::cmp::Ordering::Equal => {},
-                                            std::cmp::Ordering::Greater => for _ in cur_length..new_length {
-                                                sy.segments.push_back(seg);
-                                            },
-                                            std::cmp::Ordering::Less => for _ in new_length..cur_length {
-                                                sy.segments.pop_back();
-                                            },
-                                        }
-                                    }
-
-                                } else {
-                                    self.alias_apply_stress(sy, mods, alias.output.position)?;
-                                    if let Some(tn) = &mods.suprs.tone {
-                                        sy.tone = *tn;
-                                    }
-                                    
-                                    if mods.nodes.iter().any(|x| x.is_some()) || mods.feats.iter().any(|x| x.is_some()) {
-                                        Err(AliasRuntimeError::IndefiniteFeatures(alias.output.position))?
-                                    }
-
-                                    if mods.suprs.length.is_some() {
-                                        Err(AliasRuntimeError::LengthNoSegment(alias.output.position))?
-                                    }
-                                    
-                                },
+                                if let Some(tn) = &mods.suprs.tone {
+                                    sy.tone = *tn;
+                                }
                             }
-                            
 
+                            for _ in 0..length {
+                                sy.segments.push_back(seg);
+                            }
                         },
-                        AliasParseElement::SyllBound => { txt.insert(*i, '.'); },
-                        AliasParseElement::Empty => {},
-                        AliasParseElement::Replacement(..) => unreachable!()
-                    }
-                    return Ok(true);
-                }
-                *i = back_pos;
-            }
-        }
+                        SegType::Matrix(mods) if plus => {
+                            let Some(&seg_start) = sy.seg_indices().last() else {
+                                return Err(AliasRuntimeError::EmptySyllable(alias.input.position).into())
+                            };
+                            self.alias_apply_stress(sy, mods, out_pos)?;
+                            if let Some(tn) = &mods.suprs.tone {
+                                sy.tone = *tn;
+                            }
 
-        // GET SEG
-        let mut buffer = Self::as_ipa(txt, i).to_string();
-        
-        if CARDINALS_TRIE.contains_prefix(buffer.as_str()) {
-            *i += 1;
-            while *i < txt.len() {
-                let mut tmp = buffer.clone(); tmp.push(Self::as_ipa(txt, i));
-                if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
-                    buffer.push(Self::as_ipa(txt, i));
-                    *i += 1;
-                    continue;
-                }
-                if txt[*i] == '^' {
-                    tmp.pop(); tmp.push('\u{0361}');
-                    if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
-                        buffer.push('\u{0361}');
-                        *i += 1;
-                        continue;
-                    }
-                    tmp.pop(); tmp.push('\u{035C}');
-                    if CARDINALS_TRIE.contains_prefix(tmp.as_str()) {
-                        buffer.push('\u{035C}');
-                        *i += 1;
-                        continue;
-                    }
-                }
-                if txt[*i-1] == '"' { *i -= 1; }
-                break;
-            }
-            let maybe_seg = CARDINALS_MAP.get(&buffer);
-            if let Some(seg_stuff) = maybe_seg {
-                sy.segments.push_back(*seg_stuff);
-                Ok(false)
-            } else {
-                // Is this needed?
-                *i -= 1;
+                            let cur_len = sy.segments.len() - seg_start;
+                            let new_len = self.alias_apply_length(mods, out_pos)?
+                                .unwrap_or(cur_len).max(1);
 
-                let last_char = buffer.pop();
-                let last_buffer = buffer;
+                            let mut seg = sy.segments[seg_start];
+                            self.alias_apply_mods(&mut seg, mods, out_pos)?;
 
-                let maybe_seg = if last_buffer.is_empty() {
-                    CARDINALS_MAP.get(&last_char.expect("buffer should not be empty").to_string())
-                } else {
-                    CARDINALS_MAP.get(&last_buffer)
-                };
-
-                if let Some(seg) = maybe_seg {
-                    sy.segments.push_back(*seg) ;
-                    Ok(false)
-                } else {
-                    Err(WordSyntaxError::UnknownChar(input_txt.as_ref().to_owned(), *i).into())
-                }
-            }
-        } else {
-            let c = buffer.chars().next().unwrap();
-            for d in DIACRITS.iter() {
-                if c == d.diacrit {
-                    match sy.segments.back_mut() {
-                        Some(s) => match s.check_and_apply_diacritic(d) {
-                            Ok(_) => {
-                                *i += 1;
-                                return Ok(true)
-                            },
-                            Err((mod_index, is_node)) => {
-                                if !is_node {
-                                    let ft = FeatKind::from_usize(mod_index);
-                                    let pos = match d.prereqs.feats[mod_index] {
-                                        Some(b) => b == BinMod::Positive,
-                                        _ => unreachable!(),
-                                    };
-                                    return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsFeat(input_txt.as_ref().to_owned(), *i, ft.to_string(), pos).into())
-                                } else {
-                                    let nt = NodeKind::from_usize(mod_index);
-                                    let pos = match d.prereqs.nodes[mod_index] {
-                                        Some(b) => b == BinMod::Positive,
-                                        _ => unreachable!(),
-                                    };
-                                    return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsNode(input_txt.as_ref().to_owned(), *i, nt.to_string(), pos).into())
-                                };
-                            },
+                            sy.segments.truncate(seg_start);
+                            for _ in 0..new_len {
+                                sy.segments.push_back(seg);
+                            }
                         },
-                        None => return Err(WordSyntaxError::DiacriticBeforeSegment(input_txt.as_ref().to_owned(), *i).into())
+                        SegType::Matrix(mods) => {
+                            self.alias_apply_stress(sy, mods, out_pos)?;
+                            if let Some(tn) = &mods.suprs.tone {
+                                sy.tone = *tn;
+                            }
+                            if mods.nodes.iter().any(|x| x.is_some()) || mods.feats.iter().any(|x| x.is_some()) {
+                                return Err(AliasRuntimeError::IndefiniteFeatures(out_pos).into())
+                            }
+
+                            if mods.suprs.length.is_some() {
+                                return Err(AliasRuntimeError::LengthNoSegment(out_pos).into())
+                            }
+                        }
                     }
                 }
-            }
-            Err(WordSyntaxError::UnknownChar(input_txt.as_ref().to_owned(), *i).into())
+            },
+            AliasParseElement::SyllBound => {
+                let old_sy = std::mem::replace(sy, Syllable::new());
+                if !old_sy.segments.is_empty() {
+                    self.syllables.push_back(old_sy);
+                }
+            },
+            AliasParseElement::Empty => {},
+            AliasParseElement::Replacement(..) => unreachable!()
         }
+        Ok(())
+    }
+
+    fn match_alias<'a>(txt: &[char], i: usize, aliases: &'a [Transformation]) -> Option<(&'a Transformation, usize, bool)> {
+        aliases.iter().find_map(|alias| {
+            let AliasParseElement::Replacement(string, plus) = &alias.input.kind else { return None };
+
+            let len = string.chars().count();
+            if len == 0 || i + len > txt.len() {
+                return None;
+            }
+            string
+                .chars()
+                .zip(&txt[i..i + len])
+                .all(|(a, b)| a == *b)
+                .then_some((alias, len, *plus))
+        })
     }
 
     fn setup<S: AsRef<str>>(&mut self, input_txt: S, aliases: &[Transformation]) -> Result<(), ASCAError> {
+        let input = input_txt.as_ref();
+        let mut txt: Vec<char> = input.chars().collect();
         let mut i = 0;
-        let mut txt: Vec<char> = input_txt.as_ref().chars().collect();
 
         let mut sy = Syllable::new();
 
         while i < txt.len() {
+            // User aliases first.
+            if let Some((alias, len, plus)) = Self::match_alias(&txt, i, aliases) {
+                i += len;
+                self.apply_alias(&mut sy, alias, plus)?;
+                continue;
+            }
+
             match txt[i] {
                 'ˈ' | '\'' => { // Primary Stress
                     if !sy.segments.is_empty() { self.syllables.push_back(sy); }
@@ -632,42 +548,47 @@ impl Word {
                     if !sy.segments.is_empty() { self.syllables.push_back(sy); }
                     sy = Syllable { segments: VecDeque::new(), stress: StressKind::Secondary, tone: 0 };
                 }
-                ';' => { // Length and Close
-                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt.as_ref().to_owned(), i).into()) }
-                    sy.segments.push_back(*sy.segments.back().unwrap()); 
-                    self.syllables.push_back(sy);
-                    sy = Syllable::new();
+                ';' => { // Lengthen last segment and close syllable
+                    let Some(&last_seg) = sy.segments.back() else {
+                        return Err(WordSyntaxError::NoSegmentBeforeColon(input.to_owned(), i).into())
+                    };
+                    sy.segments.push_back(last_seg);
+                    self.syllables.push_back(std::mem::replace(&mut sy, Syllable::new()));
                 }
-                'ː' | ':' => { // Length
-                    if sy.segments.is_empty() { return Err(WordSyntaxError::NoSegmentBeforeColon(input_txt.as_ref().to_owned(), i).into()) }
-                    sy.segments.push_back(*sy.segments.back().unwrap());
+                'ː' | ':' => { // Lengthen last segment
+                    let Some(&last) = sy.segments.back() else {
+                        return Err(WordSyntaxError::NoSegmentBeforeColon(input.to_owned(), i).into())
+                    };
+                    sy.segments.push_back(last);
                 }
-                '.' => { // Close
-                    if !sy.segments.is_empty() { self.syllables.push_back(sy); }
-                    sy = Syllable::new();
+                '.' => { // Close syllable
+                    let old_sy = std::mem::replace(&mut sy, Syllable::new());
+                    if !old_sy.segments.is_empty() {
+                        self.syllables.push_back(old_sy);
+                    };
                 }
 
                 ch if ch.is_ascii_digit() => { // Tone
-                    if sy.segments.is_empty() { continue; }
-
-                    let mut tone_buffer = String::new();
-                    while i < txt.len() && txt[i].is_ascii_digit() {
-                        tone_buffer.push(txt[i]); i+=1;
+                    if sy.segments.is_empty() {
+                        return Err(WordSyntaxError::ToneBefore(input.to_owned(), i).into())
                     }
-                    i-=1;
-                    
-                    tone_buffer = tone_buffer.replace('0', "");
-                    if tone_buffer.chars().count() > 4 {
-                        Err(WordSyntaxError::ToneTooBig(input_txt.as_ref().to_owned(), i-tone_buffer.chars().count()))?
+
+                    let start = i;
+                    while i < txt.len() && txt[i].is_ascii_digit() {
+                        i += 1;
+                    }
+                    let tone_buffer: String = txt[start..i].iter().filter(|c| **c != '0').collect();
+                    // TODO: .len() could work here as ascii digits are 1 byte each in UTF-8, check WASM encoding first
+                    if tone_buffer.chars().count() > 4 { 
+                        return Err(WordSyntaxError::ToneTooBig(input.to_owned(), start).into())
                     }
                     sy.tone = tone_buffer.parse().unwrap_or(0);
-
-                    self.syllables.push_back(sy.clone());
-                    sy = Syllable::new();
+                    self.syllables.push_back(std::mem::replace(&mut sy, Syllable::new()));
+                    continue;
                 }
-                _ => { // Get Segment
-                    let _ = self.fill_segments(&input_txt, &mut txt, &mut i, &mut sy, aliases)?;
-                    i-=1;
+                _ => {
+                    self.get_segment(input, &mut txt, &mut i, &mut sy, aliases)?;
+                    continue;
                 }
             }
             i+=1;
@@ -678,20 +599,93 @@ impl Word {
             return Ok(())
         }
 
-        // Check for dangling '
-        if sy.stress == StressKind::Primary {
-            // Check if previous syllable had a segment which would indicate that ' might have been meant as ejective
-            if  let Some(syll) = self.syllables.back() && !syll.segments.is_empty() { 
-                return Err(WordSyntaxError::CouldNotParseEjective(input_txt.as_ref().to_owned()).into())
-            }
+        // Check for dangling ' which was probably meant as an ejective marker.
+        if sy.stress == StressKind::Primary && txt.last() == Some(&'\'') && !self.syllables.is_empty() {
+            return Err(WordSyntaxError::CouldNotParseEjective(input.to_owned()).into())
         }
         
-        // if tone or stress is set
+        // if tone or other stress is set
         if sy.tone != 0 || sy.stress != StressKind::Unstressed {
-            return Err(WordSyntaxError::CouldNotParse(input_txt.as_ref().to_owned()).into());
+            return Err(WordSyntaxError::CouldNotParse(input.to_owned()).into())
         } 
-
+        
         Ok(())
+    }
+
+    fn apply_diacritic(input: &str, c: char, i: &mut usize, sy: &mut Syllable) -> Result<(), ASCAError> {
+        let Some(d) = DIACRITS.iter().find(|d| d.diacrit == c) else {
+            return Err(WordSyntaxError::UnknownChar(input.to_owned(), *i).into())
+        };
+
+        let Some(&seg_start) = sy.seg_indices().last() else {
+            return Err(WordSyntaxError::DiacriticBeforeSegment(input.to_owned(), *i).into())
+        };
+
+        let mut seg = sy.segments[seg_start];
+
+        if let Err((mod_index, is_node)) = seg.check_and_apply_diacritic(d) {
+            if is_node {
+                let node = NodeKind::from_usize(mod_index).to_string();
+                let pos = d.prereqs.nodes[mod_index].expect("nodes[mod_index] is some") == BinMod::Positive;
+                return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsNode(input.to_owned(), *i, node, pos).into())
+            } else {
+                let feat = FeatKind::from_usize(mod_index).to_string();
+                let pos = d.prereqs.feats[mod_index].expect("feats[mod_index] is some") == BinMod::Positive;
+                return Err(WordSyntaxError::DiacriticDoesNotMeetPreReqsFeat(input.to_owned(), *i, feat, pos).into())
+            }
+        }
+
+        for s in sy.segments.range_mut(seg_start..) {
+            *s = seg;
+        }
+        *i += 1;
+        Ok(())
+    }
+
+    fn get_segment(&mut self, input: &str, txt: &mut Vec<char>, i: &mut usize, sy: &mut Syllable, aliases: &[Transformation]) -> Result<(), ASCAError> {
+        let start = *i;
+        let first = Self::as_ipa(txt, i);
+        let mut buffer = first.to_string();
+
+        if !CARDINALS_TRIE.contains_prefix(buffer.as_str()) {
+            return Self::apply_diacritic(input, first, i, sy);
+        }
+        *i += 1;
+
+        let mut best = CARDINALS_MAP.get(&buffer).map(|seg| (*i, *seg));
+
+        while *i < txt.len() {
+            if Self::match_alias(&txt[..], *i, aliases).is_some() {
+                break;
+            }
+            let c = Self::as_ipa(txt, i);
+            let cands = [c, '\u{0361}', '\u{035C}'];
+            let n = if txt[*i] == '^' { 3 } else { 1 };
+
+            let Some(ch) = cands[..n].iter().copied().find(|&ch| {
+                buffer.push(ch);
+                let ok = CARDINALS_TRIE.contains_prefix(buffer.as_str());
+                buffer.pop();
+                ok
+            }) else {
+                break;
+            };
+
+            buffer.push(ch);
+            *i += 1;
+            if let Some(seg) = CARDINALS_MAP.get(&buffer) {
+                best = Some((*i, *seg));
+            }
+        }
+
+        match best {
+            Some((end, seg)) => {
+                *i = end;
+                sy.segments.push_back(seg);
+                Ok(())
+            }
+            None => Err(WordSyntaxError::UnknownChar(input.to_owned(), start).into()),
+        }
     }
 
     fn render_normal_debug(&self) -> (String, Vec<Segment>) {
@@ -1334,6 +1328,10 @@ mod tests {
         assert_eq!(Word::new("ma12ma1009").unwrap().render(), "ma12.ma19");
     }
 
+    #[test]
+    fn hanging_tone() {
+        assert!(Word::new("ta.5").is_err_and(|x| matches!{x, ASCAError::WordSyn(WordSyntaxError::ToneBefore(..))}))
+    }
 
     #[test]
     fn render_diacritics() {
@@ -1575,5 +1573,38 @@ mod tests {
                 assert!(false);
             }
         }
+    }
+
+    #[test]
+    fn deromanisation_pie() {
+        let t = AliasParser::new(AliasKind::Deromaniser, AliasLexer::new(
+            AliasKind::Deromaniser, 
+            &"+@{underring} > [+syll]".chars().collect::<Vec<_>>(), 
+            0)
+        .unwrap().get_line().unwrap(), 0).unwrap().parse().unwrap();
+        
+        match Word::with("sep.tm̥", &t) {
+            Ok(w) => assert_eq!(w.render(), "sep.tm̩"),
+            Err(e) => {
+                println!("{}", e.format_word_error());
+                assert!(false);
+            }
+        }
+
+        match Word::with("tm̥m̥", &t) {
+            Ok(w) => assert_eq!(w.render(), "tm̩ː"),
+            Err(e) => {
+                println!("{}", e.format_word_error());
+                assert!(false);
+            }
+        }
+
+        match Word::with("ma:̥", &t) {
+            Ok(w) => assert_eq!(w.render(), "maː"),
+            Err(e) => {
+                println!("{}", e.format_word_error());
+                assert!(false);
+            }
+        }        
     }
 }

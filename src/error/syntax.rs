@@ -23,6 +23,7 @@ pub enum WordSyntaxError {
     DiacriticBeforeSegment         (WordString, PhraseIndex),
     NoSegmentBeforeColon           (WordString, PhraseIndex),
     UnknownChar                    (WordString, PhraseIndex),
+    ToneBefore                     (WordString, PhraseIndex),
     ToneTooBig                     (WordString, PhraseIndex),
     CouldNotParseEjective          (WordString),
     CouldNotParse                  (WordString),
@@ -46,6 +47,7 @@ impl fmt::Display for WordSyntaxError {
             WordSyntaxError::DiacriticBeforeSegment(..) => write!(f, "Diacritic Before Segment"),
             WordSyntaxError::NoSegmentBeforeColon  (..) => write!(f, "No Segment Before Colon"),
             WordSyntaxError::UnknownChar           (..) => write!(f, "Unknown Char"),
+            WordSyntaxError::ToneBefore            (..) => write!(f, "Tone numbers must be placed at the end of a syllable"),
             WordSyntaxError::ToneTooBig            (..) => write!(f, "Tone cannot be more than 4 digits long"),
             WordSyntaxError::CouldNotParseEjective (..) => write!(f, "Unable to parse word. If you meant to have an ejective, you must use ʼ"),
             WordSyntaxError::CouldNotParse         (..) => write!(f, "Unable to parse word"),
@@ -75,6 +77,7 @@ impl WordSyntaxError {
             Self::DiacriticBeforeSegment         (text, i    ) |
             Self::NoSegmentBeforeColon           (text, i    ) |
             Self::UnknownChar                    (text, i    ) |
+            Self::ToneBefore                     (text, i    ) |
             Self::ToneTooBig                     (text, i    ) => (
                 " ".repeat(*i) + "^" + "\n", 
                 text
