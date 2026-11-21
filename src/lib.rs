@@ -18,19 +18,17 @@ use word  :: { DiaMods, Diacritic, * };
 use error :: { ASCAError,  * };
 use rule  :: { trace::Change, BinMod, Rule, RuleGroup };
 
-const CARDINALS_FILE: &str = include_str!("cardinals.json");
-const DIACRITIC_FILE: &str = include_str!("diacritics.json");
 
-static CARDINALS_MAP: LazyLock<IndexMap<String, Segment>> = LazyLock::new(|| {
-    serde_json::from_str(CARDINALS_FILE).expect("cardinals.json is not malformed")
-});
+// Exposes CARDINALS_MAP := phf::OrderedMap<&'static str, Segment>>()
+include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
 static CARDINALS_TRIE: LazyLock<Trie> = LazyLock::new(|| {
     let mut trie = Trie::new();
-    CARDINALS_MAP.keys().for_each(|key| trie.insert(key.as_str()));
+    CARDINALS_MAP.keys().for_each(|key| trie.insert(key));
     trie
 });
 
+const DIACRITIC_FILE: &'static str = include_str!("diacritics.json");
 static DIACRITS: LazyLock<Vec<Diacritic>> = LazyLock::new(|| {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Hash)]
         pub enum DiaFeatType {

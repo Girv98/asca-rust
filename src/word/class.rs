@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// * `Laryngeal` - `[voice, sg, cg]`
 /// * `Manner` - `[continuent, approx., lateral, nasal, del.rel., strident, rhotic, click, double, _]`
 #[derive(Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Class(u16);
+pub struct Class(pub(crate) u16);
 
 impl std::ops::Deref for Class {
     type Target = u16;

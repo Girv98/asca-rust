@@ -167,7 +167,7 @@ impl AliasParser {
     }
 
     fn ipa_to_vals(&mut self, ipa: AliasToken) -> Result<Segment, AliasSyntaxError> {
-        match CARDINALS_MAP.get(&ipa.value) {
+        match CARDINALS_MAP.get(&*ipa.value) {
             Some(z) => Ok(*z),
             None => Err(AliasSyntaxError::UnknownIPA(ipa))
         }

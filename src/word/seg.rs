@@ -66,7 +66,7 @@ impl fmt::Debug for Segment {
 }
 
 impl Segment {
-    fn sort_and_filter_candidates(&self, candidates: Vec<(Segment, &String, usize)>) -> String {   
+    fn sort_and_filter_candidates(&self, candidates: Vec<(Segment, &str, usize)>) -> String {   
         debug_assert!(candidates.len() > 1);     
         let mut candidates = candidates;
         
@@ -86,12 +86,12 @@ impl Segment {
 
     }
 
-    fn create_candidates(&self) -> Vec<(Segment, &String, usize)> {
+    fn create_candidates(&self) -> Vec<(Segment, &str, usize)> {
         let mut candidates = Vec::with_capacity(64);
-        for (c_grapheme, seg) in CARDINALS_MAP.iter() {
+        for (c_grapheme, seg) in CARDINALS_MAP.entries() {
             let diff_count = self.diff_count(seg);
             if diff_count < 8 {
-                candidates.push((*seg, c_grapheme, diff_count))
+                candidates.push((*seg, *c_grapheme, diff_count))
             }
         }
         candidates
@@ -99,7 +99,7 @@ impl Segment {
 
     pub(crate) fn get_nearest_grapheme(&self) -> String {
         // test against all cardinal values for a match
-        for (c_grapheme, seg) in CARDINALS_MAP.iter() {
+        for (c_grapheme, seg) in CARDINALS_MAP.entries() {
             if *seg == *self { return c_grapheme.to_string() }
         }
 
@@ -130,7 +130,7 @@ impl Segment {
         // TODO(girv): This wouldn't get me any leetcode cred
 
         // test against all cardinal values for a match
-        for (c_grapheme, seg) in CARDINALS_MAP.iter() {
+        for (c_grapheme, seg) in CARDINALS_MAP.entries() {
             if *seg == *self { return Some(c_grapheme.to_string()) }
         }
 
@@ -155,7 +155,7 @@ impl Segment {
         
         for (candidate_segment , cand_graph, _) in candidates {
             let mut current_segment = candidate_segment;
-            let mut buffer = cand_graph.clone();
+            let mut buffer = cand_graph.to_string();
             for d in DIACRITS.iter() {
                 if self.match_diacritic_modifiers(&d.prereqs).is_ok() && self.match_diacritic_modifiers(&d.payload).is_ok() {
                     let before = current_segment;
